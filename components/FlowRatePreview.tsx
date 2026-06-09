@@ -1,6 +1,5 @@
 "use client";
 import { toStroops, calculateFlowRate } from "@/src/lib/sorostream";
-"use client";
 
 
 interface FlowRatePreviewProps {
