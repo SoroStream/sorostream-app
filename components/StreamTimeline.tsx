@@ -1,6 +1,5 @@
 "use client";
 
-import type { Stream } from "@sorostream/sdk";
 
 interface StreamTimelineProps {
   stream: Stream;

@@ -1,6 +1,5 @@
 "use client";
 
-import { formatUSDC, toStroops, calculateFlowRate } from "@sorostream/sdk";
 
 interface FlowRatePreviewProps {
   /** USDC amount as a decimal string (e.g. "100"). */

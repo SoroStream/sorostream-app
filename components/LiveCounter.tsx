@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { formatUSDC } from "@sorostream/sdk";
 
 interface LiveCounterProps {
   /** Initial claimable amount in stroops. */

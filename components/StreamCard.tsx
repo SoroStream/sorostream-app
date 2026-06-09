@@ -1,5 +1,3 @@
-import type { Stream } from "@sorostream/sdk";
-import { formatUSDC } from "@sorostream/sdk";
 import LiveCounter from "./LiveCounter";
 
 interface StreamCardProps {
