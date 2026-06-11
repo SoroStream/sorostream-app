@@ -9,7 +9,7 @@ Next.js 14 streaming dashboard for **SoroStream** — real-time USDC payment str
 
 ## Live Demo
 
-_Coming soon after testnet deployment_
+https://sorostream-app.vercel.app
 
 ## Screenshots
 
