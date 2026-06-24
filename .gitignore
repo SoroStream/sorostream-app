@@ -1,5 +1,37 @@
+# env
 .env
 .env.local
+.env.*.local
+
+# dependencies
 node_modules/
+
+# Next.js
 .next/
 out/
+next-env.d.ts
+
+# test snapshots & coverage
+__snapshots__/
+**/__snapshots__/
+*.snap
+coverage/
+.nyc_output/
+
+# build artifacts
+dist/
+build/
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# TypeScript
+*.tsbuildinfo

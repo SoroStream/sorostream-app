@@ -1,35 +1,39 @@
-// Temporary mock — SDK integration coming soon
-export const sorostream = {
-  createStream: async () => ({ streamId: '0', txHash: '' }),
-  withdraw: async () => ({ txHash: '', amount: '0' }),
-  cancelStream: async () => ({ txHash: '' }),
-  topUp: async () => ({ txHash: '', newEndTime: new Date() }),
-  getStream: async () => null,
-  getClaimable: async () => '0',
-  getStreamsBySender: async () => [],
-  getStreamsByRecipient: async () => [],
-}
+import {
+  SoroStreamClient,
+  createFreighterAdapter,
+  type Network,
+  type Stream,
+  formatUSDC,
+  toStroops,
+  calculateFlowRate,
+  claimableNow,
+} from "@sorostream/sdk";
 
-export const createClient = () => sorostream
-
-export function formatUSDC(stroops: bigint): string {
-  return (Number(stroops) / 10000000).toFixed(2)
-}
-
-export function toStroops(usdc: string): bigint {
-  return BigInt(Math.round(parseFloat(usdc) * 10000000))
-}
-
-export function calculateFlowRate(stroops: bigint, durationSeconds: number): bigint {
-  if (durationSeconds === 0) return BigInt(0)
-  return stroops / BigInt(durationSeconds)
-}
-
-export function claimableNow(stream: any): string {
-  return '0'
-}
+export type { Stream };
+export { formatUSDC, toStroops, calculateFlowRate, claimableNow };
 
 export function truncateAddress(address: string): string {
-  if (!address) return ''
-  return `${address.slice(0, 4)}...${address.slice(-4)}`
+  if (!address) return "";
+  return `${address.slice(0, 4)}...${address.slice(-4)}`;
+}
+
+let _client: SoroStreamClient | null = null;
+
+export async function getClient(): Promise<SoroStreamClient> {
+  if (_client) return _client;
+
+  const network = (process.env.NEXT_PUBLIC_STELLAR_NETWORK ?? "testnet") as Network;
+  const contractId = process.env.NEXT_PUBLIC_CONTRACT_ID ?? "";
+  const rpcUrl = process.env.NEXT_PUBLIC_RPC_URL;
+
+  const walletAdapter = await createFreighterAdapter();
+
+  _client = new SoroStreamClient({
+    network,
+    contractId,
+    walletAdapter,
+    ...(rpcUrl ? { rpcUrl } : {}),
+  });
+
+  return _client;
 }
