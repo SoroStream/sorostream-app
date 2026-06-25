@@ -43,7 +43,7 @@ export const sorostream = {
   cancelStream: async () => ({ txHash: "mock-tx-hash" }),
   topUp: async () => ({ txHash: "", newEndTime: new Date() }),
   getStream: async (id: string) => getMockStream(id),
-  getClaimable: async () => "0",
+  getClaimable: async (streamId: string) => claimableNow(getMockStream(streamId)),
   getStreamsBySender: async () => MOCK_STREAMS,
   getStreamsByRecipient: async () => MOCK_STREAMS,
   batchWithdraw: async (streamIds: string[]) => ({
@@ -58,6 +58,19 @@ export function getMockStream(id: string): StreamData | null {
 
 export function getMockStreams(): StreamData[] {
   return MOCK_STREAMS;
+}
+
+export function getMockStreamHistory(id: string): StreamHistoryEntry[] {
+  const base = [
+    { timestamp: new Date(Date.now() - 86400000 * 4).toISOString(), type: "creation" as const, amount: "10000000000", txHash: "0xabc123creation" },
+  ];
+  if (id === "1" || id === "2" || id === "3") {
+    base.push(
+      { timestamp: new Date(Date.now() - 86400000 * 3).toISOString(), type: "withdrawal" as const, amount: "2500000000", txHash: "0xdef456withdraw" },
+      { timestamp: new Date(Date.now() - 86400000).toISOString(), type: "top-up" as const, amount: "5000000000", txHash: "0xghi789topup" }
+    );
+  }
+  return base;
 }
 
 export const createClient = () => sorostream;
@@ -76,7 +89,17 @@ export function calculateFlowRate(stroops: bigint, durationSeconds: number): big
 }
 
 export function claimableNow(stream: any): string {
-  return "0";
+  if (!stream) return "0";
+
+  const flowRate = Number(stream.flowRate);
+  const lastWithdrawTime = new Date(stream.lastWithdrawTime).getTime();
+
+  if (!Number.isFinite(flowRate) || !Number.isFinite(lastWithdrawTime)) {
+    return "0";
+  }
+
+  const elapsedSeconds = Math.max(0, (Date.now() - lastWithdrawTime) / 1000);
+  return Math.floor(flowRate * elapsedSeconds).toString();
 }
 
 export function truncateAddress(address: string): string {
