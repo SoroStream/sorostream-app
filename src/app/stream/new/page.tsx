@@ -28,6 +28,12 @@ export default function NewStream() {
     );
   }
 
+  function handleCreateStream() {
+    trackEvent({ type: 'stream_create_start' });
+    // Stream creation logic would go here
+    // On success: trackEvent({ type: 'stream_create_complete', streamId: '...' });
+  }
+
   return (
     <main className="min-h-screen bg-gray-900 text-white p-4 sm:p-8">
       <div className="max-w-lg mx-auto">
