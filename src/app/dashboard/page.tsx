@@ -3,11 +3,13 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import { SkeletonCard } from "@/components/Skeleton";
 
+type DashboardState = "loading" | "empty" | "ready";
+
 export default function Dashboard() {
-  const [loading, setLoading] = useState(true);
+  const [state, setState] = useState<DashboardState>("loading");
 
   useEffect(() => {
-    const timer = setTimeout(() => setLoading(false), 1200);
+    const timer = setTimeout(() => setState("empty"), 1200);
     return () => clearTimeout(timer);
   }, []);
 
@@ -18,16 +20,23 @@ export default function Dashboard() {
           <h1 className="text-2xl font-bold">Dashboard</h1>
           <Link href="/stream/new" className="bg-green-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-green-700 transition-colors">+ New Stream</Link>
         </div>
-        {loading ? (
-          <div className="grid gap-4 md:grid-cols-2">
+
+        {state === "loading" && (
+          <div className="grid gap-4 md:grid-cols-2" role="status" aria-live="polite" aria-label="Loading streams">
             <SkeletonCard />
             <SkeletonCard />
             <SkeletonCard />
           </div>
-        ) : (
-          <div className="bg-gray-800 rounded-xl p-8 text-center">
-            <p className="text-gray-400 mb-4">No streams yet</p>
-            <Link href="/stream/new" className="text-green-400 hover:text-green-300">Create your first stream →</Link>
+        )}
+
+        {state === "empty" && (
+          <div className="bg-gray-800 rounded-xl p-8 text-center border border-gray-700" role="status">
+            <div className="text-4xl mb-4" aria-hidden="true">📭</div>
+            <p className="text-gray-400 mb-2 font-medium">No streams yet</p>
+            <p className="text-gray-500 text-sm mb-6">Create your first payment stream to get started.</p>
+            <Link href="/stream/new" className="inline-block bg-green-600 text-white px-6 py-3 rounded-lg text-sm font-medium hover:bg-green-700 transition-colors">
+              Create your first stream →
+            </Link>
           </div>
         )}
       </div>
