@@ -44,7 +44,7 @@ export default function StreamActions({ streamId, flowRate, lastWithdrawTime }: 
       <div className="text-center">
         <p className="text-gray-400 text-sm mb-2">Claimable now</p>
         <div className="text-3xl font-bold">
-          <LiveCounter flowRate={flowRate} lastWithdrawTime={new Date(lastWithdrawTime)} />
+          <LiveCounter streamId={streamId} flowRate={flowRate} lastWithdrawTime={new Date(lastWithdrawTime)} />
         </div>
       </div>
       <div className="flex gap-4">

@@ -1,7 +1,6 @@
 "use client";
 
-import { useWallet } from "@/src/context/WalletContext";
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import {
   WalletType,
   WalletAdapter,
@@ -11,6 +10,7 @@ import {
   ServerKeypairAdapter,
 } from "@/src/lib/wallets";
 import { useTranslations } from "@/src/lib/i18n";
+import CopyButton from "@/components/CopyButton";
 
 interface WalletConnectProps {
   onConnect?: (publicKey: string, walletType: WalletType) => void;
@@ -111,6 +111,63 @@ export default function WalletConnect({ onConnect }: WalletConnectProps) {
   const [error, setError] = useState<string | null>(null);
   const [adapter, setAdapter] = useState<WalletAdapter | null>(null);
 
+  const handleDisconnect = useCallback(() => {
+    adapter?.disconnect();
+    setPublicKey(null);
+    setAdapter(null);
+    setSecretInput("");
+    localStorage.removeItem("sorostream_wallet_connected");
+    localStorage.removeItem("sorostream_wallet_type");
+    localStorage.removeItem("sorostream_wallet_secret");
+  }, [adapter]);
+
+  useEffect(() => {
+    async function autoReconnect() {
+      const isConnected = localStorage.getItem("sorostream_wallet_connected");
+      if (isConnected !== "true") return;
+
+      const storedType = localStorage.getItem("sorostream_wallet_type") as WalletType;
+      if (!storedType) return;
+
+      try {
+        let selected: WalletAdapter;
+        if (storedType === "freighter") {
+          selected = freighterAdapter;
+        } else if (storedType === "ledger") {
+          selected = ledgerAdapter;
+        } else if (storedType === "server-keypair") {
+          const secret = localStorage.getItem("sorostream_wallet_secret") || "";
+          selected = new ServerKeypairAdapter(secret);
+          setSecretInput(secret);
+        } else {
+          return;
+        }
+
+        const available = await selected.isAvailable();
+        if (!available) {
+          handleDisconnect();
+          return;
+        }
+
+        const key = await selected.getPublicKey();
+        if (key) {
+          setPublicKey(key);
+          setWalletType(storedType);
+          setAdapter(selected);
+          onConnect?.(key, storedType);
+        } else {
+          handleDisconnect();
+        }
+      } catch (err) {
+        console.error("Auto-reconnect failed:", err);
+        handleDisconnect();
+      }
+    }
+
+    autoReconnect();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   async function handleConnect() {
     setLoading(true);
     setError(null);
@@ -135,7 +192,17 @@ export default function WalletConnect({ onConnect }: WalletConnectProps) {
       const key = await selected.getPublicKey();
       setPublicKey(key);
       setAdapter(selected);
+
+      localStorage.setItem("sorostream_wallet_connected", "true");
+      localStorage.setItem("sorostream_wallet_type", walletType);
+      if (walletType === "server-keypair") {
+        localStorage.setItem("sorostream_wallet_secret", secretInput);
+      } else {
+        localStorage.removeItem("sorostream_wallet_secret");
+      }
+
       onConnect?.(key, walletType);
+      trackEvent({ type: 'wallet_connect', success: true });
     } catch (err) {
       setError(err instanceof Error ? err.message : "Connection failed");
       trackEvent({ type: 'wallet_connect', success: false });
@@ -144,18 +211,12 @@ export default function WalletConnect({ onConnect }: WalletConnectProps) {
     }
   }
 
-  function handleDisconnect() {
-    adapter?.disconnect();
-    setPublicKey(null);
-    setAdapter(null);
-    setSecretInput("");
-  }
-
   if (publicKey) {
     return (
       <div className="flex items-center gap-3">
-        <span className="text-sm text-slate-600 font-mono" aria-label={`Connected wallet: ${publicKey}`}>
+        <span className="text-sm text-slate-600 font-mono flex items-center" aria-label={`Connected wallet: ${publicKey}`}>
           {publicKey.slice(0, 4)}…{publicKey.slice(-4)}
+          <CopyButton value={publicKey} label="Copy wallet address" />
         </span>
         <button
           onClick={handleDisconnect}
