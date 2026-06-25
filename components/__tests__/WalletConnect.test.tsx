@@ -18,6 +18,10 @@ vi.mock('@/src/lib/analytics', () => ({
 describe('WalletConnect', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    (window as any).freighter = {
+      getPublicKey: vi.fn(() => Promise.resolve('GB7TJKR6KZ3L3LYPZNAZQJR4HGLJ4E7MSTFJZXQZ2RL4QJKZKSX6JQJ5')),
+      signTransaction: vi.fn(() => Promise.resolve('signed_xdr')),
+    };
   });
 
   it('renders connect button when not connected', () => {
@@ -35,7 +39,7 @@ describe('WalletConnect', () => {
     // Wait for async operations
     await new Promise(resolve => setTimeout(resolve, 100));
 
-    expect(onConnect).toHaveBeenCalledWith('GB7TJKR6KZ3L3LYPZNAZQJR4HGLJ4E7MSTFJZXQZ2RL4QJKZKSX6JQJ5');
+    expect(onConnect).toHaveBeenCalledWith('GB7TJKR6KZ3L3LYPZNAZQJR4HGLJ4E7MSTFJZXQZ2RL4QJKZKSX6JQJ5', 'freighter');
   });
 
   it('disables button while connecting', () => {

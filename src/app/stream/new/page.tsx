@@ -4,6 +4,9 @@ import DurationPicker from "@/components/DurationPicker";
 import FlowRatePreview from "@/components/FlowRatePreview";
 import StreamTemplatePicker from "@/components/StreamTemplatePicker";
 import { SkeletonForm } from "@/components/Skeleton";
+import { Input } from "@/components/ui";
+import { useTranslations } from "@/src/lib/i18n";
+import { trackEvent } from "@/src/lib/analytics";
 
 function validateRecipient(value: string): string {
   if (!value) return "Recipient address is required.";
@@ -28,10 +31,34 @@ export default function NewStream() {
   const [amount, setAmount] = useState("");
   const [duration, setDuration] = useState(0);
   const [loading, setLoading] = useState(false);
+  const [errors, setErrors] = useState({ recipient: "", amount: "", duration: "" });
 
   function handleTemplateSelect(seconds: number, suggestedAmount?: string) {
     setDuration(seconds);
-    if (suggestedAmount) setAmount(suggestedAmount);
+    setErrors(prev => ({ ...prev, duration: "" }));
+    if (suggestedAmount) {
+      setAmount(suggestedAmount);
+      setErrors(prev => ({ ...prev, amount: "" }));
+    }
+  }
+
+  function handleCreateStream() {
+    trackEvent({ type: 'stream_create_start' });
+    // Stream creation logic would go here
+    // On success: trackEvent({ type: 'stream_create_complete', streamId: '...' });
+  }
+
+  function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    const next = {
+      recipient: validateRecipient(recipient),
+      amount: validateAmount(amount),
+      duration: validateDuration(duration),
+    };
+    setErrors(next);
+    if (next.recipient || next.amount || next.duration) return;
+
+    handleCreateStream();
   }
 
   if (loading) {
@@ -45,68 +72,52 @@ export default function NewStream() {
     );
   }
 
-  function handleCreateStream() {
-    trackEvent({ type: 'stream_create_start' });
-    // Stream creation logic would go here
-    // On success: trackEvent({ type: 'stream_create_complete', streamId: '...' });
-  }
-
   return (
     <main className="min-h-screen bg-gray-900 text-white p-4 sm:p-8">
       <div className="max-w-lg mx-auto">
-        <h1 className="text-xl sm:text-2xl font-bold mb-6 sm:mb-8">Create Stream</h1>
-        <div className="space-y-6">
-          <Input
-            id="recipient"
-            label={t("recipient_label")}
-            value={recipient}
-            onChange={(e) => setRecipient(e.target.value)}
-            placeholder={t("recipient_placeholder")}
-          />
-          <Input
-            id="amount"
-            label={t("amount_label")}
-            type="number"
-            value={amount}
-            onChange={(e) => setAmount(e.target.value)}
-            placeholder={t("amount_placeholder")}
-          />
+        <h1 className="text-xl sm:text-2xl font-bold mb-6 sm:mb-8">{t("title")}</h1>
+        <form onSubmit={handleSubmit} noValidate className="space-y-6">
           <div>
-            <label htmlFor="recipient" className="text-gray-400 text-sm block mb-2">
-              Recipient Address
-            </label>
-            <input
+            <Input
               id="recipient"
+              label={t("recipient_label")}
               value={recipient}
-              onChange={e => setRecipient(e.target.value)}
-              placeholder="G..."
-              className="w-full bg-gray-800 border border-gray-600 rounded-lg px-4 py-3 text-white"
-              aria-required="true"
+              onChange={(e) => {
+                setRecipient(e.target.value);
+                setErrors(prev => ({ ...prev, recipient: "" }));
+              }}
+              placeholder={t("recipient_placeholder")}
             />
+            {errors.recipient && <p className="text-red-400 text-sm mt-1">{errors.recipient}</p>}
           </div>
+
           <div>
-            <label htmlFor="amount" className="text-gray-400 text-sm block mb-2">
-              Amount (USDC)
-            </label>
-            <input
+            <Input
               id="amount"
-              value={amount}
-              onChange={e => setAmount(e.target.value)}
-              placeholder="100"
+              label={t("amount_label")}
               type="number"
-              className="w-full bg-gray-800 border border-gray-600 rounded-lg px-4 py-3 text-white"
-              aria-required="true"
+              value={amount}
+              onChange={(e) => {
+                setAmount(e.target.value);
+                setErrors(prev => ({ ...prev, amount: "" }));
+              }}
+              placeholder={t("amount_placeholder")}
             />
+            {errors.amount && <p className="text-red-400 text-sm mt-1">{errors.amount}</p>}
           </div>
+
           <StreamTemplatePicker onSelect={handleTemplateSelect} />
+
           <div>
-            <label className="text-gray-400 text-sm block mb-2">Duration</label>
+            <label className="text-gray-400 text-sm block mb-2">{t("duration_label")}</label>
             <DurationPicker onChange={s => { setDuration(s); setErrors(prev => ({ ...prev, duration: "" })); }} />
             {errors.duration && <p className="text-red-400 text-sm mt-1">{errors.duration}</p>}
           </div>
+
           {amount && duration > 0 && <FlowRatePreview amount={amount} durationSeconds={duration} />}
-          <button className="w-full bg-green-600 text-white py-3 rounded-lg font-medium hover:bg-green-700 transition-colors">
-            Create Stream
+
+          <button type="submit" className="w-full bg-green-600 text-white py-3 rounded-lg font-medium hover:bg-green-700 transition-colors">
+            {t("submit")}
           </button>
         </form>
       </div>

@@ -10,6 +10,7 @@ import {
   ServerKeypairAdapter,
 } from "@/src/lib/wallets";
 import { useTranslations } from "@/src/lib/i18n";
+import { trackEvent } from "@/src/lib/analytics";
 
 interface WalletConnectProps {
   onConnect?: (publicKey: string, walletType: WalletType) => void;
@@ -55,6 +56,7 @@ export default function WalletConnect({ onConnect }: WalletConnectProps) {
       setPublicKey(key);
       setAdapter(selected);
       onConnect?.(key, walletType);
+      trackEvent({ type: 'wallet_connect', success: true });
     } catch (err) {
       setError(err instanceof Error ? err.message : "Connection failed");
       trackEvent({ type: 'wallet_connect', success: false });
