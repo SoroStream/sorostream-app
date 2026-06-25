@@ -1,4 +1,7 @@
 import type { Metadata } from "next";
+import { ToastProvider } from "@/src/lib/toast";
+import { NetworkProvider } from "@/src/lib/network";
+import NavHeader from "@/components/NavHeader";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -9,7 +12,14 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en">
-      <body className="bg-gray-900 text-white min-h-screen">{children}</body>
+      <body className="bg-gray-900 text-white min-h-screen">
+        <NetworkProvider>
+          <ToastProvider>
+            <NavHeader />
+            {children}
+          </ToastProvider>
+        </NetworkProvider>
+      </body>
     </html>
   );
 }
