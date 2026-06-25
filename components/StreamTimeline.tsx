@@ -18,7 +18,14 @@ export default function StreamTimeline({ startTime = new Date(), endTime = new D
         <span>Now</span>
         <span>{fmt(endTime)}</span>
       </div>
-      <div className="w-full bg-gray-700 rounded-full h-2">
+      <div
+        className="w-full bg-gray-700 rounded-full h-2"
+        role="progressbar"
+        aria-valuenow={Math.round(progress)}
+        aria-valuemin={0}
+        aria-valuemax={100}
+        aria-label={`Stream progress: ${Math.round(progress)}%`}
+      >
         <div className="bg-green-500 h-2 rounded-full transition-all" style={{ width: `${progress}%` }} />
       </div>
     </div>

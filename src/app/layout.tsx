@@ -1,4 +1,7 @@
 import type { Metadata } from "next";
+import { ToastProvider } from "@/src/lib/toast";
+import { NetworkProvider } from "@/src/lib/network";
+import NavHeader from "@/components/NavHeader";
 import "./globals.css";
 import { validateEnv } from "@/src/lib/env";
 import { initAnalytics } from "@/src/lib/analytics";
@@ -19,8 +22,12 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en">
       <body className="bg-gray-900 text-white min-h-screen">
-        <PageViewTracker />
-        {children}
+        <NetworkProvider>
+          <ToastProvider>
+            <NavHeader />
+            {children}
+          </ToastProvider>
+        </NetworkProvider>
       </body>
     </html>
   );
