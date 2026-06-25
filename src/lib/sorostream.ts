@@ -1,13 +1,13 @@
 // Temporary mock — SDK integration coming soon
 export const sorostream = {
-  createStream: async () => ({ streamId: '0', txHash: '' }),
-  withdraw: async () => ({ txHash: '', amount: '0' }),
-  cancelStream: async () => ({ txHash: '' }),
-  topUp: async () => ({ txHash: '', newEndTime: new Date() }),
-  getStream: async () => null,
-  getClaimable: async () => '0',
-  getStreamsBySender: async () => [],
-  getStreamsByRecipient: async () => [],
+  createStream: async (_params: { recipient: string; amount: string; duration: number; sender: string }) => ({ streamId: '0', txHash: '' }),
+  withdraw: async (_params: { streamId: string; sender: string }) => ({ txHash: '', amount: '0' }),
+  cancelStream: async (_params: { streamId: string; sender: string }) => ({ txHash: '' }),
+  topUp: async (_params?: unknown) => ({ txHash: '', newEndTime: new Date() }),
+  getStream: async (_id?: unknown) => null,
+  getClaimable: async (_id?: unknown) => '0',
+  getStreamsBySender: async (_address?: unknown) => [],
+  getStreamsByRecipient: async (_address?: unknown) => [],
 }
 
 export const createClient = () => sorostream

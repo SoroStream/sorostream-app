@@ -1,12 +1,37 @@
 "use client";
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import DurationPicker from "@/components/DurationPicker";
 import FlowRatePreview from "@/components/FlowRatePreview";
+import { sorostream } from "@/src/lib/sorostream";
+import { connectWallet } from "@/src/lib/freighter";
 
 export default function NewStream() {
+  const router = useRouter();
   const [recipient, setRecipient] = useState('');
   const [amount, setAmount] = useState('');
   const [duration, setDuration] = useState(0);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function handleSubmit() {
+    if (!recipient || !amount || duration <= 0) {
+      setError('Please fill in all fields.');
+      return;
+    }
+    setError(null);
+    setLoading(true);
+    try {
+      const wallet = await connectWallet();
+      if (!wallet) throw new Error('Wallet not connected. Please install Freighter.');
+      const result = await sorostream.createStream({ recipient, amount, duration, sender: wallet });
+      router.push(`/stream/${result.streamId}`);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Transaction failed.');
+    } finally {
+      setLoading(false);
+    }
+  }
 
   return (
     <main className="min-h-screen bg-gray-900 text-white p-8">
@@ -28,8 +53,13 @@ export default function NewStream() {
             <DurationPicker onChange={setDuration} />
           </div>
           {amount && duration > 0 && <FlowRatePreview amount={amount} durationSeconds={duration} />}
-          <button className="w-full bg-green-600 text-white py-3 rounded-lg font-medium hover:bg-green-700">
-            Create Stream
+          {error && <p className="text-red-400 text-sm">{error}</p>}
+          <button
+            onClick={handleSubmit}
+            disabled={loading}
+            className="w-full bg-green-600 text-white py-3 rounded-lg font-medium hover:bg-green-700 disabled:opacity-50"
+          >
+            {loading ? 'Creating…' : 'Create Stream'}
           </button>
         </div>
       </div>
