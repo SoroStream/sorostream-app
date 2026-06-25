@@ -1,5 +1,7 @@
 "use client";
 
+import FiatDisplay from "@/components/FiatDisplay";
+
 interface StreamCardProps {
   id?: string;
   sender?: string;
@@ -26,8 +28,8 @@ export default function StreamCard({ id = '', sender = '', recipient = '', flowR
       <div className="text-sm">
         <p className="text-gray-400">From: <span className="text-white">{truncate(sender)}</span></p>
         <p className="text-gray-400">To: <span className="text-white">{truncate(recipient)}</span></p>
-        <p className="text-gray-400">Flow: <span className="text-green-400">{fmt(flowRate)} USDC/sec</span></p>
-        <p className="text-gray-400">Total: <span className="text-white">{fmt(deposit)} USDC</span></p>
+        <p className="text-gray-400">Flow: <span className="text-green-400">{fmt(flowRate)} USDC/sec <FiatDisplay usdcAmount={flowRate / 10000000} /></span></p>
+        <p className="text-gray-400">Total: <span className="text-white">{fmt(deposit)} USDC <FiatDisplay usdcAmount={deposit / 10000000} /></span></p>
       </div>
     </div>
   );
