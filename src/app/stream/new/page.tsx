@@ -1,5 +1,6 @@
 "use client";
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import DurationPicker from "@/components/DurationPicker";
 import FlowRatePreview from "@/components/FlowRatePreview";
 import StreamTemplatePicker from "@/components/StreamTemplatePicker";
@@ -7,6 +8,8 @@ import { SkeletonForm } from "@/components/Skeleton";
 import { Input } from "@/components/ui";
 import { useTranslations } from "@/src/lib/i18n";
 import { trackEvent } from "@/src/lib/analytics";
+
+type Step = "template" | "details" | "review" | "confirm";
 
 function validateRecipient(value: string): string {
   if (!value) return "Recipient address is required.";
@@ -25,7 +28,15 @@ function validateDuration(seconds: number): string {
   return "";
 }
 
+const STEPS: { key: Step; label: string }[] = [
+  { key: "template", label: "Template" },
+  { key: "details", label: "Details" },
+  { key: "review", label: "Review" },
+  { key: "confirm", label: "Confirm" },
+];
+
 export default function NewStream() {
+  const router = useRouter();
   const t = useTranslations("stream_new");
   const [recipient, setRecipient] = useState("");
   const [amount, setAmount] = useState("");
@@ -42,30 +53,34 @@ export default function NewStream() {
     }
   }
 
-  function handleCreateStream() {
-    trackEvent({ type: 'stream_create_start' });
-    // Stream creation logic would go here
-    // On success: trackEvent({ type: 'stream_create_complete', streamId: '...' });
-  }
-
-  function handleSubmit(e: React.FormEvent) {
+  async function handleCreateStream(e: React.FormEvent) {
     e.preventDefault();
-    const next = {
-      recipient: validateRecipient(recipient),
-      amount: validateAmount(amount),
-      duration: validateDuration(duration),
-    };
-    setErrors(next);
-    if (next.recipient || next.amount || next.duration) return;
+    const rErr = validateRecipient(recipient);
+    const aErr = validateAmount(amount);
+    const dErr = validateDuration(duration);
 
-    handleCreateStream();
+    if (rErr || aErr || dErr) {
+      setErrors({ recipient: rErr, amount: aErr, duration: dErr });
+      return;
+    }
+
+    setLoading(true);
+    trackEvent({ type: 'stream_create_start' });
+    try {
+      const result = await sorostream.createStream();
+      trackEvent({ type: 'stream_create_complete', streamId: result.streamId });
+      router.push(`/stream/${result.streamId}`);
+    } catch (err) {
+      console.error("Failed to create stream:", err);
+      setLoading(false);
+    }
   }
 
   if (loading) {
     return (
       <main className="min-h-screen bg-gray-900 text-white p-8">
         <div className="max-w-lg mx-auto">
-          <h1 className="text-2xl font-bold mb-8">Create Stream</h1>
+          <h1 className="text-2xl font-bold mb-8">{t("title")}</h1>
           <SkeletonForm />
         </div>
       </main>
@@ -76,25 +91,38 @@ export default function NewStream() {
     <main className="min-h-screen bg-gray-900 text-white p-4 sm:p-8">
       <div className="max-w-lg mx-auto">
         <h1 className="text-xl sm:text-2xl font-bold mb-6 sm:mb-8">{t("title")}</h1>
-        <form onSubmit={handleSubmit} noValidate className="space-y-6">
+        <form onSubmit={handleCreateStream} className="space-y-6">
           <div>
-            <Input
+            <label htmlFor="recipient" className="text-gray-400 text-sm block mb-2">
+              {t("recipient_label")}
+            </label>
+            <input
               id="recipient"
               label={t("recipient_label")}
               value={recipient}
-              onChange={(e) => {
+              onChange={e => {
                 setRecipient(e.target.value);
                 setErrors(prev => ({ ...prev, recipient: "" }));
               }}
               placeholder={t("recipient_placeholder")}
+              className="w-full bg-gray-800 border border-gray-600 rounded-lg px-4 py-3 text-white font-mono"
+              aria-required="true"
             />
             {errors.recipient && <p className="text-red-400 text-sm mt-1">{errors.recipient}</p>}
           </div>
 
           <div>
-            <Input
+            <label htmlFor="amount" className="text-gray-400 text-sm block mb-2">
+              {t("amount_label")}
+            </label>
+            <input
               id="amount"
-              label={t("amount_label")}
+              value={amount}
+              onChange={e => {
+                setAmount(e.target.value);
+                setErrors(prev => ({ ...prev, amount: "" }));
+              }}
+              placeholder={t("amount_placeholder")}
               type="number"
               value={amount}
               onChange={(e) => {
@@ -116,7 +144,10 @@ export default function NewStream() {
 
           {amount && duration > 0 && <FlowRatePreview amount={amount} durationSeconds={duration} />}
 
-          <button type="submit" className="w-full bg-green-600 text-white py-3 rounded-lg font-medium hover:bg-green-700 transition-colors">
+          <button
+            type="submit"
+            className="w-full bg-green-600 text-white py-3 rounded-lg font-medium hover:bg-green-700 transition-colors"
+          >
             {t("submit")}
           </button>
         </form>

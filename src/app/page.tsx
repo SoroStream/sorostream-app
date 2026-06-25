@@ -22,11 +22,11 @@ export default function Home() {
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 sm:gap-8 mt-12 sm:mt-20">
           {steps.map((item, i) => (
-            <Card key={i}>
+            <div key={i} className="bg-gray-800 rounded-xl p-6">
               <div className="text-2xl font-bold text-green-400 mb-2">{i + 1}</div>
               <h3 className="font-semibold mb-2">{t(item.titleKey)}</h3>
               <p className="text-gray-400 text-sm">{t(item.descKey)}</p>
-            </Card>
+            </div>
           ))}
         </div>
       </div>
