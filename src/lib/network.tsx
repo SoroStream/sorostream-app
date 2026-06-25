@@ -30,7 +30,6 @@ export function useNetwork() {
 
 export function NetworkProvider({ children }: { children: ReactNode }) {
   const [network, setNetworkState] = useState<Network>("testnet");
-  const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
     const saved = localStorage.getItem("sorostream-network") as Network | null;
@@ -40,15 +39,12 @@ export function NetworkProvider({ children }: { children: ReactNode }) {
       const env = process.env.NEXT_PUBLIC_STELLAR_NETWORK;
       if (env === "testnet" || env === "mainnet") setNetworkState(env);
     }
-    setMounted(true);
   }, []);
 
   const setNetwork = (n: Network) => {
     setNetworkState(n);
     localStorage.setItem("sorostream-network", n);
   };
-
-  if (!mounted) return <>{children}</>;
 
   return (
     <NetworkContext.Provider value={{ network, rpcUrl: NETWORK_CONFIG[network].rpcUrl, setNetwork }}>

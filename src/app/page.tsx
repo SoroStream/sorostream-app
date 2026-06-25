@@ -21,16 +21,12 @@ export default function Home() {
           <a href="https://github.com/SoroStream" className="border border-gray-600 text-gray-300 px-8 py-3 rounded-lg font-medium hover:border-gray-400 text-center">View on GitHub</a>
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 sm:gap-8 mt-12 sm:mt-20">
-          {[
-            { title: "Create a Stream", desc: "Lock USDC, set recipient and duration" },
-            { title: "Money Flows Automatically", desc: "Recipient earns every second" },
-            { title: "Withdraw Anytime", desc: "Claim earned USDC whenever you want" },
-          ].map((item, i) => (
+          {steps.map((item, i) => (
             <div key={i} className="bg-gray-800 rounded-xl p-6">
               <div className="text-2xl font-bold text-green-400 mb-2">{i + 1}</div>
-              <h3 className="font-semibold mb-2">{t(titleKey)}</h3>
-              <p className="text-gray-400 text-sm">{t(descKey)}</p>
-            </Card>
+              <h3 className="font-semibold mb-2">{t(item.titleKey)}</h3>
+              <p className="text-gray-400 text-sm">{t(item.descKey)}</p>
+            </div>
           ))}
         </div>
       </div>

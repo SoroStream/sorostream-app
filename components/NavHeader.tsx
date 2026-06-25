@@ -2,6 +2,7 @@
 import Link from "next/link";
 import NetworkSelector from "@/components/NetworkSelector";
 import WalletConnect from "@/components/WalletConnect";
+import ThemeToggle from "@/components/ThemeToggle";
 
 export default function NavHeader() {
   return (
@@ -16,6 +17,7 @@ export default function NavHeader() {
           </Link>
           <NetworkSelector />
           <WalletConnect />
+          <ThemeToggle />
         </nav>
       </div>
     </header>
