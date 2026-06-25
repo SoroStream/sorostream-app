@@ -5,6 +5,23 @@ import FlowRatePreview from "@/components/FlowRatePreview";
 import StreamTemplatePicker from "@/components/StreamTemplatePicker";
 import { SkeletonForm } from "@/components/Skeleton";
 
+function validateRecipient(value: string): string {
+  if (!value) return "Recipient address is required.";
+  if (!/^G[A-Z2-7]{55}$/.test(value)) return "Must be a valid Stellar public key (starts with G, 56 chars).";
+  return "";
+}
+
+function validateAmount(value: string): string {
+  if (!value) return "Amount is required.";
+  if (Number(value) <= 0) return "Amount must be greater than 0.";
+  return "";
+}
+
+function validateDuration(seconds: number): string {
+  if (seconds <= 0) return "Duration must be greater than 0.";
+  return "";
+}
+
 export default function NewStream() {
   const t = useTranslations("stream_new");
   const [recipient, setRecipient] = useState("");
@@ -84,13 +101,14 @@ export default function NewStream() {
           <StreamTemplatePicker onSelect={handleTemplateSelect} />
           <div>
             <label className="text-gray-400 text-sm block mb-2">Duration</label>
-            <DurationPicker onChange={setDuration} />
+            <DurationPicker onChange={s => { setDuration(s); setErrors(prev => ({ ...prev, duration: "" })); }} />
+            {errors.duration && <p className="text-red-400 text-sm mt-1">{errors.duration}</p>}
           </div>
           {amount && duration > 0 && <FlowRatePreview amount={amount} durationSeconds={duration} />}
           <button className="w-full bg-green-600 text-white py-3 rounded-lg font-medium hover:bg-green-700 transition-colors">
             Create Stream
           </button>
-        </div>
+        </form>
       </div>
     </main>
   );
