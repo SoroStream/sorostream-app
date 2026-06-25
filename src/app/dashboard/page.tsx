@@ -2,12 +2,18 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { SkeletonCard } from "@/components/Skeleton";
+import StreamCard from "@/components/StreamCard";
+import { getMockStreams, StreamData } from "@/lib/sorostream";
 
 export default function Dashboard() {
   const [loading, setLoading] = useState(true);
+  const [streams, setStreams] = useState<StreamData[]>([]);
 
   useEffect(() => {
-    const timer = setTimeout(() => setLoading(false), 1200);
+    const timer = setTimeout(() => {
+      setStreams(getMockStreams());
+      setLoading(false);
+    }, 1200);
     return () => clearTimeout(timer);
   }, []);
 
@@ -23,6 +29,12 @@ export default function Dashboard() {
             <SkeletonCard />
             <SkeletonCard />
             <SkeletonCard />
+          </div>
+        ) : streams.length > 0 ? (
+          <div className="grid gap-4 md:grid-cols-2">
+            {streams.map((s) => (
+              <StreamCard key={s.id} id={s.id} sender={s.sender} recipient={s.recipient} flowRate={s.flowRate} status={s.status} deposit={s.deposit} />
+            ))}
           </div>
         ) : (
           <div className="bg-gray-800 rounded-xl p-8 text-center">
