@@ -5,6 +5,8 @@ import { SkeletonCard } from "@/components/Skeleton";
 import StreamCard from "@/components/StreamCard";
 import { getMockStreams, StreamData } from "@/lib/sorostream";
 
+type DashboardState = "loading" | "empty" | "ready";
+
 export default function Dashboard() {
   const [loading, setLoading] = useState(true);
   const [streams, setStreams] = useState<StreamData[]>([]);
@@ -24,8 +26,9 @@ export default function Dashboard() {
           <h1 className="text-2xl font-bold">Dashboard</h1>
           <Link href="/stream/new" className="bg-green-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-green-700 transition-colors">+ New Stream</Link>
         </div>
-        {loading ? (
-          <div className="grid gap-4 md:grid-cols-2">
+
+        {state === "loading" && (
+          <div className="grid gap-4 md:grid-cols-2" role="status" aria-live="polite" aria-label="Loading streams">
             <SkeletonCard />
             <SkeletonCard />
             <SkeletonCard />
