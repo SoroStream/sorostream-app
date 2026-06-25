@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import FiatDisplay from "@/components/FiatDisplay";
 
 interface LiveCounterProps {
   flowRate: number;
@@ -23,10 +24,12 @@ export default function LiveCounter({ flowRate, lastWithdrawTime }: LiveCounterP
   return (
     <span
       className="font-mono text-green-600 font-semibold tabular-nums"
+      role="status"
       aria-live="polite"
       aria-label={`Claimable: ${formatUSDC(claimable)} USDC`}
     >
-      {formatUSDC(claimable)} USDC
+      {formatUSDC(claimable)} USDC{" "}
+      <FiatDisplay usdcAmount={claimable / 10000000} />
     </span>
   );
 }
