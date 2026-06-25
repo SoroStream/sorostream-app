@@ -1,5 +1,7 @@
 "use client";
 
+import FiatDisplay from "@/components/FiatDisplay";
+
 interface FlowRatePreviewProps {
   amount: string;
   durationSeconds: number;
@@ -23,13 +25,13 @@ export default function FlowRatePreview({ amount, durationSeconds }: FlowRatePre
       <p className="text-gray-400 font-medium">Flow Rate Preview</p>
       <div className="grid grid-cols-2 gap-2">
         <span className="text-gray-400">Per second</span>
-        <span className="text-green-400">{fmt(perSecond)} USDC</span>
+        <span className="text-green-400">{fmt(perSecond)} USDC <FiatDisplay usdcAmount={perSecond} /></span>
         <span className="text-gray-400">Per hour</span>
-        <span className="text-green-400">{fmt(perHour)} USDC</span>
+        <span className="text-green-400">{fmt(perHour)} USDC <FiatDisplay usdcAmount={perHour} /></span>
         <span className="text-gray-400">Per day</span>
-        <span className="text-green-400">{fmt(perDay)} USDC</span>
+        <span className="text-green-400">{fmt(perDay)} USDC <FiatDisplay usdcAmount={perDay} /></span>
         <span className="text-gray-400">Per month</span>
-        <span className="text-green-400">{fmt(perMonth)} USDC</span>
+        <span className="text-green-400">{fmt(perMonth)} USDC <FiatDisplay usdcAmount={perMonth} /></span>
       </div>
     </div>
   );

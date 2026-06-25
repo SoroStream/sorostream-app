@@ -1,0 +1,48 @@
+{
+  "home": {
+    "hero_title": "Stream Money Like Data",
+    "hero_subtitle": "Send USDC continuously by the second — salaries, subscriptions, and vesting on Stellar.",
+    "launch_app": "Launch App",
+    "view_github": "View on GitHub",
+    "step_create_title": "Create a Stream",
+    "step_create_desc": "Lock USDC, set recipient and duration",
+    "step_flow_title": "Money Flows Automatically",
+    "step_flow_desc": "Recipient earns every second",
+    "step_withdraw_title": "Withdraw Anytime",
+    "step_withdraw_desc": "Claim earned USDC whenever you want"
+  },
+  "dashboard": {
+    "title": "Dashboard",
+    "new_stream": "+ New Stream",
+    "no_streams": "No streams yet",
+    "create_first": "Create your first stream →"
+  },
+  "stream_new": {
+    "title": "Create Stream",
+    "recipient_label": "Recipient Address",
+    "recipient_placeholder": "G...",
+    "amount_label": "Amount (USDC)",
+    "amount_placeholder": "100",
+    "duration_label": "Duration",
+    "submit": "Create Stream"
+  },
+  "stream_detail": {
+    "title": "Stream #{id}",
+    "loading": "Loading stream…",
+    "not_found_title": "Stream Not Found",
+    "not_found_desc": "Stream #{id} does not exist or has been removed.",
+    "back_to_dashboard": "Back to Dashboard",
+    "claimable_now": "Claimable now",
+    "withdraw": "Withdraw",
+    "cancel": "Cancel"
+  },
+  "wallet": {
+    "connect": "Connect {wallet}",
+    "connecting": "Connecting…",
+    "disconnect": "Disconnect",
+    "secret_placeholder": "Secret key (S...)",
+    "error_freighter": "Freighter extension not found. Please install it.",
+    "error_ledger": "No USB device found. Connect your Ledger.",
+    "error_server_keypair": "Please enter a valid secret key."
+  }
+}
