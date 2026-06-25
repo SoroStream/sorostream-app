@@ -72,13 +72,13 @@ export default function WalletConnect({ onConnect }: WalletConnectProps) {
   if (publicKey) {
     return (
       <div className="flex items-center gap-3">
-        <span className="text-xs text-slate-400">{WALLET_LABELS[walletType]}</span>
-        <span className="text-sm text-slate-600 font-mono">
+        <span className="text-sm text-slate-600 font-mono" aria-label={`Connected wallet: ${publicKey}`}>
           {publicKey.slice(0, 4)}…{publicKey.slice(-4)}
         </span>
         <button
           onClick={handleDisconnect}
           className="rounded-lg border border-slate-300 px-3 py-1.5 text-sm text-slate-700 hover:bg-slate-100 transition-colors"
+          aria-label="Disconnect wallet"
         >
           {t("disconnect")}
         </button>
