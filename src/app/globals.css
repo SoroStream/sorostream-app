@@ -7,9 +7,20 @@
   --background-rgb: 17, 24, 39;
 }
 
+.dark {
+  color: rgb(var(--foreground-rgb));
+  background: rgb(var(--background-rgb));
+}
+
+.light {
+  color: rgb(var(--foreground-rgb));
+  background: rgb(var(--background-rgb));
+}
+
 body {
   color: rgb(var(--foreground-rgb));
   background: rgb(var(--background-rgb));
+  transition: background 200ms ease-in-out, color 200ms ease-in-out;
 }
 
 @keyframes slide-up {
