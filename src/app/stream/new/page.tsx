@@ -76,6 +76,23 @@ export default function NewStream() {
     }
   }
 
+  function handleRecipientBlur() {
+    setTouched((prev) => ({ ...prev, recipient: true }));
+    setErrors((prev) => ({ ...prev, recipient: validateRecipient(recipient) }));
+  }
+
+  function handleAmountBlur() {
+    setTouched((prev) => ({ ...prev, amount: true }));
+    setErrors((prev) => ({ ...prev, amount: validateAmount(amount) }));
+  }
+
+  function handleCreateStream() {
+    validateAll();
+    const hasError = validateRecipient(recipient) || validateAmount(amount) || validateDuration(duration);
+    if (hasError) return;
+    setLoading(true);
+  }
+
   if (loading) {
     return (
       <main className="min-h-screen bg-gray-900 text-white p-8">
@@ -107,6 +124,8 @@ export default function NewStream() {
               placeholder={t("recipient_placeholder")}
               className="w-full bg-gray-800 border border-gray-600 rounded-lg px-4 py-3 text-white font-mono"
               aria-required="true"
+              aria-invalid={!!(touched.recipient && errors.recipient)}
+              aria-describedby={touched.recipient && errors.recipient ? "recipient-error" : undefined}
             />
             {errors.recipient && <p className="text-red-400 text-sm mt-1">{errors.recipient}</p>}
           </div>
@@ -150,7 +169,7 @@ export default function NewStream() {
           >
             {t("submit")}
           </button>
-        </form>
+        </div>
       </div>
     </main>
   );
