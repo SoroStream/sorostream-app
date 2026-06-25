@@ -122,6 +122,7 @@ export default function WalletConnect({ onConnect }: WalletConnectProps) {
       }
 
       onConnect?.(key, walletType);
+      trackEvent({ type: 'wallet_connect', success: true });
     } catch (err) {
       setError(err instanceof Error ? err.message : "Connection failed");
       trackEvent({ type: 'wallet_connect', success: false });

@@ -5,6 +5,9 @@ import DurationPicker from "@/components/DurationPicker";
 import FlowRatePreview from "@/components/FlowRatePreview";
 import StreamTemplatePicker from "@/components/StreamTemplatePicker";
 import { SkeletonForm } from "@/components/Skeleton";
+import { Input } from "@/components/ui";
+import { useTranslations } from "@/src/lib/i18n";
+import { trackEvent } from "@/src/lib/analytics";
 
 type Step = "template" | "details" | "review" | "confirm";
 
@@ -95,6 +98,7 @@ export default function NewStream() {
             </label>
             <input
               id="recipient"
+              label={t("recipient_label")}
               value={recipient}
               onChange={e => {
                 setRecipient(e.target.value);
@@ -120,8 +124,12 @@ export default function NewStream() {
               }}
               placeholder={t("amount_placeholder")}
               type="number"
-              className="w-full bg-gray-800 border border-gray-600 rounded-lg px-4 py-3 text-white"
-              aria-required="true"
+              value={amount}
+              onChange={(e) => {
+                setAmount(e.target.value);
+                setErrors(prev => ({ ...prev, amount: "" }));
+              }}
+              placeholder={t("amount_placeholder")}
             />
             {errors.amount && <p className="text-red-400 text-sm mt-1">{errors.amount}</p>}
           </div>

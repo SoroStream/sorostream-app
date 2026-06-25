@@ -82,7 +82,7 @@ export default function StreamDetail({ params }: { params: { id: string } }) {
   if (loading || !stream) {
     return (
       <main className="min-h-screen bg-gray-900 text-white p-8">
-        <div className="max-w-2xl mx-auto">
+        <div className="max-w-2xl mx-auto animate-pulse">
           <h1 className="text-2xl font-bold mb-8">Stream #{params.id}</h1>
           <SkeletonDetail />
         </div>
@@ -113,9 +113,14 @@ export default function StreamDetail({ params }: { params: { id: string } }) {
           </Link>
         </div>
         <h1 className="text-2xl font-bold mb-2">Stream #{stream.id}</h1>
-        <div className="flex gap-4 text-sm text-gray-400 mb-8">
-          <span>From: <span className="text-white font-mono">{stream.sender}</span></span>
-          <span>To: <span className="text-white font-mono">{stream.recipient}</span></span>
+        <div className="flex flex-col sm:flex-row sm:gap-4 text-sm text-gray-400 mb-8">
+          <span>
+            From: <span className="text-white font-mono">{stream.sender}</span>
+          </span>
+          <span className="hidden sm:inline">|</span>
+          <span>
+            To: <span className="text-white font-mono">{stream.recipient}</span>
+          </span>
         </div>
         <div className="bg-gray-800 rounded-xl p-6 space-y-6">
           <StreamTimeline startTime={stream.startTime} endTime={stream.endTime} />
