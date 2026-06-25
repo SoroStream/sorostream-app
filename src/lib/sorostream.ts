@@ -43,7 +43,7 @@ export const sorostream = {
   cancelStream: async () => ({ txHash: "mock-tx-hash" }),
   topUp: async () => ({ txHash: "", newEndTime: new Date() }),
   getStream: async (id: string) => getMockStream(id),
-  getClaimable: async () => "0",
+  getClaimable: async (streamId: string) => claimableNow(getMockStream(streamId)),
   getStreamsBySender: async () => MOCK_STREAMS,
   getStreamsByRecipient: async () => MOCK_STREAMS,
   batchWithdraw: async (streamIds: string[]) => ({
@@ -76,7 +76,17 @@ export function calculateFlowRate(stroops: bigint, durationSeconds: number): big
 }
 
 export function claimableNow(stream: any): string {
-  return "0";
+  if (!stream) return "0";
+
+  const flowRate = Number(stream.flowRate);
+  const lastWithdrawTime = new Date(stream.lastWithdrawTime).getTime();
+
+  if (!Number.isFinite(flowRate) || !Number.isFinite(lastWithdrawTime)) {
+    return "0";
+  }
+
+  const elapsedSeconds = Math.max(0, (Date.now() - lastWithdrawTime) / 1000);
+  return Math.floor(flowRate * elapsedSeconds).toString();
 }
 
 export function truncateAddress(address: string): string {
