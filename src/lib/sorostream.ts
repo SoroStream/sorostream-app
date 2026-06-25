@@ -60,6 +60,19 @@ export function getMockStreams(): StreamData[] {
   return MOCK_STREAMS;
 }
 
+export function getMockStreamHistory(id: string): StreamHistoryEntry[] {
+  const base = [
+    { timestamp: new Date(Date.now() - 86400000 * 4).toISOString(), type: "creation" as const, amount: "10000000000", txHash: "0xabc123creation" },
+  ];
+  if (id === "1" || id === "2" || id === "3") {
+    base.push(
+      { timestamp: new Date(Date.now() - 86400000 * 3).toISOString(), type: "withdrawal" as const, amount: "2500000000", txHash: "0xdef456withdraw" },
+      { timestamp: new Date(Date.now() - 86400000).toISOString(), type: "top-up" as const, amount: "5000000000", txHash: "0xghi789topup" }
+    );
+  }
+  return base;
+}
+
 export const createClient = () => sorostream;
 
 export function formatUSDC(stroops: bigint): string {
