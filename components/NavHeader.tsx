@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import NetworkSelector from "@/components/NetworkSelector";
 import WalletConnect from "@/components/WalletConnect";
+import ThemeToggle from "@/components/ThemeToggle";
 
 const NAV_LINKS = [
   { href: "/", label: "Home" },
@@ -53,7 +54,8 @@ export default function NavHeader() {
         <div className="flex items-center gap-3">
           <NetworkSelector />
           <WalletConnect />
-        </div>
+          <ThemeToggle />
+        </nav>
       </div>
     </header>
   );
