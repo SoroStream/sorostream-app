@@ -1,9 +1,11 @@
 "use client";
 import { useState, useEffect } from "react";
+import Link from "next/link";
 import StreamTimeline from "@/components/StreamTimeline";
 import LiveCounter from "@/components/LiveCounter";
-import { downloadCSV, downloadJSON, StreamHistoryEntry } from "@/lib/export";
+import { downloadCSV, downloadJSON, StreamHistoryEntry } from "@/src/lib/export";
 import { SkeletonDetail } from "@/components/Skeleton";
+import { sorostream, StreamData } from "@/src/lib/sorostream";
 
 const MOCK_HISTORY: StreamHistoryEntry[] = [
   { timestamp: "2025-01-15T10:00:00Z", type: "creation", amount: "10000.00", txHash: "abc123" },
@@ -12,12 +14,73 @@ const MOCK_HISTORY: StreamHistoryEntry[] = [
 ];
 
 export default function StreamDetail({ params }: { params: { id: string } }) {
+  const [stream, setStream] = useState<StreamData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [showTopUp, setShowTopUp] = useState(false);
+  const [topUpAmount, setTopUpAmount] = useState("");
+  const [topUpLoading, setTopUpLoading] = useState(false);
+  const [withdrawLoading, setWithdrawLoading] = useState(false);
+  const [cancelLoading, setCancelLoading] = useState(false);
+  const [txStatus, setTxStatus] = useState<string | null>(null);
 
   useEffect(() => {
-    const timer = setTimeout(() => setLoading(false), 1000);
-    return () => clearTimeout(timer);
-  }, []);
+    async function load() {
+      try {
+        const data = await sorostream.getStream(params.id);
+        setStream(data);
+      } catch (err) {
+        console.error("Failed to load stream", err);
+      } finally {
+        setLoading(false);
+      }
+    }
+    load();
+  }, [params.id]);
+
+  async function handleTopUp() {
+    if (!topUpAmount || parseFloat(topUpAmount) <= 0) return;
+    setTopUpLoading(true);
+    setTxStatus(null);
+    try {
+      await sorostream.topUp();
+      setTxStatus("Top-up successful!");
+      setShowTopUp(false);
+      setTopUpAmount("");
+      // Reload stream
+      const data = await sorostream.getStream(params.id);
+      setStream(data);
+    } catch {
+      setTxStatus("Top-up failed. Please try again.");
+    } finally {
+      setTopUpLoading(false);
+    }
+  }
+
+  async function handleWithdraw() {
+    setWithdrawLoading(true);
+    setTxStatus(null);
+    try {
+      const result = await sorostream.withdraw();
+      setTxStatus(`Withdrawal submitted! Tx: ${result.txHash}`);
+    } catch {
+      setTxStatus("Withdrawal failed. Please try again.");
+    } finally {
+      setWithdrawLoading(false);
+    }
+  }
+
+  async function handleCancel() {
+    setCancelLoading(true);
+    setTxStatus(null);
+    try {
+      const result = await sorostream.cancelStream();
+      setTxStatus(`Stream cancelled. Tx: ${result.txHash}`);
+    } catch {
+      setTxStatus("Cancellation failed. Please try again.");
+    } finally {
+      setCancelLoading(false);
+    }
+  }
 
   if (loading) {
     return (
@@ -30,11 +93,27 @@ export default function StreamDetail({ params }: { params: { id: string } }) {
     );
   }
 
+  if (!stream) {
+    return (
+      <main className="min-h-screen bg-gray-900 text-white p-8">
+        <div className="max-w-2xl mx-auto">
+          <div className="mb-4">
+            <Link href="/dashboard" className="text-sm text-gray-400 hover:text-white transition-colors">← Dashboard</Link>
+          </div>
+          <h1 className="text-2xl font-bold mb-8">Stream #{params.id}</h1>
+          <p className="text-red-400">Stream not found.</p>
+        </div>
+      </main>
+    );
+  }
+
   return (
     <main className="min-h-screen bg-gray-900 text-white p-4 sm:p-8">
       <div className="max-w-2xl mx-auto">
         <div className="mb-4">
-          <Link href="/dashboard" className="text-sm text-gray-400 hover:text-white transition-colors">← Dashboard</Link>
+          <Link href="/dashboard" className="text-sm text-gray-400 hover:text-white transition-colors">
+            ← Dashboard
+          </Link>
         </div>
         <h1 className="text-2xl font-bold mb-2">Stream #{stream.id}</h1>
         <div className="flex gap-4 text-sm text-gray-400 mb-8">
@@ -46,12 +125,35 @@ export default function StreamDetail({ params }: { params: { id: string } }) {
           <div className="text-center">
             <p className="text-gray-400 text-sm mb-2">Claimable now</p>
             <div className="text-2xl sm:text-3xl font-bold">
-              <LiveCounter flowRate={0} lastWithdrawTime={new Date()} />
+              <LiveCounter flowRate={stream.flowRate} lastWithdrawTime={new Date(stream.lastWithdrawTime)} />
             </div>
           </div>
-          <div className="flex gap-4">
-            <button className="flex-1 bg-green-600 text-white py-3 rounded-lg font-medium hover:bg-green-700 transition-colors">Withdraw</button>
-            <button className="flex-1 border border-red-600 text-red-400 py-3 rounded-lg font-medium hover:bg-red-900 transition-colors">Cancel</button>
+          <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
+            <button
+              onClick={handleWithdraw}
+              disabled={withdrawLoading}
+              className="w-full sm:flex-1 bg-green-600 text-white py-3 rounded-lg font-medium hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              aria-busy={withdrawLoading}
+              aria-label={withdrawLoading ? "Withdrawing, please wait" : "Withdraw from stream"}
+            >
+              {withdrawLoading ? "Withdrawing…" : "Withdraw"}
+            </button>
+            <button
+              onClick={() => setShowTopUp(true)}
+              className="w-full sm:flex-1 bg-blue-600 text-white py-3 rounded-lg font-medium hover:bg-blue-700 transition-colors"
+              aria-label="Top up stream with additional funds"
+            >
+              Top Up
+            </button>
+            <button
+              onClick={handleCancel}
+              disabled={cancelLoading}
+              className="w-full sm:flex-1 border border-red-600 text-red-400 py-3 rounded-lg font-medium hover:bg-red-900 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              aria-busy={cancelLoading}
+              aria-label={cancelLoading ? "Cancelling stream, please wait" : "Cancel stream"}
+            >
+              {cancelLoading ? "Cancelling…" : "Cancel"}
+            </button>
           </div>
           <div>
             <p className="text-gray-400 text-sm font-medium mb-3">History Export</p>
