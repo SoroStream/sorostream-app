@@ -6,6 +6,8 @@ import FlowRatePreview from "@/components/FlowRatePreview";
 import StreamTemplatePicker from "@/components/StreamTemplatePicker";
 import { SkeletonForm } from "@/components/Skeleton";
 
+type Step = "template" | "details" | "review" | "confirm";
+
 function validateRecipient(value: string): string {
   if (!value) return "Recipient address is required.";
   if (!/^G[A-Z2-7]{55}$/.test(value)) return "Must be a valid Stellar public key (starts with G, 56 chars).";
@@ -22,6 +24,13 @@ function validateDuration(seconds: number): string {
   if (seconds <= 0) return "Duration must be greater than 0.";
   return "";
 }
+
+const STEPS: { key: Step; label: string }[] = [
+  { key: "template", label: "Template" },
+  { key: "details", label: "Details" },
+  { key: "review", label: "Review" },
+  { key: "confirm", label: "Confirm" },
+];
 
 export default function NewStream() {
   const router = useRouter();
