@@ -1,9 +1,6 @@
 "use client";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { useTranslations } from "@/src/lib/i18n";
-import { sorostream } from "@/src/lib/sorostream";
-import { trackEvent } from "@/src/lib/analytics";
 import DurationPicker from "@/components/DurationPicker";
 import FlowRatePreview from "@/components/FlowRatePreview";
 import StreamTemplatePicker from "@/components/StreamTemplatePicker";

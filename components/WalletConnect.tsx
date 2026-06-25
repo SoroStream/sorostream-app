@@ -10,7 +10,7 @@ import {
   ServerKeypairAdapter,
 } from "@/src/lib/wallets";
 import { useTranslations } from "@/src/lib/i18n";
-import { trackEvent } from "@/src/lib/analytics";
+import CopyButton from "@/components/CopyButton";
 
 interface WalletConnectProps {
   onConnect?: (publicKey: string, walletType: WalletType) => void;
@@ -133,8 +133,9 @@ export default function WalletConnect({ onConnect }: WalletConnectProps) {
   if (publicKey) {
     return (
       <div className="flex items-center gap-3">
-        <span className="text-sm text-slate-600 font-mono" aria-label={`Connected wallet: ${publicKey}`}>
+        <span className="text-sm text-slate-600 font-mono flex items-center" aria-label={`Connected wallet: ${publicKey}`}>
           {publicKey.slice(0, 4)}…{publicKey.slice(-4)}
+          <CopyButton value={publicKey} label="Copy wallet address" />
         </span>
         <button
           onClick={handleDisconnect}

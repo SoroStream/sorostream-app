@@ -128,32 +128,11 @@ export default function StreamDetail({ params }: { params: { id: string } }) {
               <LiveCounter flowRate={stream.flowRate} lastWithdrawTime={new Date(stream.lastWithdrawTime)} />
             </div>
           </div>
-          <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
-            <button
-              onClick={handleWithdraw}
-              disabled={withdrawLoading}
-              className="w-full sm:flex-1 bg-green-600 text-white py-3 rounded-lg font-medium hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-              aria-busy={withdrawLoading}
-              aria-label={withdrawLoading ? "Withdrawing, please wait" : "Withdraw from stream"}
-            >
-              {withdrawLoading ? "Withdrawing…" : "Withdraw"}
-            </button>
-            <button
-              onClick={() => setShowTopUp(true)}
-              className="w-full sm:flex-1 bg-blue-600 text-white py-3 rounded-lg font-medium hover:bg-blue-700 transition-colors"
-              aria-label="Top up stream with additional funds"
-            >
-              Top Up
-            </button>
-            <button
-              onClick={handleCancel}
-              disabled={cancelLoading}
-              className="w-full sm:flex-1 border border-red-600 text-red-400 py-3 rounded-lg font-medium hover:bg-red-900 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-              aria-busy={cancelLoading}
-              aria-label={cancelLoading ? "Cancelling stream, please wait" : "Cancel stream"}
-            >
-              {cancelLoading ? "Cancelling…" : "Cancel"}
-            </button>
+          {status && <p className="text-green-400 text-sm text-center">{status}</p>}
+          {error && <p className="text-red-400 text-sm text-center">{error}</p>}
+          <div className="flex gap-4">
+            <button className="flex-1 bg-green-600 text-white py-3 rounded-lg font-medium hover:bg-green-700 transition-colors">Withdraw</button>
+            <button className="flex-1 border border-red-600 text-red-400 py-3 rounded-lg font-medium hover:bg-red-900 transition-colors">Cancel</button>
           </div>
           <div>
             <p className="text-gray-400 text-sm font-medium mb-3">History Export</p>
@@ -219,6 +198,32 @@ export default function StreamDetail({ params }: { params: { id: string } }) {
           )}
         </div>
       </div>
+
+      {/* Cancel confirmation modal */}
+      {showCancelModal && (
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50">
+          <div className="bg-gray-800 rounded-xl p-6 max-w-sm w-full mx-4 space-y-4">
+            <h2 className="text-lg font-semibold text-white">Cancel Stream?</h2>
+            <p className="text-gray-400 text-sm">
+              This is irreversible. Any unstreamed funds will be returned to the sender.
+            </p>
+            <div className="flex gap-3 pt-2">
+              <button
+                onClick={() => setShowCancelModal(false)}
+                className="flex-1 border border-gray-600 text-gray-300 py-2 rounded-lg hover:bg-gray-700"
+              >
+                Go Back
+              </button>
+              <button
+                onClick={handleCancelConfirmed}
+                className="flex-1 bg-red-600 text-white py-2 rounded-lg hover:bg-red-700"
+              >
+                Yes, Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </main>
   );
 }
