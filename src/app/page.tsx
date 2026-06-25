@@ -1,6 +1,16 @@
 import Link from "next/link";
+import { Button, Card } from "@/components/ui";
+import { useTranslations } from "@/src/lib/i18n";
 
 export default function Home() {
+  const t = useTranslations("home");
+
+  const steps = [
+    { titleKey: "step_create_title", descKey: "step_create_desc" },
+    { titleKey: "step_flow_title", descKey: "step_flow_desc" },
+    { titleKey: "step_withdraw_title", descKey: "step_withdraw_desc" },
+  ] as const;
+
   return (
     <main className="min-h-screen bg-gray-900 text-white">
       <div className="max-w-4xl mx-auto px-4 sm:px-6 py-12 sm:py-20 text-center">
@@ -18,9 +28,9 @@ export default function Home() {
           ].map((item, i) => (
             <div key={i} className="bg-gray-800 rounded-xl p-6">
               <div className="text-2xl font-bold text-green-400 mb-2">{i + 1}</div>
-              <h3 className="font-semibold mb-2">{item.title}</h3>
-              <p className="text-gray-400 text-sm">{item.desc}</p>
-            </div>
+              <h3 className="font-semibold mb-2">{t(titleKey)}</h3>
+              <p className="text-gray-400 text-sm">{t(descKey)}</p>
+            </Card>
           ))}
         </div>
       </div>

@@ -6,8 +6,9 @@ import StreamTemplatePicker from "@/components/StreamTemplatePicker";
 import { SkeletonForm } from "@/components/Skeleton";
 
 export default function NewStream() {
-  const [recipient, setRecipient] = useState('');
-  const [amount, setAmount] = useState('');
+  const t = useTranslations("stream_new");
+  const [recipient, setRecipient] = useState("");
+  const [amount, setAmount] = useState("");
   const [duration, setDuration] = useState(0);
   const [loading, setLoading] = useState(false);
 
@@ -32,6 +33,21 @@ export default function NewStream() {
       <div className="max-w-lg mx-auto">
         <h1 className="text-xl sm:text-2xl font-bold mb-6 sm:mb-8">Create Stream</h1>
         <div className="space-y-6">
+          <Input
+            id="recipient"
+            label={t("recipient_label")}
+            value={recipient}
+            onChange={(e) => setRecipient(e.target.value)}
+            placeholder={t("recipient_placeholder")}
+          />
+          <Input
+            id="amount"
+            label={t("amount_label")}
+            type="number"
+            value={amount}
+            onChange={(e) => setAmount(e.target.value)}
+            placeholder={t("amount_placeholder")}
+          />
           <div>
             <label htmlFor="recipient" className="text-gray-400 text-sm block mb-2">
               Recipient Address
