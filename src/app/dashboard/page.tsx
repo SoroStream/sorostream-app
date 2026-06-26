@@ -2,14 +2,17 @@
 import { useState, useEffect, useMemo } from "react";
 import Link from "next/link";
 import { SkeletonCard } from "@/components/Skeleton";
-import StreamCard from "@/components/StreamCard";
-import { getMockStreams, StreamData } from "@/lib/sorostream";
+import { getMockStreams, StreamData } from "@/src/lib/sorostream";
 
 type DashboardState = "loading" | "empty" | "ready";
+
+const PAGE_SIZE = 10;
 
 export default function Dashboard() {
   const [loading, setLoading] = useState(true);
   const [streams, setStreams] = useState<StreamData[]>([]);
+  const [search, setSearch] = useState("");
+  const [page, setPage] = useState(0);
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -22,10 +25,11 @@ export default function Dashboard() {
   const filtered = useMemo(() => {
     if (!search.trim()) return streams;
     const q = search.trim().toLowerCase();
-    return streams.filter((s) =>
-      s.sender.toLowerCase().includes(q) ||
-      s.recipient.toLowerCase().includes(q) ||
-      s.status.toLowerCase().includes(q)
+    return streams.filter(
+      (s) =>
+        s.sender.toLowerCase().includes(q) ||
+        s.recipient.toLowerCase().includes(q) ||
+        s.status.toLowerCase().includes(q)
     );
   }, [streams, search]);
 
@@ -33,32 +37,55 @@ export default function Dashboard() {
   const safePage = Math.min(page, totalPages - 1);
   const paged = filtered.slice(safePage * PAGE_SIZE, (safePage + 1) * PAGE_SIZE);
 
-  useEffect(() => { setPage(0); }, [search]);
+  useEffect(() => {
+    setPage(0);
+  }, [search]);
+
+  const state: DashboardState = loading
+    ? "loading"
+    : filtered.length === 0
+    ? "empty"
+    : "ready";
 
   return (
     <main className="min-h-screen bg-gray-900 text-white p-4 sm:p-8">
       <div className="max-w-4xl mx-auto">
         <div className="flex justify-between items-center mb-6">
           <h1 className="text-2xl font-bold">Dashboard</h1>
-          <Link href="/stream/new" className="bg-green-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-green-700 transition-colors">+ New Stream</Link>
+          <Link
+            href="/stream/new"
+            className="bg-green-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-green-700 transition-colors"
+          >
+            + New Stream
+          </Link>
         </div>
 
-        {state === "loading" && (
-          <div className="grid gap-4 md:grid-cols-2" role="status" aria-live="polite" aria-label="Loading streams">
+        <input
+          type="search"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder="Search by address or status…"
+          className="w-full mb-6 bg-gray-800 border border-gray-700 rounded-lg px-4 py-2 text-sm text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-green-500"
+          aria-label="Search streams"
+        />
+
+        {state === "loading" ? (
+          <div
+            className="grid gap-4 md:grid-cols-2"
+            role="status"
+            aria-live="polite"
+            aria-label="Loading streams"
+          >
             <SkeletonCard />
             <SkeletonCard />
             <SkeletonCard />
           </div>
-        ) : streams.length > 0 ? (
-          <div className="grid gap-4 md:grid-cols-2">
-            {streams.map((s) => (
-              <StreamCard key={s.id} id={s.id} sender={s.sender} recipient={s.recipient} flowRate={s.flowRate} status={s.status} deposit={s.deposit} />
-            ))}
-          </div>
-        ) : (
+        ) : state === "empty" ? (
           <div className="bg-gray-800 rounded-xl p-8 text-center">
             <p className="text-gray-400 mb-4">No streams found</p>
-            <Link href="/stream/new" className="text-green-400 hover:text-green-300">Create your first stream →</Link>
+            <Link href="/stream/new" className="text-green-400 hover:text-green-300">
+              Create your first stream →
+            </Link>
           </div>
         ) : (
           <>
@@ -86,6 +113,7 @@ export default function Dashboard() {
                 </Link>
               ))}
             </div>
+
             {totalPages > 1 && (
               <div className="flex items-center justify-between mt-6">
                 <button

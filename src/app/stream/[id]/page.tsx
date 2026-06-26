@@ -6,18 +6,20 @@ import StreamHistory from "@/components/StreamHistory";
 import LiveCounter from "@/components/LiveCounter";
 import { downloadCSV, downloadJSON, StreamHistoryEntry } from "@/src/lib/export";
 import { SkeletonDetail } from "@/components/Skeleton";
-import { sorostream, StreamData } from "@/src/lib/sorostream";
+import { sorostream, StreamData, getMockStreamHistory } from "@/src/lib/sorostream";
 
 export type HistoryEntry = StreamHistoryEntry;
 
 export default function StreamDetail({ params }: { params: { id: string } }) {
   const [stream, setStream] = useState<StreamData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [historyEntries, setHistoryEntries] = useState<StreamHistoryEntry[]>([]);
   const [showTopUp, setShowTopUp] = useState(false);
   const [topUpAmount, setTopUpAmount] = useState("");
   const [topUpLoading, setTopUpLoading] = useState(false);
   const [withdrawLoading, setWithdrawLoading] = useState(false);
   const [cancelLoading, setCancelLoading] = useState(false);
+  const [showCancelModal, setShowCancelModal] = useState(false);
   const [txStatus, setTxStatus] = useState<string | null>(null);
 
   useEffect(() => {
@@ -25,6 +27,7 @@ export default function StreamDetail({ params }: { params: { id: string } }) {
       try {
         const data = await sorostream.getStream(params.id);
         setStream(data);
+        setHistoryEntries(getMockStreamHistory(params.id));
       } catch (err) {
         console.error("Failed to load stream", err);
       } finally {
@@ -43,7 +46,6 @@ export default function StreamDetail({ params }: { params: { id: string } }) {
       setTxStatus("Top-up successful!");
       setShowTopUp(false);
       setTopUpAmount("");
-      // Reload stream
       const data = await sorostream.getStream(params.id);
       setStream(data);
     } catch {
@@ -66,7 +68,8 @@ export default function StreamDetail({ params }: { params: { id: string } }) {
     }
   }
 
-  async function handleCancel() {
+  async function handleCancelConfirmed() {
+    setShowCancelModal(false);
     setCancelLoading(true);
     setTxStatus(null);
     try {
@@ -79,7 +82,7 @@ export default function StreamDetail({ params }: { params: { id: string } }) {
     }
   }
 
-  if (loading || !stream) {
+  if (loading) {
     return (
       <main className="min-h-screen bg-gray-900 text-white p-8">
         <div className="max-w-2xl mx-auto animate-pulse">
@@ -95,7 +98,9 @@ export default function StreamDetail({ params }: { params: { id: string } }) {
       <main className="min-h-screen bg-gray-900 text-white p-8">
         <div className="max-w-2xl mx-auto">
           <div className="mb-4">
-            <Link href="/dashboard" className="text-sm text-gray-400 hover:text-white transition-colors">← Dashboard</Link>
+            <Link href="/dashboard" className="text-sm text-gray-400 hover:text-white transition-colors">
+              ← Dashboard
+            </Link>
           </div>
           <h1 className="text-2xl font-bold mb-8">Stream #{params.id}</h1>
           <p className="text-red-400">Stream not found.</p>
@@ -127,30 +132,82 @@ export default function StreamDetail({ params }: { params: { id: string } }) {
           <div className="text-center">
             <p className="text-gray-400 text-sm mb-2">Claimable now</p>
             <div className="text-2xl sm:text-3xl font-bold">
-              <LiveCounter flowRate={stream.flowRate} lastWithdrawTime={new Date(stream.lastWithdrawTime)} />
+              <LiveCounter
+                flowRate={stream.flowRate}
+                lastWithdrawTime={new Date(stream.lastWithdrawTime)}
+              />
             </div>
           </div>
-          {status && <p className="text-green-400 text-sm text-center">{status}</p>}
-          {error && <p className="text-red-400 text-sm text-center">{error}</p>}
+
+          {txStatus && (
+            <p
+              className={`text-sm text-center ${
+                txStatus.toLowerCase().includes("fail") ? "text-red-400" : "text-green-400"
+              }`}
+            >
+              {txStatus}
+            </p>
+          )}
+
           <div className="flex gap-4">
-            <button className="flex-1 bg-green-600 text-white py-3 rounded-lg font-medium hover:bg-green-700 transition-colors">Withdraw</button>
-            <button className="flex-1 border border-red-600 text-red-400 py-3 rounded-lg font-medium hover:bg-red-900 transition-colors">Cancel</button>
+            <button
+              onClick={handleWithdraw}
+              disabled={withdrawLoading}
+              className="flex-1 bg-green-600 text-white py-3 rounded-lg font-medium hover:bg-green-700 disabled:opacity-50 transition-colors"
+            >
+              {withdrawLoading ? "Withdrawing…" : "Withdraw"}
+            </button>
+            <button
+              onClick={() => setShowCancelModal(true)}
+              disabled={cancelLoading}
+              className="flex-1 border border-red-600 text-red-400 py-3 rounded-lg font-medium hover:bg-red-900 disabled:opacity-50 transition-colors"
+            >
+              {cancelLoading ? "Cancelling…" : "Cancel"}
+            </button>
           </div>
 
+          {showTopUp && (
+            <div className="space-y-2">
+              <input
+                type="number"
+                value={topUpAmount}
+                onChange={(e) => setTopUpAmount(e.target.value)}
+                placeholder="Amount (USDC)"
+                className="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 text-white text-sm"
+              />
+              <button
+                onClick={handleTopUp}
+                disabled={topUpLoading}
+                className="w-full bg-blue-600 text-white py-2 rounded-lg text-sm hover:bg-blue-700 disabled:opacity-50 transition-colors"
+              >
+                {topUpLoading ? "Topping up…" : "Confirm Top-up"}
+              </button>
+            </div>
+          )}
+
+          <button
+            onClick={() => setShowTopUp((v) => !v)}
+            className="w-full border border-gray-600 text-gray-300 py-2 rounded-lg text-sm hover:bg-gray-700 transition-colors"
+          >
+            {showTopUp ? "Cancel Top-up" : "Top Up Stream"}
+          </button>
+
           <section aria-labelledby="history-heading">
-            <h2 id="history-heading" className="text-lg font-semibold mb-3">Transaction History</h2>
-            <StreamHistory entries={history} />
+            <h2 id="history-heading" className="text-lg font-semibold mb-3">
+              Transaction History
+            </h2>
+            <StreamHistory entries={historyEntries} />
             <div className="mt-4">
               <p className="text-gray-400 text-sm font-medium mb-3">History Export</p>
               <div className="flex gap-3">
                 <button
-                  onClick={() => downloadCSV(history, params.id)}
+                  onClick={() => downloadCSV(historyEntries, params.id)}
                   className="flex-1 bg-gray-700 text-white py-2 rounded-lg text-sm hover:bg-gray-600 transition-colors"
                 >
                   Download CSV
                 </button>
                 <button
-                  onClick={() => downloadJSON(history, params.id)}
+                  onClick={() => downloadJSON(historyEntries, params.id)}
                   className="flex-1 bg-gray-700 text-white py-2 rounded-lg text-sm hover:bg-gray-600 transition-colors"
                 >
                   Download JSON
@@ -161,7 +218,6 @@ export default function StreamDetail({ params }: { params: { id: string } }) {
         </div>
       </div>
 
-      {/* Cancel confirmation modal */}
       {showCancelModal && (
         <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50">
           <div className="bg-gray-800 rounded-xl p-6 max-w-sm w-full mx-4 space-y-4">

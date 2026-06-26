@@ -1,6 +1,6 @@
 "use client";
 
-import { formatUSDC, truncateAddress } from "@/lib/sorostream";
+import { formatUSDC, truncateAddress } from "@/src/lib/sorostream";
 
 export interface HistoryEntry {
   timestamp: string;
@@ -24,7 +24,7 @@ const typeConfig: Record<
     icon: "↓",
     colorClass: "text-green-400 bg-green-900/30",
   },
-  top_up: { label: "Top-up", icon: "↑", colorClass: "text-blue-400 bg-blue-900/30" },
+  "top-up": { label: "Top-up", icon: "↑", colorClass: "text-blue-400 bg-blue-900/30" },
   cancellation: {
     label: "Cancelled",
     icon: "✕",
@@ -91,7 +91,7 @@ export default function StreamHistory({ entries, loading }: StreamHistoryProps) 
                 <p className="text-sm font-semibold text-white">
                   {entry.type === "creation"
                     ? formatUSDC(BigInt(entry.amount))
-                    : `${entry.type === "top_up" ? "+" : "-"}${formatUSDC(BigInt(entry.amount))}`}
+                    : `${entry.type === "top-up" ? "+" : "-"}${formatUSDC(BigInt(entry.amount))}`}
                 </p>
                 <p className="text-xs text-gray-400 font-mono">
                   {truncateAddress(entry.txHash)}

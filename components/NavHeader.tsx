@@ -55,7 +55,7 @@ export default function NavHeader() {
           <NetworkSelector />
           <WalletConnect />
           <ThemeToggle />
-        </nav>
+        </div>
       </div>
     </header>
   );
