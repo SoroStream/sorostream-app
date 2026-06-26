@@ -70,7 +70,11 @@ export default function NewStream() {
     setLoading(true);
     trackEvent({ type: "stream_create_start" });
     try {
-      const result = await sorostream.createStream();
+      const result = await sorostream.createStream({
+        recipient,
+        amount,
+        durationSeconds: duration,
+      });
       trackEvent({ type: "stream_create_complete", streamId: result.streamId });
       router.push(`/stream/${result.streamId}`);
     } catch (err) {
@@ -157,12 +161,10 @@ export default function NewStream() {
             <DurationPicker
               onChange={(s) => {
                 setDuration(s);
-                setErrors((prev) => ({ ...prev, duration: "" }));
+                if (s > 0) setErrors((prev) => ({ ...prev, duration: "" }));
               }}
+              error={errors.duration || undefined}
             />
-            {errors.duration && (
-              <p className="text-red-400 text-sm mt-1">{errors.duration}</p>
-            )}
           </div>
 
           {amount && duration > 0 && (

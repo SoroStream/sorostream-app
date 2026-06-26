@@ -1,7 +1,4 @@
 import { defineConfig, devices } from '@playwright/test';
-import { loadEnv } from 'vite';
-
-const env = loadEnv('test', process.cwd(), '');
 
 export default defineConfig({
   testDir: './e2e',
@@ -21,7 +18,7 @@ export default defineConfig({
     },
   ],
   webServer: {
-    command: 'NEXT_PUBLIC_CONTRACT_ID=TEST_CONTRACT_ID_12345 NEXT_PUBLIC_STELLAR_NETWORK=testnet npm run dev',
+    command: 'cross-env NEXT_PUBLIC_CONTRACT_ID=TEST_CONTRACT_ID_12345 NEXT_PUBLIC_STELLAR_NETWORK=testnet npm run dev',
     url: 'http://localhost:3000',
     reuseExistingServer: !process.env.CI,
   },
