@@ -3,3 +3,16 @@
 node_modules/
 .next/
 out/
+
+# Generated / build artifacts
+next-env.d.ts
+*.tsbuildinfo
+
+# Test snapshots
+**/__snapshots__/
+*.snap
+
+# Temporary files
+*.tmp
+*.temp
+.DS_Store
