@@ -1,4 +1,4 @@
-name: Lint & Build
+name: Lint, Test & Build
 
 on:
   pull_request:
@@ -16,4 +16,10 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run lint
-      - run: npm run build
+      - name: Unit tests
+        run: npm run test:run
+      - name: Build
+        run: npm run build
+        env:
+          NEXT_PUBLIC_STELLAR_NETWORK: testnet
+          NEXT_PUBLIC_CONTRACT_ID: CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD2KM
