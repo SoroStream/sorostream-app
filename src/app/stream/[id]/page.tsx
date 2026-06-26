@@ -21,6 +21,11 @@ export default function StreamDetail({ params }: { params: { id: string } }) {
   const [cancelLoading, setCancelLoading] = useState(false);
   const [showCancelModal, setShowCancelModal] = useState(false);
   const [txStatus, setTxStatus] = useState<string | null>(null);
+  // additional UI state
+  const [history, setHistory] = useState<HistoryEntry[]>([]);
+  const [status, setStatus] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [showCancelModal, setShowCancelModal] = useState(false);
 
   useEffect(() => {
     async function load() {
@@ -30,6 +35,7 @@ export default function StreamDetail({ params }: { params: { id: string } }) {
         setHistoryEntries(getMockStreamHistory(params.id));
       } catch (err) {
         console.error("Failed to load stream", err);
+        setError("Failed to load stream data.");
       } finally {
         setLoading(false);
       }
@@ -60,9 +66,9 @@ export default function StreamDetail({ params }: { params: { id: string } }) {
     setTxStatus(null);
     try {
       const result = await sorostream.withdraw();
-      setTxStatus(`Withdrawal submitted! Tx: ${result.txHash}`);
+      setStatus(`Withdrawal submitted! Tx: ${result.txHash}`);
     } catch {
-      setTxStatus("Withdrawal failed. Please try again.");
+      setError("Withdrawal failed. Please try again.");
     } finally {
       setWithdrawLoading(false);
     }
@@ -138,6 +144,24 @@ export default function StreamDetail({ params }: { params: { id: string } }) {
               />
             </div>
           </div>
+          {status && <p className="text-green-400 text-sm text-center">{status}</p>}
+          {error && <p className="text-red-400 text-sm text-center">{error}</p>}
+  <div className="flex gap-4">
+    <button
+      disabled={withdrawLoading}
+      onClick={handleWithdraw}
+      className="flex-1 bg-green-600 text-white py-3 rounded-lg font-medium hover:bg-green-700 transition-colors disabled:opacity-50"
+    >
+      {withdrawLoading ? 'Withdrawing...' : 'Withdraw'}
+    </button>
+    <button
+      disabled={cancelLoading}
+      onClick={() => setShowCancelModal(true)}
+      className="flex-1 border border-red-600 text-red-400 py-3 rounded-lg font-medium hover:bg-red-900 transition-colors disabled:opacity-50"
+    >
+      {cancelLoading ? 'Cancelling...' : 'Cancel'}
+    </button>
+  </div>
 
           {txStatus && (
             <p
@@ -233,10 +257,11 @@ export default function StreamDetail({ params }: { params: { id: string } }) {
                 Go Back
               </button>
               <button
-                onClick={handleCancelConfirmed}
-                className="flex-1 bg-red-600 text-white py-2 rounded-lg hover:bg-red-700"
+                onClick={handleCancel}
+                disabled={cancelLoading}
+                className="flex-1 bg-red-600 text-white py-2 rounded-lg hover:bg-red-700 disabled:opacity-50"
               >
-                Yes, Cancel
+                {cancelLoading ? 'Cancelling...' : 'Yes, Cancel'}
               </button>
             </div>
           </div>
