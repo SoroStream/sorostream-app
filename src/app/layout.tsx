@@ -7,6 +7,7 @@ import "./globals.css";
 import { validateEnv } from "@/src/lib/env";
 import { initAnalytics } from "@/src/lib/analytics";
 import PageViewTracker from "@/src/components/PageViewTracker";
+import WebVitalsReporter from "@/src/components/WebVitalsReporter";
 
 validateEnv();
 initAnalytics();
@@ -24,6 +25,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           <NetworkProvider>
             <ToastProvider>
               <NavHeader />
+              <PageViewTracker />
+              <WebVitalsReporter />
               {children}
             </ToastProvider>
           </NetworkProvider>
