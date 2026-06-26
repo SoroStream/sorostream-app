@@ -15,7 +15,10 @@ let validated = false;
 
 export function validateEnv() {
   if (validated) return;
-  
+  // During `next build` page-data collection the runtime env vars aren't
+  // available yet — skip and let real deployments validate at startup.
+  if (process.env.NEXT_PHASE === "phase-production-build") return;
+
   const missing: RequiredEnvVar[] = [];
   
   for (const [key, description] of Object.entries(requiredEnvVars)) {

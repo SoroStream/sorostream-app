@@ -11,6 +11,7 @@ import {
 } from "@/src/lib/wallets";
 import { useTranslations } from "@/src/lib/i18n";
 import CopyButton from "@/components/CopyButton";
+import { trackEvent } from "@/src/lib/analytics";
 
 interface WalletConnectProps {
   onConnect?: (publicKey: string, walletType: WalletType) => void;
@@ -122,10 +123,10 @@ export default function WalletConnect({ onConnect }: WalletConnectProps) {
       }
 
       onConnect?.(key, walletType);
-      trackEvent({ type: 'wallet_connect', success: true });
+      trackEvent({ type: "wallet_connect", success: true });
     } catch (err) {
       setError(err instanceof Error ? err.message : "Connection failed");
-      trackEvent({ type: 'wallet_connect', success: false });
+      trackEvent({ type: "wallet_connect", success: false });
     } finally {
       setLoading(false);
     }
@@ -134,7 +135,10 @@ export default function WalletConnect({ onConnect }: WalletConnectProps) {
   if (publicKey) {
     return (
       <div className="flex items-center gap-3">
-        <span className="text-sm text-slate-600 font-mono flex items-center" aria-label={`Connected wallet: ${publicKey}`}>
+        <span
+          className="text-sm text-slate-600 font-mono flex items-center"
+          aria-label={`Connected wallet: ${publicKey}`}
+        >
           {publicKey.slice(0, 4)}…{publicKey.slice(-4)}
           <CopyButton value={publicKey} label="Copy wallet address" />
         </span>

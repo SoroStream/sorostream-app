@@ -10,11 +10,14 @@ node_modules/
 .next/
 out/
 next-env.d.ts
+tsconfig.tsbuildinfo
 
 # test artefacts
 coverage/
 __snapshots__/
 *.snap
+playwright-report/
+test-results/
 
 # editor & OS
 .DS_Store
