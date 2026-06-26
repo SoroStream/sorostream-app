@@ -36,6 +36,9 @@ export default function NewStream() {
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState({ recipient: "", amount: "", duration: "" });
   const [touched, setTouched] = useState({ recipient: false, amount: false });
+  // Incrementing this key forces DurationPicker (which manages its own
+  // internal days/hours/minutes state) to fully remount on form reset.
+  const [durationPickerKey, setDurationPickerKey] = useState(0);
 
   function handleTemplateSelect(seconds: number, suggestedAmount?: string) {
     setDuration(seconds);
@@ -72,6 +75,14 @@ export default function NewStream() {
     try {
       const result = await sorostream.createStream();
       trackEvent({ type: "stream_create_complete", streamId: result.streamId });
+      // Reset all form fields so the next stream creation starts clean.
+      setRecipient("");
+      setAmount("");
+      setDuration(0);
+      setErrors({ recipient: "", amount: "", duration: "" });
+      setTouched({ recipient: false, amount: false });
+      // Remount DurationPicker to clear its internal days/hours/minutes state.
+      setDurationPickerKey((k) => k + 1);
       router.push(`/stream/${result.streamId}`);
     } catch (err) {
       console.error("Failed to create stream:", err);
@@ -155,6 +166,7 @@ export default function NewStream() {
           <div>
             <label className="text-gray-400 text-sm block mb-2">{t("duration_label")}</label>
             <DurationPicker
+              key={durationPickerKey}
               onChange={(s) => {
                 setDuration(s);
                 setErrors((prev) => ({ ...prev, duration: "" }));
