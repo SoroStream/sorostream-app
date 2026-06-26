@@ -1,5 +1,15 @@
 import type { Metadata } from "next";
+import { ToastProvider } from "@/src/lib/toast";
+import { NetworkProvider } from "@/src/lib/network";
+import NavHeader from "@/components/NavHeader";
+import { ThemeProvider } from "@/src/lib/theme";
 import "./globals.css";
+import { validateEnv } from "@/src/lib/env";
+import { initAnalytics } from "@/src/lib/analytics";
+import PageViewTracker from "@/src/components/PageViewTracker";
+
+validateEnv();
+initAnalytics();
 
 export const metadata: Metadata = {
   title: "SoroStream",
@@ -8,8 +18,17 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en">
-      <body className="bg-gray-900 text-white min-h-screen">{children}</body>
+    <html lang="en" suppressHydrationWarning>
+      <body className="min-h-screen">
+        <ThemeProvider>
+          <NetworkProvider>
+            <ToastProvider>
+              <NavHeader />
+              {children}
+            </ToastProvider>
+          </NetworkProvider>
+        </ThemeProvider>
+      </body>
     </html>
   );
 }
