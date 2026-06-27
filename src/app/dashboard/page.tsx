@@ -9,17 +9,27 @@ type DashboardState = "loading" | "empty" | "ready";
 const PAGE_SIZE = 10;
 
 export default function Dashboard() {
+  const rpcFetch = useRpcFetch();
   const [loading, setLoading] = useState(true);
   const [streams, setStreams] = useState<StreamData[]>([]);
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(0);
 
   useEffect(() => {
-    const timer = setTimeout(() => {
-      setStreams(getMockStreams());
-      setLoading(false);
-    }, 1200);
-    return () => clearTimeout(timer);
+    async function load() {
+      try {
+        const data = await rpcFetch(() =>
+          Promise.resolve(getMockStreams()),
+        );
+        setStreams(data);
+      } catch {
+        // Errors are surfaced via toast by rpcFetch; leave streams empty.
+      } finally {
+        setLoading(false);
+      }
+    }
+    void load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const filtered = useMemo(() => {
@@ -83,24 +93,14 @@ export default function Dashboard() {
             <div className="grid gap-4 md:grid-cols-2 transition-opacity duration-300 opacity-100">
               {paged.map((stream) => (
                 <Link key={stream.id} href={`/stream/${stream.id}`} className="block">
-                  <div className="bg-gray-800 rounded-xl p-5 border border-gray-700 hover:border-green-500 transition-colors">
-                    <div className="flex justify-between items-start mb-3">
-                      <span className="text-xs font-medium px-2 py-1 rounded-full bg-gray-700 text-gray-300">
-                        {stream.status}
-                      </span>
-                      <span className="text-xs text-gray-400">#{stream.id}</span>
-                    </div>
-                    <div className="space-y-2">
-                      <div>
-                        <p className="text-xs text-gray-400">From</p>
-                        <p className="text-sm font-mono text-white">{stream.sender}</p>
-                      </div>
-                      <div>
-                        <p className="text-xs text-gray-400">To</p>
-                        <p className="text-sm font-mono text-white">{stream.recipient}</p>
-                      </div>
-                    </div>
-                  </div>
+                  <StreamCard
+                    id={stream.id}
+                    sender={stream.sender}
+                    recipient={stream.recipient}
+                    flowRate={stream.flowRate}
+                    deposit={stream.deposit}
+                    status={stream.status}
+                  />
                 </Link>
               ))}
             </div>
