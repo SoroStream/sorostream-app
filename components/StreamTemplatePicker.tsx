@@ -23,17 +23,17 @@ interface StreamTemplatePickerProps {
 export default function StreamTemplatePicker({ onSelect }: StreamTemplatePickerProps) {
   return (
     <div className="space-y-2">
-      <p className="text-gray-400 text-sm block mb-2">Quick Templates</p>
+      <p className="text-gray-200 text-sm font-medium block mb-2">Quick Templates</p>
       <div className="grid grid-cols-2 gap-2">
         {TEMPLATES.map((t) => (
           <button
             key={t.label}
             type="button"
             onClick={() => onSelect(t.days * 86400 + t.hours * 3600 + t.minutes * 60, t.suggestedAmount)}
-            className="text-left bg-gray-800 border border-gray-600 rounded-lg px-3 py-2 hover:border-green-500 transition-colors"
+            className="text-left bg-gray-800 border border-gray-600 rounded-lg px-3 py-2 hover:border-green-500 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-500 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-900"
           >
             <p className="text-white text-sm font-medium">{t.label}</p>
-            <p className="text-gray-400 text-xs">{t.description}</p>
+            <p className="text-gray-300 text-xs">{t.description}</p>
           </button>
         ))}
       </div>

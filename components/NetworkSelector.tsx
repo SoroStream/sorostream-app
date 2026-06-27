@@ -3,16 +3,17 @@ import { useNetwork } from "@/src/lib/network";
 
 export default function NetworkSelector() {
   const { network, setNetwork } = useNetwork();
+  const next = network === "testnet" ? "mainnet" : "testnet";
 
   return (
     <button
-      onClick={() => setNetwork(network === "testnet" ? "mainnet" : "testnet")}
-      className={`text-xs px-2.5 py-1 rounded-full border transition-colors font-medium ${
+      onClick={() => setNetwork(next)}
+      className={`text-xs px-2.5 py-1 rounded-full border transition-colors font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-900 ${
         network === "testnet"
-          ? "bg-yellow-900/40 border-yellow-600/50 text-yellow-400 hover:bg-yellow-900/60"
-          : "bg-green-900/40 border-green-600/50 text-green-400 hover:bg-green-900/60"
+          ? "bg-yellow-900/40 border-yellow-600/50 text-yellow-400 hover:bg-yellow-900/60 focus-visible:ring-yellow-500"
+          : "bg-green-900/40 border-green-600/50 text-green-400 hover:bg-green-900/60 focus-visible:ring-green-500"
       }`}
-      title={`Current: ${network}. Click to switch to ${network === "testnet" ? "mainnet" : "testnet"}`}
+      aria-label={`Network: ${network}. Click to switch to ${next}`}
     >
       {network === "testnet" ? "Testnet" : "Mainnet"}
     </button>

@@ -111,7 +111,7 @@ export default function NewStream() {
         <h1 className="text-xl sm:text-2xl font-bold mb-6 sm:mb-8">{t("title")}</h1>
         <form onSubmit={handleCreateStream} className="space-y-6">
           <div>
-            <label htmlFor="recipient" className="text-gray-400 text-sm block mb-2">
+            <label htmlFor="recipient" className="text-gray-200 text-sm font-medium block mb-2">
               {t("recipient_label")}
             </label>
             <input
@@ -123,7 +123,7 @@ export default function NewStream() {
               }}
               onBlur={handleRecipientBlur}
               placeholder={t("recipient_placeholder")}
-              className="w-full bg-gray-800 border border-gray-600 rounded-lg px-4 py-3 text-white font-mono"
+              className="w-full bg-gray-800 border border-gray-600 rounded-lg px-4 py-3 text-white font-mono focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-500 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-900"
               aria-required="true"
               aria-invalid={!!(touched.recipient && errors.recipient)}
               aria-describedby={
@@ -138,7 +138,7 @@ export default function NewStream() {
           </div>
 
           <div>
-            <label htmlFor="amount" className="text-gray-400 text-sm block mb-2">
+            <label htmlFor="amount" className="text-gray-200 text-sm font-medium block mb-2">
               {t("amount_label")}
             </label>
             <input
@@ -151,7 +151,7 @@ export default function NewStream() {
               }}
               onBlur={handleAmountBlur}
               placeholder={t("amount_placeholder")}
-              className="w-full bg-gray-800 border border-gray-600 rounded-lg px-4 py-3 text-white"
+              className="w-full bg-gray-800 border border-gray-600 rounded-lg px-4 py-3 text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-500 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-900"
               aria-required="true"
               aria-invalid={!!(touched.amount && errors.amount)}
               aria-describedby={
@@ -168,7 +168,7 @@ export default function NewStream() {
           <StreamTemplatePicker onSelect={handleTemplateSelect} />
 
           <div>
-            <label className="text-gray-400 text-sm block mb-2">{t("duration_label")}</label>
+            <label className="text-gray-200 text-sm font-medium block mb-2">{t("duration_label")}</label>
             <DurationPicker
               key={durationPickerKey}
               onChange={(s) => {
@@ -185,7 +185,7 @@ export default function NewStream() {
 
           <button
             type="submit"
-            className="w-full bg-green-600 text-white py-3 rounded-lg font-medium hover:bg-green-700 transition-colors"
+            className="w-full bg-green-600 text-white py-3 rounded-lg font-medium hover:bg-green-700 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-500 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-900"
           >
             {t("submit")}
           </button>

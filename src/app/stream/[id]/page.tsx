@@ -209,6 +209,8 @@ export default function StreamDetail({ params }: { params: { id: string } }) {
     setTxStatus(null);
     setError(null);
     try {
+      const result = await sorostream.withdraw();
+      setTxStatus(`Withdrawal submitted! Tx: ${result.txHash}`);
       const result = await rpcFetch(() => sorostream.withdraw());
       setTxStatus(`Withdrawal submitted! Tx: ${result.txHash}`);
     try {
@@ -297,6 +299,7 @@ export default function StreamDetail({ params }: { params: { id: string } }) {
           <div className="mb-4">
             <Link
               href="/dashboard"
+              className="text-sm text-gray-300 hover:text-white transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-500 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-900 rounded"
               className="text-sm text-gray-400 hover:text-white transition-colors"
             >
               ← Dashboard
@@ -322,6 +325,7 @@ export default function StreamDetail({ params }: { params: { id: string } }) {
         <div className="mb-4">
           <Link
             href="/dashboard"
+            className="text-sm text-gray-300 hover:text-white transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-500 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-900 rounded"
             className="text-sm text-gray-400 hover:text-white transition-colors"
           >
             ← Dashboard
@@ -336,7 +340,7 @@ export default function StreamDetail({ params }: { params: { id: string } }) {
               <FederationName address={stream.sender} truncate />
             </span>
           </span>
-          <span className="hidden sm:inline">|</span>
+          <span className="hidden sm:inline" aria-hidden="true">|</span>
           <span>
             To:{" "}
             <span className="text-white">
@@ -397,6 +401,9 @@ export default function StreamDetail({ params }: { params: { id: string } }) {
           <div className="text-center">
             <p className="text-gray-400 text-sm mb-1">Stream balance (deposit)</p>
             <p
+              role="status"
+              className={`text-sm text-center ${
+                txStatus.toLowerCase().includes("fail") ? "text-red-400" : "text-green-400"
               className={`font-mono font-semibold text-lg ${
                 isDepositOptimistic ? "text-yellow-400" : "text-white"
               }`}
@@ -415,11 +422,19 @@ export default function StreamDetail({ params }: { params: { id: string } }) {
           )}
           {error && <p className="text-red-400 text-sm text-center">{error}</p>}
 
+          {error && (
+            <p role="alert" className="text-red-400 text-sm text-center">
+              {error}
+            </p>
+          )}
+
           {/* Primary actions */}
           <div className="flex gap-4">
             <button
               onClick={handleWithdraw}
               disabled={withdrawLoading}
+              aria-busy={withdrawLoading}
+              className="flex-1 bg-green-600 text-white py-3 rounded-lg font-medium hover:bg-green-700 disabled:opacity-50 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-500 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-900"
               className="flex-1 bg-green-600 text-white py-3 rounded-lg font-medium hover:bg-green-700 disabled:opacity-50 transition-colors"
           {/* Withdraw / Cancel */}
           <div className="flex gap-4">
@@ -440,6 +455,9 @@ export default function StreamDetail({ params }: { params: { id: string } }) {
 
             <button
               onClick={() => setShowCancelModal(true)}
+              disabled={cancelLoading}
+              aria-busy={cancelLoading}
+              className="flex-1 border border-red-600 text-red-400 py-3 rounded-lg font-medium hover:bg-red-900 disabled:opacity-50 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-900"
               disabled={cancelLoading || withdrawLoading}
               className="flex-1 border border-red-600 text-red-400 py-3 rounded-lg font-medium hover:bg-red-900 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             >
@@ -458,13 +476,24 @@ export default function StreamDetail({ params }: { params: { id: string } }) {
           {/* Top-up form */}
           {showTopUp && (
             <div className="space-y-2">
+              <label htmlFor="topup-amount" className="text-gray-200 text-sm font-medium block">
+                Top-up Amount (USDC)
+              </label>
               <input
+                id="topup-amount"
                 type="number"
                 value={topUpAmount}
                 onChange={(e) => setTopUpAmount(e.target.value)}
                 placeholder="Amount (XLM)"
                 onChange={(event) => setTopUpAmount(event.target.value)}
                 placeholder="Amount (USDC)"
+                className="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 text-white text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-500 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-900"
+              />
+              <button
+                onClick={handleTopUp}
+                disabled={topUpLoading}
+                aria-busy={topUpLoading}
+                className="w-full bg-blue-600 text-white py-2 rounded-lg text-sm hover:bg-blue-700 disabled:opacity-50 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-900"
                 min="0"
                 step="0.01"
                 className="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 text-white text-sm"
@@ -487,6 +516,8 @@ export default function StreamDetail({ params }: { params: { id: string } }) {
           )}
           <button
             onClick={() => setShowTopUp((v) => !v)}
+            aria-expanded={showTopUp}
+            className="w-full border border-gray-600 text-gray-300 py-2 rounded-lg text-sm hover:bg-gray-700 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-500 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-900"
             disabled={topUpLoading}
             className="w-full border border-gray-600 text-gray-300 py-2 rounded-lg text-sm hover:bg-gray-700 transition-colors disabled:opacity-50"
           >
@@ -507,13 +538,13 @@ export default function StreamDetail({ params }: { params: { id: string } }) {
               <div className="flex gap-3">
                 <button
                   onClick={() => downloadCSV(historyEntries, params.id)}
-                  className="flex-1 bg-gray-700 text-white py-2 rounded-lg text-sm hover:bg-gray-600 transition-colors"
+                  className="flex-1 bg-gray-700 text-white py-2 rounded-lg text-sm hover:bg-gray-600 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-500 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-900"
                 >
                   Download CSV
                 </button>
                 <button
                   onClick={() => downloadJSON(historyEntries, params.id)}
-                  className="flex-1 bg-gray-700 text-white py-2 rounded-lg text-sm hover:bg-gray-600 transition-colors"
+                  className="flex-1 bg-gray-700 text-white py-2 rounded-lg text-sm hover:bg-gray-600 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-500 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-900"
                 >
                   Download JSON
                 </button>
@@ -525,8 +556,16 @@ export default function StreamDetail({ params }: { params: { id: string } }) {
 
       {/* Cancel confirmation modal */}
       {showCancelModal && (
-        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50">
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="cancel-modal-title"
+          className="fixed inset-0 bg-black/60 flex items-center justify-center z-50"
+        >
           <div className="bg-gray-800 rounded-xl p-6 max-w-sm w-full mx-4 space-y-4">
+            <h2 id="cancel-modal-title" className="text-lg font-semibold text-white">
+              Cancel Stream?
+            </h2>
             <h2 className="text-lg font-semibold text-white">Cancel Stream?</h2>
             <p className="text-gray-400 text-sm">
               This is irreversible. Any unstreamed funds will be returned to the
@@ -535,6 +574,7 @@ export default function StreamDetail({ params }: { params: { id: string } }) {
             <div className="flex gap-3 pt-2">
               <button
                 onClick={() => setShowCancelModal(false)}
+                className="flex-1 border border-gray-600 text-gray-300 py-2 rounded-lg hover:bg-gray-700 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-500 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-900"
                 className="flex-1 border border-gray-600 text-gray-300 py-2 rounded-lg hover:bg-gray-700 transition-colors"
               >
                 Go Back
@@ -542,6 +582,10 @@ export default function StreamDetail({ params }: { params: { id: string } }) {
               <button
                 onClick={handleCancelConfirmed}
                 disabled={cancelLoading}
+                aria-busy={cancelLoading}
+                className="flex-1 bg-red-600 text-white py-2 rounded-lg hover:bg-red-700 disabled:opacity-50 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-900"
+              >
+                {cancelLoading ? "Cancelling…" : "Yes, Cancel"}
                 className="flex-1 bg-red-600 text-white py-2 rounded-lg hover:bg-red-700 disabled:opacity-50 transition-colors"
               >
                 {cancelLoading ? "Cancelling…" : "Yes, Cancel"}

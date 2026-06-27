@@ -162,7 +162,7 @@ export default function WalletConnect({ onConnect }: WalletConnectProps) {
     return (
       <div className="flex items-center gap-3">
         <span
-          className="text-sm text-slate-600 font-mono flex items-center"
+          className="text-sm text-slate-300 font-mono flex items-center"
           aria-label={`Connected wallet: ${publicKey}`}
         >
           {publicKey.slice(0, 4)}…{publicKey.slice(-4)}
@@ -170,7 +170,7 @@ export default function WalletConnect({ onConnect }: WalletConnectProps) {
         </span>
         <button
           onClick={handleDisconnect}
-          className="rounded-lg border border-slate-300 px-3 py-1.5 text-sm text-slate-700 hover:bg-slate-100 transition-colors"
+          className="rounded-lg border border-slate-500 px-3 py-1.5 text-sm text-slate-200 hover:bg-slate-700 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-500 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-900"
           aria-label="Disconnect wallet"
         >
           {t("disconnect")}
@@ -186,10 +186,11 @@ export default function WalletConnect({ onConnect }: WalletConnectProps) {
           <button
             key={w}
             onClick={() => setWalletType(w)}
-            className={`rounded-lg px-3 py-1.5 text-xs font-medium border transition-colors ${
+            aria-pressed={walletType === w}
+            className={`rounded-lg px-3 py-1.5 text-xs font-medium border transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-500 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-900 ${
               walletType === w
                 ? "bg-sky-600 text-white border-sky-600"
-                : "border-slate-300 text-slate-600 hover:bg-slate-100"
+                : "border-slate-500 text-slate-300 hover:bg-slate-700"
             }`}
           >
             {WALLET_LABELS[w]}
@@ -203,7 +204,7 @@ export default function WalletConnect({ onConnect }: WalletConnectProps) {
           placeholder={t("secret_placeholder")}
           value={secretInput}
           onChange={(e) => setSecretInput(e.target.value)}
-          className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-sky-500"
+          className="w-full rounded-lg border border-slate-500 bg-gray-800 px-3 py-2 text-sm text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-500 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-900"
           aria-label="Server keypair secret key"
         />
       )}
@@ -211,7 +212,7 @@ export default function WalletConnect({ onConnect }: WalletConnectProps) {
       <button
         onClick={handleConnect}
         disabled={loading}
-        className="rounded-lg bg-sky-600 px-4 py-2 text-sm font-medium text-white hover:bg-sky-700 disabled:opacity-50 transition-colors"
+        className="rounded-lg bg-sky-600 px-4 py-2 text-sm font-medium text-white hover:bg-sky-700 disabled:opacity-50 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-500 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-900"
         aria-label={`Connect ${WALLET_LABELS[walletType]} wallet`}
       >
         {loading ? t("connecting") : t("connect", { wallet: WALLET_LABELS[walletType] })}
