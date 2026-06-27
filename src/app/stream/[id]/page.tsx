@@ -1,24 +1,18 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { useEffect, useState } from "react";
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import Link from "next/link";
 import LiveCounter from "@/components/LiveCounter";
 import FiatDisplay from "@/components/FiatDisplay";
 import FederationName from "@/components/FederationName";
-import { SkeletonDetail } from "@/components/Skeleton";
-import { downloadCSV, downloadJSON, type StreamHistoryEntry } from "@/src/lib/export";
-import { sorostream, type StreamData, getMockStreamHistory } from "@/src/lib/sorostream";
-import { useRpcFetch } from "@/src/lib/useRpcFetch";
-
-export default function StreamDetail({ params }: { params: { id: string } }) {
-  const rpcFetch = useRpcFetch();
+import StreamTimeline from "@/components/StreamTimeline";
+import StreamHistory from "@/components/StreamHistory";
+import { StreamErrorBoundary } from "@/components/StreamErrorBoundary";
 import { StreamListSkeleton } from "@/components/Skeleton";
-import { downloadCSV, downloadJSON, StreamHistoryEntry } from "@/src/lib/export";
+import { downloadCSV, downloadJSON, type StreamHistoryEntry } from "@/src/lib/export";
 import {
   sorostream,
-  StreamData,
+  type StreamData,
   getMockStreamHistory,
   claimableNow,
   getMockStream,
@@ -26,7 +20,8 @@ import {
 } from "@/src/lib/sorostream";
 import { useToast } from "@/src/lib/toast";
 
-type ActionLoading = "top-up" | "withdraw" | "cancel" | null;
+/** Grace period in seconds before a cancel is submitted on-chain. */
+const CANCEL_GRACE_SECONDS = 5;
 
 /** Spinner used inside transaction buttons */
 function Spinner() {
@@ -56,49 +51,28 @@ function Spinner() {
 }
 
 export default function StreamDetail({ params }: { params: { id: string } }) {
-  const { addToast } = useToast();
+  const { addToast, upsertPersistentToast, removeToast } = useToast();
 
+  // ── Stream data ────────────────────────────────────────────────────────────
   const [stream, setStream] = useState<StreamData | null>(null);
   const [historyEntries, setHistoryEntries] = useState<StreamHistoryEntry[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [actionLoading, setActionLoading] = useState<ActionLoading>(null);
-  const [showTopUp, setShowTopUp] = useState(false);
-  const [topUpAmount, setTopUpAmount] = useState("");
-  const [showCancelModal, setShowCancelModal] = useState(false);
-  const [txStatus, setTxStatus] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
   const [pageLoading, setPageLoading] = useState(true);
-  const [historyEntries, setHistoryEntries] = useState<StreamHistoryEntry[]>([]);
-
   const [error, setError] = useState<string | null>(null);
 
-  // --- Top-up form state ---
+  // ── Action loading states ──────────────────────────────────────────────────
+  const [withdrawLoading, setWithdrawLoading] = useState(false);
+  const [cancelLoading, setCancelLoading] = useState(false);
+  /** True while the 5-second cancel grace period is active. */
+  const [cancelPending, setCancelPending] = useState(false);
+  const [showCancelModal, setShowCancelModal] = useState(false);
+
+  // ── Top-up form state ──────────────────────────────────────────────────────
   const [showTopUp, setShowTopUp] = useState(false);
   const [topUpAmount, setTopUpAmount] = useState("");
   const [topUpLoading, setTopUpLoading] = useState(false);
 
-  // --- Withdraw / cancel state ---
-  const [withdrawLoading, setWithdrawLoading] = useState(false);
-  const [cancelLoading, setCancelLoading] = useState(false);
-  const [showCancelModal, setShowCancelModal] = useState(false);
-
-  const [txStatus, setTxStatus] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
-
-  // ── Load stream data ──────────────────────────────────────────────────────
-  useEffect(() => {
-    async function load() {
-      setLoading(true);
-      try {
-        const data = await rpcFetch(() => sorostream.getStream(params.id));
-        setStream(data);
-        setHistoryEntries(getMockStreamHistory(params.id));
-      } catch {
-        setError("Failed to load stream data.");
-
+  // ── Optimistic UI state ────────────────────────────────────────────────────
   /**
-   * Optimistic states:
-   *
    * optimisticClaimable — passed to LiveCounter:
    *   null  → live ticking
    *   0     → immediately after withdraw click (pending tx)
@@ -110,14 +84,26 @@ export default function StreamDetail({ params }: { params: { id: string } }) {
   const [optimisticClaimable, setOptimisticClaimable] = useState<number | null>(null);
   const [optimisticDeposit, setOptimisticDeposit] = useState<number | null>(null);
 
-  // -----------------------------------------------------------------------
-  // Load stream on mount
-  // -----------------------------------------------------------------------
+  // ── Grace-period timer refs ────────────────────────────────────────────────
+  const countdownIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const submitTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const cancelToastIdRef = useRef<number | null>(null);
+  const undoRef = useRef(false);
+
+  /** Clean up timers on unmount. */
+  useEffect(() => {
+    return () => {
+      if (countdownIntervalRef.current) clearInterval(countdownIntervalRef.current);
+      if (submitTimeoutRef.current) clearTimeout(submitTimeoutRef.current);
+    };
+  }, []);
+
+  // ── Load stream on mount ───────────────────────────────────────────────────
   useEffect(() => {
     let cancelled = false;
 
     async function loadStream() {
-      setLoading(true);
+      setPageLoading(true);
       setError(null);
       try {
         const data = await sorostream.getStream(params.id);
@@ -128,28 +114,9 @@ export default function StreamDetail({ params }: { params: { id: string } }) {
         console.error("Failed to load stream", err);
         if (!cancelled) setError("Failed to load stream data.");
       } finally {
-        setPageLoading(false);
+        if (!cancelled) setPageLoading(false);
       }
     }
-    void load();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [params.id]);
-
-  // ── Actions ───────────────────────────────────────────────────────────────
-  async function handleTopUp() {
-    if (!topUpAmount || parseFloat(topUpAmount) <= 0) return;
-    setTopUpLoading(true);
-    setTxStatus(null);
-    setError(null);
-    try {
-      await rpcFetch(() => sorostream.topUp());
-      setTxStatus("Top-up successful!");
-      setShowTopUp(false);
-      setTopUpAmount("");
-      const data = await rpcFetch(() => sorostream.getStream(params.id));
-      setStream(data);
-    } catch {
-      setError("Top-up failed. Please try again.");
 
     void loadStream();
 
@@ -158,27 +125,20 @@ export default function StreamDetail({ params }: { params: { id: string } }) {
     };
   }, [params.id]);
 
-  // -----------------------------------------------------------------------
-  // Withdraw with optimistic update
-  // -----------------------------------------------------------------------
+  // ── Withdraw with optimistic update ───────────────────────────────────────
   const handleWithdraw = useCallback(async () => {
-    // Snapshot pre-tx state for rollback
     const prevStream = getMockStream(params.id);
     const prevClaimable = prevStream ? Number(claimableNow(prevStream)) : 0;
 
-    // Optimistic: zero out the counter immediately
     setOptimisticClaimable(0);
     setWithdrawLoading(true);
 
     try {
       const result = await sorostream.withdraw();
-      // Confirmed — clear optimistic override, LiveCounter resumes ticking
       setOptimisticClaimable(null);
       addToast(`Withdrawal submitted! Tx: ${result.txHash}`, "success");
     } catch {
-      // Rollback — restore previous value and let LiveCounter rehydrate
       setOptimisticClaimable(null);
-      // prevClaimable is informational; LiveCounter will reconcile via interval
       void prevClaimable;
       addToast("Withdrawal failed. Please try again.", "error");
     } finally {
@@ -186,22 +146,15 @@ export default function StreamDetail({ params }: { params: { id: string } }) {
     }
   }, [params.id, addToast]);
 
-  // -----------------------------------------------------------------------
-  // Top-up with optimistic update
-  // -----------------------------------------------------------------------
+  // ── Top-up with optimistic update ─────────────────────────────────────────
   const handleTopUp = useCallback(async () => {
     const parsedAmount = parseFloat(topUpAmount);
     if (!topUpAmount || parsedAmount <= 0) return;
-
     if (!stream) return;
 
-    // Snapshot pre-tx stream state for rollback
     const prevDeposit = stream.deposit;
     const addedStroops = Number(toStroops(topUpAmount));
-
-    // Optimistic: increment deposit immediately
-    const optimisticNewDeposit = prevDeposit + addedStroops;
-    setOptimisticDeposit(optimisticNewDeposit);
+    setOptimisticDeposit(prevDeposit + addedStroops);
     setTopUpLoading(true);
 
   async function handleWithdraw() {
@@ -215,16 +168,13 @@ export default function StreamDetail({ params }: { params: { id: string } }) {
       setTxStatus(`Withdrawal submitted! Tx: ${result.txHash}`);
     try {
       await sorostream.topUp();
-      // Fetch confirmed state from chain
       const updated = await sorostream.getStream(params.id);
       setStream(updated);
-      // Clear optimistic override — confirmed value now in `stream`
       setOptimisticDeposit(null);
       setShowTopUp(false);
       setTopUpAmount("");
       addToast("Top-up successful!", "success");
     } catch {
-      // Rollback: revert to pre-tx deposit
       setOptimisticDeposit(null);
       void prevDeposit;
       addToast("Top-up failed. Please try again.", "error");
@@ -233,40 +183,93 @@ export default function StreamDetail({ params }: { params: { id: string } }) {
     }
   }, [topUpAmount, stream, params.id, addToast]);
 
-  // -----------------------------------------------------------------------
-  // Cancel stream
-  // -----------------------------------------------------------------------
-  const handleCancelConfirmed = useCallback(async () => {
-    setShowCancelModal(false);
+  // ── Cancel: submit the actual transaction ──────────────────────────────────
+  const submitCancel = useCallback(async () => {
+    setCancelPending(false);
     setCancelLoading(true);
-    setTxStatus(null);
-    setError(null);
-    try {
-      const result = await rpcFetch(() => sorostream.cancelStream());
-      setTxStatus(`Stream cancelled. Tx: ${result.txHash}`);
-    } catch {
-      setError("Cancellation failed. Please try again.");
+
+    if (cancelToastIdRef.current !== null) {
+      removeToast(cancelToastIdRef.current);
+      cancelToastIdRef.current = null;
+    }
+
     try {
       const result = await sorostream.cancelStream();
       addToast(`Stream cancelled. Tx: ${result.txHash}`, "success");
     } catch {
       addToast("Cancellation failed. Please try again.", "error");
     } finally {
-      setActionLoading(null);
+      setCancelLoading(false);
     }
-  }, [addToast]);
+  }, [addToast, removeToast]);
 
-  // -----------------------------------------------------------------------
-  // Render helpers
-  // -----------------------------------------------------------------------
+  // ── Cancel: undo during grace period ──────────────────────────────────────
+  const handleCancelUndo = useCallback(() => {
+    undoRef.current = true;
+
+    if (countdownIntervalRef.current) {
+      clearInterval(countdownIntervalRef.current);
+      countdownIntervalRef.current = null;
+    }
+    if (submitTimeoutRef.current) {
+      clearTimeout(submitTimeoutRef.current);
+      submitTimeoutRef.current = null;
+    }
+    if (cancelToastIdRef.current !== null) {
+      removeToast(cancelToastIdRef.current);
+      cancelToastIdRef.current = null;
+    }
+
+    setCancelPending(false);
+    addToast("Cancellation undone.", "info");
+  }, [removeToast, addToast]);
+
+  // ── Cancel: start the 5-second grace period ────────────────────────────────
+  const handleCancelConfirmed = useCallback(() => {
+    setShowCancelModal(false);
+    if (cancelPending || cancelLoading) return;
+
+    undoRef.current = false;
+    setCancelPending(true);
+
+    let secondsLeft = CANCEL_GRACE_SECONDS;
+    const toastKey = `cancel-grace-${params.id}`;
+
+    const showCountdown = (secs: number) => {
+      const toastId = upsertPersistentToast(
+        toastKey,
+        `Cancelling stream #${params.id} in ${secs}s…`,
+        "warning",
+        { label: "Undo", onClick: handleCancelUndo },
+      );
+      cancelToastIdRef.current = toastId;
+    };
+
+    showCountdown(secondsLeft);
+
+    countdownIntervalRef.current = setInterval(() => {
+      secondsLeft -= 1;
+      if (secondsLeft > 0) {
+        showCountdown(secondsLeft);
+      } else {
+        clearInterval(countdownIntervalRef.current!);
+        countdownIntervalRef.current = null;
+      }
+    }, 1000);
+
+    submitTimeoutRef.current = setTimeout(() => {
+      if (!undoRef.current) {
+        void submitCancel();
+      }
+    }, CANCEL_GRACE_SECONDS * 1000);
+  }, [cancelPending, cancelLoading, params.id, upsertPersistentToast, handleCancelUndo, submitCancel]);
+
+  // ── Render helpers ─────────────────────────────────────────────────────────
   const formatUSDC = (stroops: number) => (stroops / 10_000_000).toFixed(2);
-
-  const displayDeposit =
-    optimisticDeposit != null ? optimisticDeposit : stream?.deposit ?? 0;
+  const displayDeposit = optimisticDeposit != null ? optimisticDeposit : stream?.deposit ?? 0;
   const isDepositOptimistic = optimisticDeposit != null;
 
-  // ── Render: loading ───────────────────────────────────────────────────────
-  if (loading) {
+  // ── Render: loading ────────────────────────────────────────────────────────
   if (pageLoading) {
     return (
       <main className="min-h-screen bg-gray-900 text-white p-4 sm:p-8">
@@ -280,18 +283,13 @@ export default function StreamDetail({ params }: { params: { id: string } }) {
             </Link>
           </div>
           <h1 className="text-2xl font-bold mb-8">Stream #{params.id}</h1>
-          {/*
-            StreamListSkeleton used here to show a consistent placeholder while
-            stream data is being fetched — mirrors the row structure from the
-            dashboard so the transition feels familiar
-          */}
           <StreamListSkeleton rows={1} />
         </div>
       </main>
     );
   }
 
-  // ── Render: not found ─────────────────────────────────────────────────────
+  // ── Render: not found ──────────────────────────────────────────────────────
   if (!stream) {
     return (
       <main className="min-h-screen bg-gray-900 text-white p-4 sm:p-8">
@@ -315,10 +313,9 @@ export default function StreamDetail({ params }: { params: { id: string } }) {
   const toXlm = (stroops: number) => (stroops / 10_000_000).toFixed(2);
   const depositXlm = stream.deposit / 10_000_000;
   const flowXlm = stream.flowRate / 10_000_000;
+  const isBusy = withdrawLoading || cancelLoading || cancelPending || topUpLoading;
 
-  // ── Render: detail ────────────────────────────────────────────────────────
-  const isBusy = actionLoading !== null;
-
+  // ── Render: detail ─────────────────────────────────────────────────────────
   return (
     <main className="min-h-screen bg-gray-900 text-white p-4 sm:p-8">
       <div className="max-w-2xl mx-auto animate-fade-in">
@@ -346,7 +343,6 @@ export default function StreamDetail({ params }: { params: { id: string } }) {
             <span className="text-white">
               <FederationName address={stream.recipient} truncate />
             </span>
-            <span className="text-white font-mono">{stream.recipient}</span>
           </span>
         </div>
 
@@ -371,33 +367,22 @@ export default function StreamDetail({ params }: { params: { id: string } }) {
             </div>
           </div>
 
-          {/* Claimable live counter */}
-          <StreamTimeline
-            startTime={stream.startTime}
-            endTime={stream.endTime}
-          />
-
           {/* Claimable balance — optimistic withdraw support */}
-          <div className="text-center">
-            <p className="text-gray-400 text-sm mb-2">Claimable now</p>
-            <div className="text-2xl sm:text-3xl font-bold">
-              <LiveCounter
-                streamId={stream.id}
-                flowRate={stream.flowRate}
-                lastWithdrawTime={new Date(stream.lastWithdrawTime)}
-                streamId={stream.id}
-              />
-            </div>
-          </div>
-
-          {/* Status messages */}
-          {txStatus && (
-                optimisticOverride={optimisticClaimable}
-              />
+          <StreamErrorBoundary section="Live Counter" resetKey={stream.id}>
+            <div className="text-center">
+              <p className="text-gray-400 text-sm mb-2">Claimable now</p>
+              <div className="text-2xl sm:text-3xl font-bold">
+                <LiveCounter
+                  streamId={stream.id}
+                  flowRate={stream.flowRate}
+                  lastWithdrawTime={new Date(stream.lastWithdrawTime)}
+                  optimisticOverride={optimisticClaimable}
+                />
+              </div>
             </div>
           </StreamErrorBoundary>
 
-          {/* Stream deposit — optimistic top-up support */}
+          {/* Stream balance — optimistic top-up support */}
           <div className="text-center">
             <p className="text-gray-400 text-sm mb-1">Stream balance (deposit)</p>
             <p
@@ -417,9 +402,6 @@ export default function StreamDetail({ params }: { params: { id: string } }) {
             </p>
           </div>
 
-          {error && (
-            <p className="text-red-400 text-sm text-center">{error}</p>
-          )}
           {error && <p className="text-red-400 text-sm text-center">{error}</p>}
 
           {error && (
@@ -440,7 +422,7 @@ export default function StreamDetail({ params }: { params: { id: string } }) {
           <div className="flex gap-4">
             <button
               onClick={handleWithdraw}
-              disabled={withdrawLoading || cancelLoading}
+              disabled={isBusy}
               className="flex-1 bg-green-600 text-white py-3 rounded-lg font-medium hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             >
               {withdrawLoading ? (
@@ -454,6 +436,14 @@ export default function StreamDetail({ params }: { params: { id: string } }) {
             </button>
 
             <button
+              onClick={cancelPending ? handleCancelUndo : () => setShowCancelModal(true)}
+              disabled={cancelLoading || withdrawLoading || topUpLoading}
+              className={`flex-1 py-3 rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
+                cancelPending
+                  ? "bg-amber-600 text-white hover:bg-amber-700"
+                  : "border border-red-600 text-red-400 hover:bg-red-900"
+              }`}
+              aria-live="polite"
               onClick={() => setShowCancelModal(true)}
               disabled={cancelLoading}
               aria-busy={cancelLoading}
@@ -466,13 +456,14 @@ export default function StreamDetail({ params }: { params: { id: string } }) {
                   <Spinner />
                   Cancelling…
                 </>
+              ) : cancelPending ? (
+                "Undo Cancel"
               ) : (
                 "Cancel"
               )}
             </button>
           </div>
 
-          {/* Top-up section */}
           {/* Top-up form */}
           {showTopUp && (
             <div className="space-y-2">
@@ -484,8 +475,6 @@ export default function StreamDetail({ params }: { params: { id: string } }) {
                 type="number"
                 value={topUpAmount}
                 onChange={(e) => setTopUpAmount(e.target.value)}
-                placeholder="Amount (XLM)"
-                onChange={(event) => setTopUpAmount(event.target.value)}
                 placeholder="Amount (USDC)"
                 className="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 text-white text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-500 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-900"
               />
@@ -525,6 +514,30 @@ export default function StreamDetail({ params }: { params: { id: string } }) {
           </button>
 
           {/* Transaction history */}
+          <StreamErrorBoundary section="Transaction History" resetKey={stream.id}>
+            <section aria-labelledby="history-heading">
+              <h2 id="history-heading" className="text-lg font-semibold mb-3">
+                Transaction History
+              </h2>
+              <StreamHistory entries={historyEntries} />
+              <div className="mt-4">
+                <p className="text-gray-400 text-sm font-medium mb-3">
+                  History Export
+                </p>
+                <div className="flex gap-3">
+                  <button
+                    onClick={() => downloadCSV(historyEntries, params.id)}
+                    className="flex-1 bg-gray-700 text-white py-2 rounded-lg text-sm hover:bg-gray-600 transition-colors"
+                  >
+                    Download CSV
+                  </button>
+                  <button
+                    onClick={() => downloadJSON(historyEntries, params.id)}
+                    className="flex-1 bg-gray-700 text-white py-2 rounded-lg text-sm hover:bg-gray-600 transition-colors"
+                  >
+                    Download JSON
+                  </button>
+                </div>
           {/* History */}
           <section aria-labelledby="history-heading">
             <h2 id="history-heading" className="text-lg font-semibold mb-3">
@@ -557,6 +570,10 @@ export default function StreamDetail({ params }: { params: { id: string } }) {
       {/* Cancel confirmation modal */}
       {showCancelModal && (
         <div
+          className="fixed inset-0 bg-black/60 flex items-center justify-center z-50"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="cancel-modal-title"
           role="dialog"
           aria-modal="true"
           aria-labelledby="cancel-modal-title"
@@ -569,7 +586,7 @@ export default function StreamDetail({ params }: { params: { id: string } }) {
             <h2 className="text-lg font-semibold text-white">Cancel Stream?</h2>
             <p className="text-gray-400 text-sm">
               This is irreversible. Any unstreamed funds will be returned to the
-              sender.
+              sender. You&apos;ll have 5 seconds to undo after confirming.
             </p>
             <div className="flex gap-3 pt-2">
               <button
@@ -581,6 +598,7 @@ export default function StreamDetail({ params }: { params: { id: string } }) {
               </button>
               <button
                 onClick={handleCancelConfirmed}
+                className="flex-1 bg-red-600 text-white py-2 rounded-lg hover:bg-red-700 transition-colors"
                 disabled={cancelLoading}
                 aria-busy={cancelLoading}
                 className="flex-1 bg-red-600 text-white py-2 rounded-lg hover:bg-red-700 disabled:opacity-50 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-900"
@@ -588,15 +606,7 @@ export default function StreamDetail({ params }: { params: { id: string } }) {
                 {cancelLoading ? "Cancelling…" : "Yes, Cancel"}
                 className="flex-1 bg-red-600 text-white py-2 rounded-lg hover:bg-red-700 disabled:opacity-50 transition-colors"
               >
-                {cancelLoading ? "Cancelling…" : "Yes, Cancel"}
-                {cancelLoading ? (
-                  <>
-                    <Spinner />
-                    Cancelling…
-                  </>
-                ) : (
-                  "Yes, Cancel"
-                )}
+                Yes, Cancel
               </button>
             </div>
           </div>
