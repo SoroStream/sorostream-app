@@ -37,6 +37,54 @@ npm run dev
 | `NEXT_PUBLIC_STELLAR_NETWORK` | Yes | `testnet` or `mainnet` |
 | `NEXT_PUBLIC_CONTRACT_ID` | Yes | Deployed StreamContract address |
 | `NEXT_PUBLIC_RPC_URL` | No | Custom Soroban RPC (defaults to testnet) |
+| `NEXT_PUBLIC_VITALS_ENDPOINT` | No | URL to receive Web Vitals POST payloads |
+
+## Web Vitals
+
+The app collects Core Web Vitals (LCP, FID, CLS, TTFB, FCP, INP) via the [`web-vitals`](https://github.com/GoogleChrome/web-vitals) package and reports them using `navigator.sendBeacon`.
+
+### Wiring up a reporting endpoint
+
+1. Set `NEXT_PUBLIC_VITALS_ENDPOINT` in `.env.local`:
+
+   ```
+   NEXT_PUBLIC_VITALS_ENDPOINT=https://your-api.example.com/api/vitals
+   ```
+
+2. Your endpoint receives `POST` requests with `Content-Type: application/json`:
+
+   ```json
+   {
+     "name": "LCP",
+     "value": 1234.5,
+     "rating": "good",
+     "delta": 1234.5,
+     "id": "v3-1234567890-1234567890",
+     "navigationType": "navigate"
+   }
+   ```
+
+3. In development (no endpoint needed), all vitals are console-logged:
+
+   ```
+   [Web Vitals] LCP: 1234 ms (good)
+   [Web Vitals] CLS: 0.0012 (good)
+   ```
+
+### Alert thresholds
+
+Set alerts on your analytics backend when `rating === "poor"` or when the p75 value exceeds the "Needs Improvement" boundary:
+
+| Metric | Good | Needs Improvement | Poor |
+|--------|------|-------------------|------|
+| LCP | ≤ 2500 ms | ≤ 4000 ms | > 4000 ms |
+| FID | ≤ 100 ms | ≤ 300 ms | > 300 ms |
+| CLS | ≤ 0.1 | ≤ 0.25 | > 0.25 |
+| TTFB | ≤ 800 ms | ≤ 1800 ms | > 1800 ms |
+| FCP | ≤ 1800 ms | ≤ 3000 ms | > 3000 ms |
+| INP | ≤ 200 ms | ≤ 500 ms | > 500 ms |
+
+The implementation lives in `src/lib/vitals.ts` and is mounted via `src/components/WebVitalsReporter.tsx` in the root layout.
 
 ## Tech Stack
 
