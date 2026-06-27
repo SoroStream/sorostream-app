@@ -201,6 +201,10 @@ export default function StreamActions({
         <button
           onClick={handleWithdraw}
           disabled={withdrawing || cancelling || cancelPending}
+          disabled={withdrawing}
+          aria-busy={withdrawing}
+          className="flex-1 bg-green-600 text-white py-3 rounded-lg font-medium hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-500 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-900"
+          disabled={withdrawing || cancelling}
           className="flex-1 bg-green-600 text-white py-3 rounded-lg font-medium hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
         >
           {withdrawing ? (
@@ -215,6 +219,10 @@ export default function StreamActions({
 
         <button
           onClick={cancelPending ? handleUndo : handleCancel}
+          onClick={handleCancel}
+          disabled={cancelling}
+          aria-busy={cancelling}
+          className="flex-1 border border-red-600 text-red-400 py-3 rounded-lg font-medium hover:bg-red-900 disabled:opacity-50 disabled:cursor-not-allowed transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-900"
           disabled={cancelling || withdrawing}
           className={`flex-1 py-3 rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
             cancelPending

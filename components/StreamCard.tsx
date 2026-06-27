@@ -2,6 +2,7 @@
 
 import CopyButton from "@/components/CopyButton";
 import FiatDisplay from "@/components/FiatDisplay";
+import { truncateAddress, formatStellarAmount } from "@/src/lib/sorostream";
 import FederationName from "@/components/FederationName";
 import { truncateAddress } from "@/src/lib/sorostream";
 
@@ -14,6 +15,8 @@ interface StreamCardProps {
   deposit?: number;
 }
 
+export default function StreamCard({ id = '', sender = '', recipient = '', flowRate = 0, status = 'Active', deposit = 0 }: StreamCardProps) {
+  const fmt = (val: number) => formatStellarAmount(val);
 export default function StreamCard({
   id = "",
   sender = "",

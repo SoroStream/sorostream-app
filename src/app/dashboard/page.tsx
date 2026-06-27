@@ -2,18 +2,17 @@
 import { useState, useEffect, useMemo } from "react";
 import Link from "next/link";
 import { StreamListSkeleton } from "@/components/Skeleton";
+import StreamVirtualList from "@/components/StreamVirtualList";
 import { getMockStreams, StreamData } from "@/src/lib/sorostream";
+import { useRpcFetch } from "@/src/lib/useRpcFetch";
 
 type DashboardState = "loading" | "empty" | "ready";
-
-const PAGE_SIZE = 10;
 
 export default function Dashboard() {
   const rpcFetch = useRpcFetch();
   const [loading, setLoading] = useState(true);
   const [streams, setStreams] = useState<StreamData[]>([]);
   const [search, setSearch] = useState("");
-  const [page, setPage] = useState(0);
 
   useEffect(() => {
     async function load() {
@@ -43,14 +42,6 @@ export default function Dashboard() {
     );
   }, [streams, search]);
 
-  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
-  const safePage = Math.min(page, totalPages - 1);
-  const paged = filtered.slice(safePage * PAGE_SIZE, (safePage + 1) * PAGE_SIZE);
-
-  useEffect(() => {
-    setPage(0);
-  }, [search]);
-
   const state: DashboardState = loading
     ? "loading"
     : filtered.length === 0
@@ -64,7 +55,7 @@ export default function Dashboard() {
           <h1 className="text-2xl font-bold">Dashboard</h1>
           <Link
             href="/stream/new"
-            className="bg-green-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-green-700 transition-colors"
+            className="bg-green-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-green-700 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-500 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-900"
           >
             + New Stream
           </Link>
@@ -75,7 +66,7 @@ export default function Dashboard() {
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           placeholder="Search by address or status…"
-          className="w-full mb-6 bg-gray-800 border border-gray-700 rounded-lg px-4 py-2 text-sm text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-green-500"
+          className="w-full mb-6 bg-gray-800 border border-gray-700 rounded-lg px-4 py-2 text-sm text-white placeholder-gray-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-500 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-900"
           aria-label="Search streams"
         />
 
@@ -89,9 +80,31 @@ export default function Dashboard() {
             </Link>
           </div>
         ) : (
+          <div className="rounded-xl border border-gray-700 bg-gray-900 p-2">
+            <StreamVirtualList streams={filtered} />
+          </div>
           <>
             <div className="grid gap-4 md:grid-cols-2 transition-opacity duration-300 opacity-100">
               {paged.map((stream) => (
+                <Link key={stream.id} href={`/stream/${stream.id}`} className="block rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-500 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-900">
+                  <div className="bg-gray-800 rounded-xl p-5 border border-gray-700 hover:border-green-500 transition-colors">
+                    <div className="flex justify-between items-start mb-3">
+                      <span className="text-xs font-medium px-2 py-1 rounded-full bg-gray-700 text-gray-300">
+                        {stream.status}
+                      </span>
+                      <span className="text-xs text-gray-400">#{stream.id}</span>
+                    </div>
+                    <div className="space-y-2">
+                      <div>
+                        <p className="text-xs text-gray-400">From</p>
+                        <p className="text-sm font-mono text-white">{stream.sender}</p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-gray-400">To</p>
+                        <p className="text-sm font-mono text-white">{stream.recipient}</p>
+                      </div>
+                    </div>
+                  </div>
                 <Link key={stream.id} href={`/stream/${stream.id}`} className="block">
                   <StreamCard
                     id={stream.id}
@@ -110,17 +123,17 @@ export default function Dashboard() {
                 <button
                   disabled={safePage === 0}
                   onClick={() => setPage((p) => Math.max(0, p - 1))}
-                  className="px-4 py-2 rounded-lg border border-gray-700 text-sm disabled:opacity-50 hover:bg-gray-800 transition-colors"
+                  className="px-4 py-2 rounded-lg border border-gray-700 text-sm disabled:opacity-50 hover:bg-gray-800 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-500 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-900"
                 >
                   Previous
                 </button>
-                <span className="text-sm text-gray-400">
+                <span className="text-sm text-gray-400" aria-live="polite" aria-atomic="true">
                   Page {safePage + 1} of {totalPages}
                 </span>
                 <button
                   disabled={safePage >= totalPages - 1}
                   onClick={() => setPage((p) => Math.min(totalPages - 1, p + 1))}
-                  className="px-4 py-2 rounded-lg border border-gray-700 text-sm disabled:opacity-50 hover:bg-gray-800 transition-colors"
+                  className="px-4 py-2 rounded-lg border border-gray-700 text-sm disabled:opacity-50 hover:bg-gray-800 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-500 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-900"
                 >
                   Next
                 </button>

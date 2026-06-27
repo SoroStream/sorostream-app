@@ -34,6 +34,33 @@ export default function DurationPicker({ onChange, error: externalError }: Durat
   const displayError = externalError || inlineError;
 
   return (
+    <div className="flex gap-2">
+      {(
+        [
+          { label: "Days", value: days, set: setDays, max: 3650 },
+          { label: "Hours", value: hours, set: setHours, max: 23 },
+          { label: "Minutes", value: minutes, set: setMinutes, max: 59 },
+        ] as const
+      ).map(({ label, value, set, max }) => (
+        <label key={label} className="flex flex-col gap-1 flex-1">
+          <span className="text-xs text-slate-300">{label}</span>
+          <input
+            type="number"
+            min={0}
+            max={max}
+            value={value}
+            onChange={(e) => {
+              const v = Math.max(0, Math.min(max, Number(e.target.value)));
+              set(v);
+              if (label === "Days") update(v, hours, minutes);
+              else if (label === "Hours") update(days, v, minutes);
+              else update(days, hours, v);
+            }}
+            className="rounded-lg border border-slate-600 bg-gray-800 px-3 py-2 text-sm text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-500 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-900"
+            aria-label={label}
+          />
+        </label>
+      ))}
     <div>
       <div
         className="flex gap-2"
