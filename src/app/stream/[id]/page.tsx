@@ -1,9 +1,8 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
-import StreamTimeline from "@/components/StreamTimeline";
-import StreamHistory from "@/components/StreamHistory";
 import LiveCounter from "@/components/LiveCounter";
 import { StreamListSkeleton } from "@/components/Skeleton";
 import { downloadCSV, downloadJSON, StreamHistoryEntry } from "@/src/lib/export";
@@ -17,7 +16,7 @@ import {
 } from "@/src/lib/sorostream";
 import { useToast } from "@/src/lib/toast";
 
-export type HistoryEntry = StreamHistoryEntry;
+type ActionLoading = "top-up" | "withdraw" | "cancel" | null;
 
 /** Spinner used inside transaction buttons */
 function Spinner() {
@@ -50,6 +49,14 @@ export default function StreamDetail({ params }: { params: { id: string } }) {
   const { addToast } = useToast();
 
   const [stream, setStream] = useState<StreamData | null>(null);
+  const [historyEntries, setHistoryEntries] = useState<StreamHistoryEntry[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [actionLoading, setActionLoading] = useState<ActionLoading>(null);
+  const [showTopUp, setShowTopUp] = useState(false);
+  const [topUpAmount, setTopUpAmount] = useState("");
+  const [showCancelModal, setShowCancelModal] = useState(false);
+  const [txStatus, setTxStatus] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
   const [pageLoading, setPageLoading] = useState(true);
   const [historyEntries, setHistoryEntries] = useState<StreamHistoryEntry[]>([]);
   const [error, setError] = useState<string | null>(null);
@@ -82,19 +89,29 @@ export default function StreamDetail({ params }: { params: { id: string } }) {
   // Load stream on mount
   // -----------------------------------------------------------------------
   useEffect(() => {
-    async function load() {
+    let cancelled = false;
+
+    async function loadStream() {
+      setLoading(true);
+      setError(null);
       try {
         const data = await sorostream.getStream(params.id);
+        if (cancelled) return;
         setStream(data);
-        setHistoryEntries(getMockStreamHistory(params.id));
+        setHistoryEntries(data ? getMockStreamHistory(params.id) : []);
       } catch (err) {
         console.error("Failed to load stream", err);
-        setError("Failed to load stream data.");
+        if (!cancelled) setError("Failed to load stream data.");
       } finally {
         setPageLoading(false);
       }
     }
-    load();
+
+    void loadStream();
+
+    return () => {
+      cancelled = true;
+    };
   }, [params.id]);
 
   // -----------------------------------------------------------------------
@@ -175,7 +192,7 @@ export default function StreamDetail({ params }: { params: { id: string } }) {
     } catch {
       addToast("Cancellation failed. Please try again.", "error");
     } finally {
-      setCancelLoading(false);
+      setActionLoading(null);
     }
   }, [addToast]);
 
@@ -230,6 +247,8 @@ export default function StreamDetail({ params }: { params: { id: string } }) {
       </main>
     );
   }
+
+  const isBusy = actionLoading !== null;
 
   return (
     <main className="min-h-screen bg-gray-900 text-white p-4 sm:p-8">
@@ -294,6 +313,7 @@ export default function StreamDetail({ params }: { params: { id: string } }) {
           {error && (
             <p className="text-red-400 text-sm text-center">{error}</p>
           )}
+          {error && <p className="text-red-400 text-sm text-center">{error}</p>}
 
           {/* Withdraw / Cancel */}
           <div className="flex gap-4">
@@ -334,7 +354,7 @@ export default function StreamDetail({ params }: { params: { id: string } }) {
               <input
                 type="number"
                 value={topUpAmount}
-                onChange={(e) => setTopUpAmount(e.target.value)}
+                onChange={(event) => setTopUpAmount(event.target.value)}
                 placeholder="Amount (USDC)"
                 min="0"
                 step="0.01"
