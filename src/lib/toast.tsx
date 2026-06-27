@@ -1,16 +1,25 @@
 "use client";
-import { createContext, useContext, useState, useCallback, type ReactNode } from "react";
+import { createContext, useContext, useState, useCallback, useRef, type ReactNode } from "react";
 
-type ToastType = "success" | "error" | "info";
+type ToastType = "success" | "error" | "info" | "warning";
 
 interface Toast {
   id: number;
   message: string;
   type: ToastType;
+  /** When set, the toast persists until explicitly dismissed (no auto-remove). */
+  persistent?: boolean;
 }
 
 interface ToastContextType {
   addToast: (message: string, type?: ToastType) => void;
+  /**
+   * Create or update a persistent toast identified by `key`.
+   * Returns the numeric id of the created/updated toast.
+   * Call removeToast(id) to dismiss it.
+   */
+  upsertPersistentToast: (key: string, message: string, type?: ToastType) => number;
+  removeToast: (id: number) => void;
 }
 
 const ToastContext = createContext<ToastContextType | null>(null);
@@ -23,34 +32,81 @@ export function useToast() {
 
 export function ToastProvider({ children }: { children: ReactNode }) {
   const [toasts, setToasts] = useState<Toast[]>([]);
+  /** Maps a string key → numeric toast id for persistent toasts. */
+  const persistentMap = useRef<Map<string, number>>(new Map());
 
   const removeToast = useCallback((id: number) => {
-    setToasts(prev => prev.filter(t => t.id !== id));
+    setToasts((prev) => prev.filter((t) => t.id !== id));
+    // Clean up the persistent map entry if present
+    for (const [key, storedId] of persistentMap.current.entries()) {
+      if (storedId === id) {
+        persistentMap.current.delete(key);
+        break;
+      }
+    }
   }, []);
 
-  const addToast = useCallback((message: string, type: ToastType = "info") => {
-    const id = Date.now() + Math.random();
-    setToasts(prev => [...prev, { id, message, type }]);
-    setTimeout(() => removeToast(id), 4000);
-  }, [removeToast]);
+  const addToast = useCallback(
+    (message: string, type: ToastType = "info") => {
+      const id = Date.now() + Math.random();
+      setToasts((prev) => [...prev, { id, message, type }]);
+      setTimeout(() => removeToast(id), 4000);
+    },
+    [removeToast],
+  );
+
+  const upsertPersistentToast = useCallback(
+    (key: string, message: string, type: ToastType = "info"): number => {
+      const existingId = persistentMap.current.get(key);
+
+      if (existingId !== undefined) {
+        // Update the message in-place so the countdown changes without flicker.
+        setToasts((prev) =>
+          prev.map((t) => (t.id === existingId ? { ...t, message, type } : t)),
+        );
+        return existingId;
+      }
+
+      // Create a new persistent toast.
+      const id = Date.now() + Math.random();
+      persistentMap.current.set(key, id);
+      setToasts((prev) => [...prev, { id, message, type, persistent: true }]);
+      return id;
+    },
+    [],
+  );
 
   return (
-    <ToastContext.Provider value={{ addToast }}>
+    <ToastContext.Provider value={{ addToast, upsertPersistentToast, removeToast }}>
       {children}
-      <div className="fixed bottom-4 right-4 z-50 flex flex-col gap-2">
-        {toasts.map(toast => (
+      <div
+        className="fixed bottom-4 right-4 z-50 flex flex-col gap-2"
+        aria-live="polite"
+        aria-atomic="false"
+      >
+        {toasts.map((toast) => (
           <div
             key={toast.id}
             className={`px-4 py-3 rounded-lg shadow-lg text-white text-sm max-w-sm animate-slide-up ${
-              toast.type === "success" ? "bg-green-600" :
-              toast.type === "error" ? "bg-red-600" :
-              "bg-gray-700"
+              toast.type === "success"
+                ? "bg-green-600"
+                : toast.type === "error"
+                  ? "bg-red-600"
+                  : toast.type === "warning"
+                    ? "bg-amber-600"
+                    : "bg-gray-700"
             }`}
             role="alert"
           >
             <div className="flex justify-between items-center gap-2">
               <span>{toast.message}</span>
-              <button onClick={() => removeToast(toast.id)} className="text-white/70 hover:text-white ml-2 text-lg leading-none">&times;</button>
+              <button
+                onClick={() => removeToast(toast.id)}
+                className="text-white/70 hover:text-white ml-2 text-lg leading-none"
+                aria-label="Dismiss notification"
+              >
+                &times;
+              </button>
             </div>
           </div>
         ))}

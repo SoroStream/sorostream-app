@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import NetworkSelector from "@/components/NetworkSelector";
 import WalletConnect from "@/components/WalletConnect";
 import ThemeToggle from "@/components/ThemeToggle";
+import { useSettings } from "@/src/context/SettingsContext";
 
 const NAV_LINKS = [
   { href: "/", label: "Home" },
@@ -15,6 +16,7 @@ const NAV_LINKS = [
 export default function NavHeader() {
   const pathname = usePathname();
   const [scrolled, setScrolled] = useState(false);
+  const { showUsd, toggleShowUsd } = useSettings();
 
   useEffect(() => {
     const handleScroll = () => setScrolled(window.scrollY > 10);
@@ -54,6 +56,18 @@ export default function NavHeader() {
         <div className="flex items-center gap-3">
           <NetworkSelector />
           <WalletConnect />
+          <button
+            onClick={toggleShowUsd}
+            className={`text-xs px-2 py-1 rounded border transition-colors ${
+              showUsd
+                ? "border-green-600 text-green-400 hover:bg-green-900/30"
+                : "border-gray-600 text-gray-400 hover:bg-gray-700"
+            }`}
+            aria-pressed={showUsd}
+            title={showUsd ? "Hide USD values" : "Show USD values"}
+          >
+            {showUsd ? "USD ✓" : "USD"}
+          </button>
           <ThemeToggle />
         </div>
       </div>

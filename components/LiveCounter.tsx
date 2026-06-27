@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import FiatDisplay from "@/components/FiatDisplay";
 import { sorostream } from "@/src/lib/sorostream";
+import { useRpcFetch } from "@/src/lib/useRpcFetch";
 
 interface LiveCounterProps {
   flowRate: number;
@@ -18,7 +19,7 @@ function getEstimatedClaimable(flowRate: number, lastWithdrawTime: Date) {
   return Math.max(0, flowRate * elapsed);
 }
 
-function parseClaimable(value: string | number | bigint) {
+function parseClaimable(value: string | number | bigint): number | null {
   const amount = typeof value === "bigint" ? Number(value) : Number(value);
   return Number.isFinite(amount) && amount >= 0 ? amount : null;
 }
@@ -29,21 +30,27 @@ export default function LiveCounter({
   streamId,
   reconcileIntervalMs = DEFAULT_RECONCILE_INTERVAL_MS,
 }: LiveCounterProps) {
+  const rpcFetch = useRpcFetch();
+
   const [baseline, setBaseline] = useState(() => ({
     amount: getEstimatedClaimable(flowRate, lastWithdrawTime),
     timestamp: Date.now(),
   }));
-  const [claimable, setClaimable] = useState(() => getEstimatedClaimable(flowRate, lastWithdrawTime));
+  const [claimable, setClaimable] = useState(() =>
+    getEstimatedClaimable(flowRate, lastWithdrawTime),
+  );
 
+  // Reset baseline when props change (e.g. after a withdrawal).
   useEffect(() => {
-    const nextBaseline = {
+    const next = {
       amount: getEstimatedClaimable(flowRate, lastWithdrawTime),
       timestamp: Date.now(),
     };
-    setBaseline(nextBaseline);
-    setClaimable(nextBaseline.amount);
+    setBaseline(next);
+    setClaimable(next.amount);
   }, [flowRate, lastWithdrawTime]);
 
+  // Periodically reconcile against the chain value, with rate-limit handling.
   useEffect(() => {
     let cancelled = false;
 
@@ -51,17 +58,16 @@ export default function LiveCounter({
       if (!streamId) return;
 
       try {
-        const onChainClaimable = parseClaimable(await sorostream.getClaimable(streamId));
+        const onChainClaimable = parseClaimable(
+          await rpcFetch(() => sorostream.getClaimable(streamId)),
+        );
         if (cancelled || onChainClaimable === null) return;
 
-        const nextBaseline = {
-          amount: onChainClaimable,
-          timestamp: Date.now(),
-        };
-        setBaseline(nextBaseline);
-        setClaimable(nextBaseline.amount);
+        const next = { amount: onChainClaimable, timestamp: Date.now() };
+        setBaseline(next);
+        setClaimable(next.amount);
       } catch {
-        // Keep the local interpolation running if the chain read is temporarily unavailable.
+        // Keep local interpolation running if the chain read fails permanently.
       }
     }
 
@@ -72,27 +78,30 @@ export default function LiveCounter({
       cancelled = true;
       clearInterval(interval);
     };
-  }, [streamId, reconcileIntervalMs]);
+  }, [streamId, reconcileIntervalMs, rpcFetch]);
 
+  // Interpolate locally at 1-second resolution.
   useEffect(() => {
     const interval = setInterval(() => {
       const elapsed = (Date.now() - baseline.timestamp) / 1000;
       setClaimable(Math.max(0, baseline.amount + flowRate * elapsed));
-    }, 1000);
+    }, 1_000);
     return () => clearInterval(interval);
   }, [baseline, flowRate]);
 
-  const formatUSDC = (val: number) => (val / 10000000).toFixed(7);
+  /** Format stroops as XLM with 7 decimal places. */
+  const formatXlm = (val: number) => (val / 10_000_000).toFixed(7);
+  const xlmAmount = claimable / 10_000_000;
 
   return (
     <span
       className="font-mono text-green-600 font-semibold tabular-nums"
       role="status"
       aria-live="polite"
-      aria-label={`Claimable: ${formatUSDC(claimable)} USDC`}
+      aria-label={`Claimable: ${formatXlm(claimable)} XLM`}
     >
-      {formatUSDC(claimable)} USDC{" "}
-      <FiatDisplay usdcAmount={claimable / 10000000} />
+      {formatXlm(claimable)} XLM{" "}
+      <FiatDisplay xlmAmount={xlmAmount} />
     </span>
   );
 }
