@@ -242,7 +242,7 @@ export default function StreamDetail({ params }: { params: { id: string } }) {
             </Link>
           </div>
           <h1 className="text-2xl font-bold mb-8">Stream #{params.id}</h1>
-          <p className="text-red-400">Stream not found.</p>
+          <p className="text-red-400">{error ?? "Stream not found."}</p>
         </div>
       </main>
     );
@@ -291,7 +291,7 @@ export default function StreamDetail({ params }: { params: { id: string } }) {
                 optimisticOverride={optimisticClaimable}
               />
             </div>
-          </div>
+          </StreamErrorBoundary>
 
           {/* Stream deposit — optimistic top-up support */}
           <div className="text-center">
@@ -376,7 +376,6 @@ export default function StreamDetail({ params }: { params: { id: string } }) {
               </button>
             </div>
           )}
-
           <button
             onClick={() => setShowTopUp((v) => !v)}
             disabled={topUpLoading}
@@ -409,8 +408,8 @@ export default function StreamDetail({ params }: { params: { id: string } }) {
                   Download JSON
                 </button>
               </div>
-            </div>
-          </section>
+            </section>
+          </StreamErrorBoundary>
         </div>
       </div>
 
