@@ -29,7 +29,7 @@ export default function DurationPicker({ onChange }: DurationPickerProps) {
         ] as const
       ).map(({ label, value, set, max }) => (
         <label key={label} className="flex flex-col gap-1 flex-1">
-          <span className="text-xs text-slate-500">{label}</span>
+          <span className="text-xs text-slate-300">{label}</span>
           <input
             type="number"
             min={0}
@@ -42,7 +42,7 @@ export default function DurationPicker({ onChange }: DurationPickerProps) {
               else if (label === "Hours") update(days, v, minutes);
               else update(days, hours, v);
             }}
-            className="rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-sky-500"
+            className="rounded-lg border border-slate-600 bg-gray-800 px-3 py-2 text-sm text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-500 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-900"
             aria-label={label}
           />
         </label>

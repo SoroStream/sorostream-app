@@ -82,14 +82,22 @@ export default function LiveCounter({
     return () => clearInterval(interval);
   }, [baseline, flowRate]);
 
-  const formatUSDC = (val: number) => (val / 10000000).toFixed(7);
+  // Locale-aware display: groups thousands, always shows 7 decimal places
+  const formatUSDC = (val: number) =>
+    (val / 10_000_000).toLocaleString(undefined, {
+      minimumFractionDigits: 7,
+      maximumFractionDigits: 7,
+    });
+
+  // Stable format for aria-label so screen readers get a consistent value
+  const formatUSDCFixed = (val: number) => (val / 10_000_000).toFixed(7);
 
   return (
     <span
       className="font-mono text-green-600 font-semibold tabular-nums"
       role="status"
       aria-live="polite"
-      aria-label={`Claimable: ${formatUSDC(claimable)} USDC`}
+      aria-label={`Claimable: ${formatUSDCFixed(claimable)} USDC`}
     >
       {formatUSDC(claimable)} USDC{" "}
       <FiatDisplay usdcAmount={claimable / 10000000} />

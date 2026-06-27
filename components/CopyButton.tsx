@@ -23,7 +23,7 @@ export default function CopyButton({ value, label = "Copy" }: CopyButtonProps) {
   return (
     <button
       onClick={handleCopy}
-      className="ml-1.5 inline-flex items-center text-gray-500 hover:text-gray-300 transition-colors shrink-0"
+      className="ml-1.5 inline-flex items-center text-gray-500 hover:text-gray-300 transition-colors shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-500 focus-visible:ring-offset-1 focus-visible:ring-offset-gray-900 rounded-sm"
       aria-label={copied ? "Copied" : label}
     >
       {copied ? (

@@ -1,50 +1,9 @@
 "use client";
-import { useState } from "react";
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import StreamTimeline from "@/components/StreamTimeline";
 import StreamHistory from "@/components/StreamHistory";
 import LiveCounter from "@/components/LiveCounter";
-import { sorostream } from "@/lib/sorostream";
-import { connectWallet } from "@/lib/freighter";
-
-export default function StreamDetail({ params }: { params: { id: string } }) {
-  const [loading, setLoading] = useState<"withdraw" | "cancel" | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [txHash, setTxHash] = useState<string | null>(null);
-  const [showCancelModal, setShowCancelModal] = useState(false);
-
-  async function handleWithdraw() {
-    setError(null);
-    setLoading("withdraw");
-    try {
-      const wallet = await connectWallet();
-      if (!wallet) throw new Error("Wallet not connected");
-      const result = await sorostream.withdraw();
-      setTxHash(result.txHash);
-    } catch (e: any) {
-      setError(e.message ?? "Withdraw failed");
-    } finally {
-      setLoading(null);
-    }
-  }
-
-  async function handleCancel() {
-    setShowCancelModal(false);
-    setError(null);
-    setLoading("cancel");
-    try {
-      const wallet = await connectWallet();
-      if (!wallet) throw new Error("Wallet not connected");
-      const result = await sorostream.cancelStream();
-      setTxHash(result.txHash);
-    } catch (e: any) {
-      setError(e.message ?? "Cancel failed");
-    } finally {
-      setLoading(null);
-    }
-  }
-
 import { downloadCSV, downloadJSON, StreamHistoryEntry } from "@/src/lib/export";
 import { SkeletonDetail } from "@/components/Skeleton";
 import { sorostream, StreamData, getMockStreamHistory } from "@/src/lib/sorostream";
@@ -62,11 +21,7 @@ export default function StreamDetail({ params }: { params: { id: string } }) {
   const [cancelLoading, setCancelLoading] = useState(false);
   const [showCancelModal, setShowCancelModal] = useState(false);
   const [txStatus, setTxStatus] = useState<string | null>(null);
-  // additional UI state
-  const [history, setHistory] = useState<HistoryEntry[]>([]);
-  const [status, setStatus] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [showCancelModal, setShowCancelModal] = useState(false);
 
   useEffect(() => {
     async function load() {
@@ -107,7 +62,7 @@ export default function StreamDetail({ params }: { params: { id: string } }) {
     setTxStatus(null);
     try {
       const result = await sorostream.withdraw();
-      setStatus(`Withdrawal submitted! Tx: ${result.txHash}`);
+      setTxStatus(`Withdrawal submitted! Tx: ${result.txHash}`);
     } catch {
       setError("Withdrawal failed. Please try again.");
     } finally {
@@ -145,7 +100,10 @@ export default function StreamDetail({ params }: { params: { id: string } }) {
       <main className="min-h-screen bg-gray-900 text-white p-8">
         <div className="max-w-2xl mx-auto">
           <div className="mb-4">
-            <Link href="/dashboard" className="text-sm text-gray-400 hover:text-white transition-colors">
+            <Link
+              href="/dashboard"
+              className="text-sm text-gray-300 hover:text-white transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-500 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-900 rounded"
+            >
               ← Dashboard
             </Link>
           </div>
@@ -160,7 +118,10 @@ export default function StreamDetail({ params }: { params: { id: string } }) {
     <main className="min-h-screen bg-gray-900 text-white p-4 sm:p-8">
       <div className="max-w-2xl mx-auto">
         <div className="mb-4">
-          <Link href="/dashboard" className="text-sm text-gray-400 hover:text-white transition-colors">
+          <Link
+            href="/dashboard"
+            className="text-sm text-gray-300 hover:text-white transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-500 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-900 rounded"
+          >
             ← Dashboard
           </Link>
         </div>
@@ -169,13 +130,15 @@ export default function StreamDetail({ params }: { params: { id: string } }) {
           <span>
             From: <span className="text-white font-mono">{stream.sender}</span>
           </span>
-          <span className="hidden sm:inline">|</span>
+          <span className="hidden sm:inline" aria-hidden="true">|</span>
           <span>
             To: <span className="text-white font-mono">{stream.recipient}</span>
           </span>
         </div>
+
         <div className="bg-gray-800 rounded-xl p-6 space-y-6">
           <StreamTimeline startTime={stream.startTime} endTime={stream.endTime} />
+
           <div className="text-center">
             <p className="text-gray-400 text-sm mb-2">Claimable now</p>
             <div className="text-2xl sm:text-3xl font-bold">
@@ -186,33 +149,9 @@ export default function StreamDetail({ params }: { params: { id: string } }) {
             </div>
           </div>
 
-          {error && (
-            <p className="text-red-400 text-sm text-center">{error}</p>
-          )}
-          {txHash && (
-            <p className="text-green-400 text-sm text-center break-all">
-              Tx: {txHash}
-          {status && <p className="text-green-400 text-sm text-center">{status}</p>}
-          {error && <p className="text-red-400 text-sm text-center">{error}</p>}
-  <div className="flex gap-4">
-    <button
-      disabled={withdrawLoading}
-      onClick={handleWithdraw}
-      className="flex-1 bg-green-600 text-white py-3 rounded-lg font-medium hover:bg-green-700 transition-colors disabled:opacity-50"
-    >
-      {withdrawLoading ? 'Withdrawing...' : 'Withdraw'}
-    </button>
-    <button
-      disabled={cancelLoading}
-      onClick={() => setShowCancelModal(true)}
-      className="flex-1 border border-red-600 text-red-400 py-3 rounded-lg font-medium hover:bg-red-900 transition-colors disabled:opacity-50"
-    >
-      {cancelLoading ? 'Cancelling...' : 'Cancel'}
-    </button>
-  </div>
-
           {txStatus && (
             <p
+              role="status"
               className={`text-sm text-center ${
                 txStatus.toLowerCase().includes("fail") ? "text-red-400" : "text-green-400"
               }`}
@@ -221,29 +160,26 @@ export default function StreamDetail({ params }: { params: { id: string } }) {
             </p>
           )}
 
+          {error && (
+            <p role="alert" className="text-red-400 text-sm text-center">
+              {error}
+            </p>
+          )}
+
           <div className="flex gap-4">
             <button
               onClick={handleWithdraw}
-              disabled={loading !== null}
-              className="flex-1 bg-green-600 text-white py-3 rounded-lg font-medium hover:bg-green-700 disabled:opacity-50"
-            >
-              {loading === "withdraw" ? "Withdrawing…" : "Withdraw"}
-            </button>
-            <button
-              onClick={() => setShowCancelModal(true)}
-              disabled={loading !== null}
-              className="flex-1 border border-red-600 text-red-400 py-3 rounded-lg font-medium hover:bg-red-900 disabled:opacity-50"
-            >
-              {loading === "cancel" ? "Cancelling…" : "Cancel"}
               disabled={withdrawLoading}
-              className="flex-1 bg-green-600 text-white py-3 rounded-lg font-medium hover:bg-green-700 disabled:opacity-50 transition-colors"
+              aria-busy={withdrawLoading}
+              className="flex-1 bg-green-600 text-white py-3 rounded-lg font-medium hover:bg-green-700 disabled:opacity-50 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-500 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-900"
             >
               {withdrawLoading ? "Withdrawing…" : "Withdraw"}
             </button>
             <button
               onClick={() => setShowCancelModal(true)}
               disabled={cancelLoading}
-              className="flex-1 border border-red-600 text-red-400 py-3 rounded-lg font-medium hover:bg-red-900 disabled:opacity-50 transition-colors"
+              aria-busy={cancelLoading}
+              className="flex-1 border border-red-600 text-red-400 py-3 rounded-lg font-medium hover:bg-red-900 disabled:opacity-50 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-900"
             >
               {cancelLoading ? "Cancelling…" : "Cancel"}
             </button>
@@ -251,17 +187,22 @@ export default function StreamDetail({ params }: { params: { id: string } }) {
 
           {showTopUp && (
             <div className="space-y-2">
+              <label htmlFor="topup-amount" className="text-gray-200 text-sm font-medium block">
+                Top-up Amount (USDC)
+              </label>
               <input
+                id="topup-amount"
                 type="number"
                 value={topUpAmount}
                 onChange={(e) => setTopUpAmount(e.target.value)}
                 placeholder="Amount (USDC)"
-                className="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 text-white text-sm"
+                className="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 text-white text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-500 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-900"
               />
               <button
                 onClick={handleTopUp}
                 disabled={topUpLoading}
-                className="w-full bg-blue-600 text-white py-2 rounded-lg text-sm hover:bg-blue-700 disabled:opacity-50 transition-colors"
+                aria-busy={topUpLoading}
+                className="w-full bg-blue-600 text-white py-2 rounded-lg text-sm hover:bg-blue-700 disabled:opacity-50 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-900"
               >
                 {topUpLoading ? "Topping up…" : "Confirm Top-up"}
               </button>
@@ -270,7 +211,8 @@ export default function StreamDetail({ params }: { params: { id: string } }) {
 
           <button
             onClick={() => setShowTopUp((v) => !v)}
-            className="w-full border border-gray-600 text-gray-300 py-2 rounded-lg text-sm hover:bg-gray-700 transition-colors"
+            aria-expanded={showTopUp}
+            className="w-full border border-gray-600 text-gray-300 py-2 rounded-lg text-sm hover:bg-gray-700 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-500 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-900"
           >
             {showTopUp ? "Cancel Top-up" : "Top Up Stream"}
           </button>
@@ -285,13 +227,13 @@ export default function StreamDetail({ params }: { params: { id: string } }) {
               <div className="flex gap-3">
                 <button
                   onClick={() => downloadCSV(historyEntries, params.id)}
-                  className="flex-1 bg-gray-700 text-white py-2 rounded-lg text-sm hover:bg-gray-600 transition-colors"
+                  className="flex-1 bg-gray-700 text-white py-2 rounded-lg text-sm hover:bg-gray-600 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-500 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-900"
                 >
                   Download CSV
                 </button>
                 <button
                   onClick={() => downloadJSON(historyEntries, params.id)}
-                  className="flex-1 bg-gray-700 text-white py-2 rounded-lg text-sm hover:bg-gray-600 transition-colors"
+                  className="flex-1 bg-gray-700 text-white py-2 rounded-lg text-sm hover:bg-gray-600 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-500 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-900"
                 >
                   Download JSON
                 </button>
@@ -303,45 +245,33 @@ export default function StreamDetail({ params }: { params: { id: string } }) {
 
       {/* Cancel confirmation modal */}
       {showCancelModal && (
-        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50">
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="cancel-modal-title"
+          className="fixed inset-0 bg-black/60 flex items-center justify-center z-50"
+        >
           <div className="bg-gray-800 rounded-xl p-6 max-w-sm w-full mx-4 space-y-4">
-            <h2 className="text-lg font-bold">Cancel stream?</h2>
-            <p className="text-gray-400 text-sm">
-              This is irreversible and will affect the recipient&apos;s funds.
-              Are you sure you want to cancel this stream?
-            </p>
-            <div className="flex gap-3">
-              <button
-                onClick={() => setShowCancelModal(false)}
-                className="flex-1 bg-gray-700 text-white py-2 rounded-lg hover:bg-gray-600"
-              >
-                Go back
-              </button>
-              <button
-                onClick={handleCancel}
-                className="flex-1 bg-red-600 text-white py-2 rounded-lg hover:bg-red-700"
-              >
-                Yes, cancel
-      {showCancelModal && (
-        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50">
-          <div className="bg-gray-800 rounded-xl p-6 max-w-sm w-full mx-4 space-y-4">
-            <h2 className="text-lg font-semibold text-white">Cancel Stream?</h2>
+            <h2 id="cancel-modal-title" className="text-lg font-semibold text-white">
+              Cancel Stream?
+            </h2>
             <p className="text-gray-400 text-sm">
               This is irreversible. Any unstreamed funds will be returned to the sender.
             </p>
             <div className="flex gap-3 pt-2">
               <button
                 onClick={() => setShowCancelModal(false)}
-                className="flex-1 border border-gray-600 text-gray-300 py-2 rounded-lg hover:bg-gray-700"
+                className="flex-1 border border-gray-600 text-gray-300 py-2 rounded-lg hover:bg-gray-700 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-500 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-900"
               >
                 Go Back
               </button>
               <button
-                onClick={handleCancel}
+                onClick={handleCancelConfirmed}
                 disabled={cancelLoading}
-                className="flex-1 bg-red-600 text-white py-2 rounded-lg hover:bg-red-700 disabled:opacity-50"
+                aria-busy={cancelLoading}
+                className="flex-1 bg-red-600 text-white py-2 rounded-lg hover:bg-red-700 disabled:opacity-50 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-900"
               >
-                {cancelLoading ? 'Cancelling...' : 'Yes, Cancel'}
+                {cancelLoading ? "Cancelling…" : "Yes, Cancel"}
               </button>
             </div>
           </div>

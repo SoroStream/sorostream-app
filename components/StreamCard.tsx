@@ -2,7 +2,7 @@
 
 import CopyButton from "@/components/CopyButton";
 import FiatDisplay from "@/components/FiatDisplay";
-import { truncateAddress } from "@/src/lib/sorostream";
+import { truncateAddress, formatStellarAmount } from "@/src/lib/sorostream";
 
 interface StreamCardProps {
   id?: string;
@@ -14,7 +14,7 @@ interface StreamCardProps {
 }
 
 export default function StreamCard({ id = '', sender = '', recipient = '', flowRate = 0, status = 'Active', deposit = 0 }: StreamCardProps) {
-  const fmt = (val: number) => (val / 10000000).toFixed(2);
+  const fmt = (val: number) => formatStellarAmount(val);
   return (
     <div className="bg-gray-800 rounded-lg p-4 space-y-2 border border-gray-700" role="article" aria-label={`Stream ${id}`}>
       <div className="flex justify-between items-center">

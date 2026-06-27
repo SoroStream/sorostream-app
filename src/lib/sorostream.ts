@@ -77,8 +77,30 @@ export function getMockStreamHistory(id: string): StreamHistoryEntry[] {
 
 export const createClient = () => sorostream;
 
+/**
+ * Format a stroops value as XLM/USDC with full 7-decimal precision.
+ * Uses locale-aware grouping so large values are readable, e.g. "1,234.5678900".
+ * Small values like 0.0001234 are preserved rather than rounding to "0.00".
+ */
 export function formatUSDC(stroops: bigint): string {
-  return (Number(stroops) / 10000000).toFixed(2);
+  return formatStellarAmount(Number(stroops));
+}
+
+/**
+ * Format a raw stroop number (integer, 7-decimal fixed-point) as a
+ * locale-aware string with up to 7 significant decimal places.
+ *
+ * Examples:
+ *   1234 stroops  → "0.0001234"
+ *   10000000      → "1.0000000"
+ *   10000000000   → "1,000.0000000"
+ */
+export function formatStellarAmount(stroops: number): string {
+  const whole = stroops / 10_000_000;
+  return whole.toLocaleString(undefined, {
+    minimumFractionDigits: 7,
+    maximumFractionDigits: 7,
+  });
 }
 
 export function toStroops(usdc: string): bigint {

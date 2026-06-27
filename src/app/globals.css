@@ -23,6 +23,16 @@ body {
   transition: background 200ms ease-in-out, color 200ms ease-in-out;
 }
 
+/*
+ * Accessibility: ensure browser-default focus outline is never silently hidden.
+ * Components use focus-visible:ring-* for styled rings; this rule is a safety
+ * net for any element that escapes the component-level styles.
+ */
+:focus-visible {
+  outline: 2px solid #22c55e; /* green-500 */
+  outline-offset: 2px;
+}
+
 @keyframes slide-up {
   from {
     opacity: 0;
