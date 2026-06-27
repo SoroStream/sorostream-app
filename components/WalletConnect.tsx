@@ -12,6 +12,7 @@ import {
 import { useTranslations } from "@/src/lib/i18n";
 import CopyButton from "@/components/CopyButton";
 import { trackEvent } from "@/src/lib/analytics";
+import { useWallet } from "@/src/context/WalletContext";
 
 interface WalletConnectProps {
   onConnect?: (publicKey: string, walletType: WalletType) => void;
@@ -22,25 +23,44 @@ const WALLET_TYPES: WalletType[] = ["freighter", "ledger", "server-keypair"];
 /**
  * Multi-wallet connect button.
  * Supports Freighter, Ledger, and Server Keypair adapters.
+ *
+ * The displayed address is driven by WalletContext so it automatically updates
+ * when the user switches accounts inside Freighter (handled by the context
+ * watcher) — no page reload required.
  */
 export default function WalletConnect({ onConnect }: WalletConnectProps) {
   const t = useTranslations("wallet");
-  const [publicKey, setPublicKey] = useState<string | null>(null);
+  const { address: contextAddress, connect: contextConnect, disconnect: contextDisconnect } = useWallet();
+
   const [walletType, setWalletType] = useState<WalletType>("freighter");
   const [secretInput, setSecretInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [adapter, setAdapter] = useState<WalletAdapter | null>(null);
 
+  /**
+   * Keep local adapter state aligned with the context address.
+   * When the context detects an account switch (via WatchWalletChanges) and
+   * contextAddress changes, this fires onConnect so consumers stay in sync.
+   */
+  useEffect(() => {
+    if (contextAddress && adapter) {
+      onConnect?.(contextAddress, walletType);
+    }
+  // We intentionally only react to contextAddress changes here, not every
+  // render of the other deps.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [contextAddress]);
+
   const handleDisconnect = useCallback(() => {
     adapter?.disconnect();
-    setPublicKey(null);
     setAdapter(null);
     setSecretInput("");
+    contextDisconnect();
     localStorage.removeItem("sorostream_wallet_connected");
     localStorage.removeItem("sorostream_wallet_type");
     localStorage.removeItem("sorostream_wallet_secret");
-  }, [adapter]);
+  }, [adapter, contextDisconnect]);
 
   useEffect(() => {
     async function autoReconnect() {
@@ -72,9 +92,10 @@ export default function WalletConnect({ onConnect }: WalletConnectProps) {
 
         const key = await selected.getPublicKey();
         if (key) {
-          setPublicKey(key);
           setWalletType(storedType);
           setAdapter(selected);
+          // Sync to context so the watcher takes over from here
+          await contextConnect();
           onConnect?.(key, storedType);
         } else {
           handleDisconnect();
@@ -110,20 +131,22 @@ export default function WalletConnect({ onConnect }: WalletConnectProps) {
         return;
       }
 
-      const key = await selected.getPublicKey();
-      setPublicKey(key);
       setAdapter(selected);
 
-      localStorage.setItem("sorostream_wallet_connected", "true");
-      localStorage.setItem("sorostream_wallet_type", walletType);
-      if (walletType === "server-keypair") {
-        localStorage.setItem("sorostream_wallet_secret", secretInput);
-      } else {
-        localStorage.removeItem("sorostream_wallet_secret");
-      }
+      // Delegate the actual address retrieval + context update to WalletContext
+      const key = await contextConnect();
 
-      onConnect?.(key, walletType);
-      trackEvent({ type: "wallet_connect", success: true });
+      if (key) {
+        localStorage.setItem("sorostream_wallet_connected", "true");
+        localStorage.setItem("sorostream_wallet_type", walletType);
+        if (walletType === "server-keypair") {
+          localStorage.setItem("sorostream_wallet_secret", secretInput);
+        } else {
+          localStorage.removeItem("sorostream_wallet_secret");
+        }
+        onConnect?.(key, walletType);
+        trackEvent({ type: "wallet_connect", success: true });
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Connection failed");
       trackEvent({ type: "wallet_connect", success: false });
@@ -131,6 +154,9 @@ export default function WalletConnect({ onConnect }: WalletConnectProps) {
       setLoading(false);
     }
   }
+
+  // Derive displayed key from context (stays current after account switches)
+  const publicKey = contextAddress;
 
   if (publicKey) {
     return (
