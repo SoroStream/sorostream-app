@@ -106,6 +106,15 @@ export default function LiveCounter({
   const formatXlm = (val: number) => (val / 10_000_000).toFixed(7);
   const xlmAmount = claimable / 10_000_000;
 
+  // Locale-aware display: groups thousands, always shows 7 decimal places
+  const formatUSDC = (val: number) =>
+    (val / 10_000_000).toLocaleString(undefined, {
+      minimumFractionDigits: 7,
+      maximumFractionDigits: 7,
+    });
+
+  // Stable format for aria-label so screen readers get a consistent value
+  const formatUSDCFixed = (val: number) => (val / 10_000_000).toFixed(7);
   const isOptimistic = optimisticOverride != null;
   const displayValue = isOptimistic ? optimisticOverride : claimable;
 
@@ -114,6 +123,7 @@ export default function LiveCounter({
       className="font-mono font-semibold tabular-nums inline-flex items-baseline gap-1.5"
       role="status"
       aria-live="polite"
+      aria-label={`Claimable: ${formatUSDCFixed(claimable)} USDC`}
       aria-label={`Claimable: ${formatUSDC(displayValue)} USDC${isOptimistic ? " (pending confirmation)" : ""}`}
     >
       <span className={isOptimistic ? "text-yellow-400" : "text-green-600"}>

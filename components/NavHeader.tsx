@@ -32,22 +32,23 @@ export default function NavHeader() {
     >
       <div className="max-w-6xl mx-auto px-4 sm:px-6 h-14 flex items-center justify-between">
         <div className="flex items-center gap-6">
-          <Link href="/" className="text-lg font-bold text-green-400">
+          <Link href="/" className="text-lg font-bold text-green-400 rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-500 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-900">
             SoroStream
           </Link>
-          <nav className="hidden sm:flex items-center gap-4">
+          <nav className="hidden sm:flex items-center gap-4" aria-label="Main navigation">
             {NAV_LINKS.map((link) => {
               const isActive = pathname === link.href || (link.href !== "/" && pathname.startsWith(link.href));
               return (
                 <Link
                   key={link.href}
                   href={link.href}
-                  className={`text-sm transition-colors ${
-                    isActive ? "text-white font-medium" : "text-gray-400 hover:text-white"
+                  aria-current={isActive ? "page" : undefined}
+                  className={`text-sm transition-colors rounded-md px-1 py-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-500 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-900 ${
+                    isActive ? "text-white font-medium" : "text-gray-300 hover:text-white"
                   }`}
                 >
                   {link.label}
-                  {isActive && <span className="ml-1 inline-block h-1 w-1 rounded-full bg-green-400" />}
+                  {isActive && <span className="ml-1 inline-block h-1 w-1 rounded-full bg-green-400" aria-hidden="true" />}
                 </Link>
               );
             })}
