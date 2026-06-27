@@ -1,10 +1,8 @@
 "use client";
 import { useState, useEffect, useMemo } from "react";
 import Link from "next/link";
-import { SkeletonCard } from "@/components/Skeleton";
-import StreamCard from "@/components/StreamCard";
-import { getMockStreams, type StreamData } from "@/src/lib/sorostream";
-import { useRpcFetch } from "@/src/lib/useRpcFetch";
+import { StreamListSkeleton } from "@/components/Skeleton";
+import { getMockStreams, StreamData } from "@/src/lib/sorostream";
 
 type DashboardState = "loading" | "empty" | "ready";
 
@@ -82,16 +80,7 @@ export default function Dashboard() {
         />
 
         {state === "loading" ? (
-          <div
-            className="grid gap-4 md:grid-cols-2"
-            role="status"
-            aria-live="polite"
-            aria-label="Loading streams"
-          >
-            <SkeletonCard />
-            <SkeletonCard />
-            <SkeletonCard />
-          </div>
+          <StreamListSkeleton />
         ) : state === "empty" ? (
           <div className="bg-gray-800 rounded-xl p-8 text-center">
             <p className="text-gray-400 mb-4">No streams found</p>
@@ -101,7 +90,7 @@ export default function Dashboard() {
           </div>
         ) : (
           <>
-            <div className="grid gap-4 md:grid-cols-2">
+            <div className="grid gap-4 md:grid-cols-2 transition-opacity duration-300 opacity-100">
               {paged.map((stream) => (
                 <Link key={stream.id} href={`/stream/${stream.id}`} className="block">
                   <StreamCard

@@ -14,6 +14,7 @@ import {
   APP_NETWORK,
   checkNetworkMatch,
   createWatchWalletChanges,
+  getActiveAddress,
   getFreighterAdapter,
 } from "@/src/lib/freighter";
 
@@ -32,6 +33,9 @@ interface WalletContextValue {
 
 const WalletContext = createContext<WalletContextValue | undefined>(undefined);
 
+/** Polling interval (ms) used by WatchWalletChanges. */
+const WATCH_INTERVAL = 2000;
+
 export function WalletProvider({ children }: { children: ReactNode }) {
   const [address, setAddress] = useState<string | null>(null);
   const [isConnecting, setIsConnecting] = useState(false);
@@ -48,14 +52,33 @@ export function WalletProvider({ children }: { children: ReactNode }) {
     setNetworkMismatch(matches === false);
   }, []);
 
-  /** Start polling for wallet/network changes so the warning updates live. */
+  /**
+   * Start polling for wallet/network changes.
+   * The WatchWalletChanges callback receives { publicKey, network } on every
+   * poll tick — we update both address and network mismatch from it so the UI
+   * stays in sync when the user switches accounts inside Freighter.
+   */
   const startWatcher = useCallback(() => {
     if (watcherRef.current) return; // already watching
-    const watcher = createWatchWalletChanges(3000);
+    const watcher = createWatchWalletChanges(WATCH_INTERVAL);
     watcherRef.current = watcher;
-    watcher.watch(({ network }) => {
-      if (!network) return;
-      setNetworkMismatch(network.toLowerCase() !== APP_NETWORK);
+    watcher.watch(({ publicKey, network }) => {
+      // --- account change detection ---
+      if (publicKey) {
+        setAddress((prev) => {
+          // Only update (and clear any stale error) when the key actually changed
+          if (prev !== null && prev !== publicKey) {
+            setError(null);
+          }
+          // If Freighter has a key, keep address in sync regardless
+          return publicKey;
+        });
+      }
+
+      // --- network mismatch detection ---
+      if (network) {
+        setNetworkMismatch(network.toLowerCase() !== APP_NETWORK);
+      }
     });
   }, []);
 
@@ -63,6 +86,17 @@ export function WalletProvider({ children }: { children: ReactNode }) {
     watcherRef.current?.stop();
     watcherRef.current = null;
   }, []);
+
+  /**
+   * On mount, start the watcher unconditionally so we detect account/network
+   * changes even before the user explicitly clicks "Connect".
+   * If Freighter is already connected (e.g. auto-reconnect from localStorage),
+   * the first tick will pick up the current address.
+   */
+  useEffect(() => {
+    startWatcher();
+    return () => stopWatcher();
+  }, [startWatcher, stopWatcher]);
 
   const connect = useCallback(async () => {
     setIsConnecting(true);
@@ -77,11 +111,13 @@ export function WalletProvider({ children }: { children: ReactNode }) {
         return null;
       }
 
-      const publicKey = await adapter.getPublicKey();
+      const publicKey = await getActiveAddress();
       setAddress(publicKey || null);
 
-      // Check network immediately after connecting, then keep watching
+      // Check network immediately after connecting; watcher keeps it live
       await verifyNetwork();
+      // Watcher is already running from the mount effect; startWatcher() is
+      // idempotent so calling it here is a safe no-op.
       startWatcher();
 
       return publicKey || null;
@@ -98,11 +134,9 @@ export function WalletProvider({ children }: { children: ReactNode }) {
     setAddress(null);
     setError(null);
     setNetworkMismatch(false);
-    stopWatcher();
-  }, [stopWatcher]);
-
-  // Clean up the watcher when the provider unmounts
-  useEffect(() => () => stopWatcher(), [stopWatcher]);
+    // Don't stop the watcher on disconnect — keep polling so we notice when
+    // the user switches back or reconnects from within Freighter.
+  }, []);
 
   const value = useMemo(
     () => ({

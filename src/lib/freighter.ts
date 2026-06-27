@@ -1,4 +1,5 @@
 import {
+  getAddress,
   getNetwork as freighterGetNetwork,
   WatchWalletChanges,
 } from "@stellar/freighter-api";
@@ -47,30 +48,48 @@ export function createWatchWalletChanges(timeout?: number) {
   return new WatchWalletChanges(timeout);
 }
 
+/**
+ * Fetch the currently selected account address from Freighter.
+ * Uses the v3 `getAddress` API when available, falling back to the legacy
+ * `window.freighter.getPublicKey()` for older extension builds.
+ * Returns an empty string when Freighter is unavailable.
+ */
+export async function getActiveAddress(): Promise<string> {
+  if (typeof window === "undefined") return "";
+  try {
+    // freighter-api v3 exposes getAddress()
+    const result = await getAddress();
+    if (!result.error && result.address) return result.address;
+  } catch {
+    // fall through to legacy path
+  }
+  // Legacy path — older extension / v1-v2 API
+  try {
+    const freighter = (window as any).freighter;
+    if (!freighter) return "";
+    return (await freighter.getPublicKey()) ?? "";
+  } catch {
+    return "";
+  }
+}
+
 export async function getFreighterAdapter() {
   return {
     isConnected: async () => {
       if (typeof window === 'undefined') return false;
       return !!(window as any).freighter;
     },
-    getPublicKey,
+    getPublicKey: getActiveAddress,
     signTransaction,
   };
 }
 
 export async function connectWallet(): Promise<string> {
-  if (typeof window === 'undefined') return '';
-  try {
-    const freighter = (window as any).freighter;
-    if (!freighter) throw new Error('Freighter not installed');
-    return await freighter.getPublicKey();
-  } catch (e) {
-    console.error(e);
-    return '';
-  }
+  return getActiveAddress();
 }
+
 export async function getPublicKey(): Promise<string> {
-  return connectWallet();
+  return getActiveAddress();
 }
 export async function signTransaction(xdr: string): Promise<string> {
   if (typeof window === 'undefined') return xdr;

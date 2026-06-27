@@ -4,12 +4,48 @@ interface SkeletonProps {
   className?: string;
 }
 
+interface StreamListSkeletonProps {
+  label?: string;
+}
+
 export function Skeleton({ className = "" }: SkeletonProps) {
   return (
     <div
       className={`animate-pulse bg-gray-700 rounded ${className}`}
       aria-hidden="true"
     />
+  );
+}
+
+export function StreamListSkeleton({
+  label = "Loading streams",
+}: StreamListSkeletonProps) {
+  return (
+    <div role="status" aria-live="polite" aria-label={label} aria-busy="true">
+      <ul className="grid gap-4 md:grid-cols-2" role="list">
+        {Array.from({ length: 5 }, (_, index) => (
+          <li
+            key={index}
+            className="bg-gray-800 rounded-xl p-5 border border-gray-700"
+          >
+            <div className="flex justify-between items-start mb-3">
+              <Skeleton className="h-5 w-16 rounded-full" />
+              <Skeleton className="h-3 w-10" />
+            </div>
+            <div className="space-y-3">
+              <div className="space-y-2">
+                <Skeleton className="h-3 w-10" />
+                <Skeleton className="h-4 w-32" />
+              </div>
+              <div className="space-y-2">
+                <Skeleton className="h-3 w-8" />
+                <Skeleton className="h-4 w-36" />
+              </div>
+            </div>
+          </li>
+        ))}
+      </ul>
+    </div>
   );
 }
 

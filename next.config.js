@@ -1,6 +1,9 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
+  // Produce a self-contained server.js in .next/standalone.
+  // Required for the Docker deployment described in docs/DEPLOYMENT.md.
+  output: 'standalone',
   webpack: (config, { isServer }) => {
     if (isServer) {
       // Keep sodium-native out of the server bundle — it's a native addon

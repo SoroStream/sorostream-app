@@ -12,6 +12,7 @@ export interface StreamData {
   status: "Active" | "Cancelled" | "Ended";
 }
 
+/** Mutable stream store — seeded with test data, extended by createStream(). */
 const MOCK_STREAMS: StreamData[] = [
   {
     id: "1", sender: "GBAM...BOEP", recipient: "GBCR...XDRL",
@@ -39,8 +40,37 @@ const MOCK_STREAMS: StreamData[] = [
   },
 ];
 
+let nextId = 4;
+
+export interface CreateStreamParams {
+  recipient?: string;
+  amount?: string;
+  durationSeconds?: number;
+}
+
 export const sorostream = {
-  createStream: async () => ({ streamId: "0", txHash: "" }),
+  createStream: async (params?: CreateStreamParams) => {
+    const id = String(nextId++);
+    const durationSeconds = params?.durationSeconds ?? 86400;
+    const deposit = params?.amount
+      ? Math.round(parseFloat(params.amount) * 10_000_000)
+      : 0;
+    const flowRate = durationSeconds > 0 ? Math.round(deposit / durationSeconds) : 0;
+    const now = new Date();
+    const stream: StreamData = {
+      id,
+      sender: "GTEST...SENDER",
+      recipient: params?.recipient ?? "GTEST...RECIP",
+      flowRate,
+      deposit,
+      startTime: now.toISOString(),
+      endTime: new Date(now.getTime() + durationSeconds * 1000).toISOString(),
+      lastWithdrawTime: now.toISOString(),
+      status: "Active",
+    };
+    MOCK_STREAMS.push(stream);
+    return { streamId: id, txHash: `mock-tx-${id}` };
+  },
   withdraw: async () => ({ txHash: "mock-tx-hash", amount: "0" }),
   cancelStream: async () => ({ txHash: "mock-tx-hash" }),
   topUp: async () => ({ txHash: "", newEndTime: new Date() }),

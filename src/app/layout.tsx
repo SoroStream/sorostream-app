@@ -11,6 +11,8 @@ import PageViewTracker from "@/src/components/PageViewTracker";
 import "./globals.css";
 import { validateEnv } from "@/src/lib/env";
 import { initAnalytics } from "@/src/lib/analytics";
+import PageViewTracker from "@/src/components/PageViewTracker";
+import WebVitalsReporter from "@/src/components/WebVitalsReporter";
 
 validateEnv();
 initAnalytics();
@@ -54,17 +56,12 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body className="min-h-screen">
         <ThemeProvider>
           <NetworkProvider>
-            <WalletProvider>
-              <SettingsProvider>
-                <ToastProvider>
-                  <PwaInit />
-                  <NavHeader />
-                  <PageViewTracker />
-                  {children}
-                  <InstallPrompt />
-                </ToastProvider>
-              </SettingsProvider>
-            </WalletProvider>
+            <ToastProvider>
+              <NavHeader />
+              <PageViewTracker />
+              <WebVitalsReporter />
+              {children}
+            </ToastProvider>
           </NetworkProvider>
         </ThemeProvider>
       </body>

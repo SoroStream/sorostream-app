@@ -10,6 +10,14 @@ interface LiveCounterProps {
   lastWithdrawTime: Date;
   streamId?: string;
   reconcileIntervalMs?: number;
+  /**
+   * When provided, the counter shows this value instead of the live-ticking
+   * estimate and renders a visual "pending" indicator to distinguish optimistic
+   * state from confirmed on-chain state.
+   *
+   * Pass `null` to clear the override and resume live ticking.
+   */
+  optimisticOverride?: number | null;
 }
 
 const DEFAULT_RECONCILE_INTERVAL_MS = 30_000;
@@ -29,6 +37,7 @@ export default function LiveCounter({
   lastWithdrawTime,
   streamId,
   reconcileIntervalMs = DEFAULT_RECONCILE_INTERVAL_MS,
+  optimisticOverride,
 }: LiveCounterProps) {
   const rpcFetch = useRpcFetch();
 
@@ -37,7 +46,7 @@ export default function LiveCounter({
     timestamp: Date.now(),
   }));
   const [claimable, setClaimable] = useState(() =>
-    getEstimatedClaimable(flowRate, lastWithdrawTime),
+    getEstimatedClaimable(flowRate, lastWithdrawTime)
   );
 
   // Reset baseline when props change (e.g. after a withdrawal).
@@ -59,7 +68,7 @@ export default function LiveCounter({
 
       try {
         const onChainClaimable = parseClaimable(
-          await rpcFetch(() => sorostream.getClaimable(streamId)),
+          await sorostream.getClaimable(streamId)
         );
         if (cancelled || onChainClaimable === null) return;
 
@@ -82,26 +91,43 @@ export default function LiveCounter({
 
   // Interpolate locally at 1-second resolution.
   useEffect(() => {
+    // Stop ticking while an optimistic override is active — the override value
+    // is the source of truth until the transaction resolves.
+    if (optimisticOverride != null) return;
+
     const interval = setInterval(() => {
       const elapsed = (Date.now() - baseline.timestamp) / 1000;
       setClaimable(Math.max(0, baseline.amount + flowRate * elapsed));
     }, 1_000);
     return () => clearInterval(interval);
-  }, [baseline, flowRate]);
+  }, [baseline, flowRate, optimisticOverride]);
 
   /** Format stroops as XLM with 7 decimal places. */
   const formatXlm = (val: number) => (val / 10_000_000).toFixed(7);
   const xlmAmount = claimable / 10_000_000;
 
+  const isOptimistic = optimisticOverride != null;
+  const displayValue = isOptimistic ? optimisticOverride : claimable;
+
   return (
     <span
-      className="font-mono text-green-600 font-semibold tabular-nums"
+      className="font-mono font-semibold tabular-nums inline-flex items-baseline gap-1.5"
       role="status"
       aria-live="polite"
-      aria-label={`Claimable: ${formatXlm(claimable)} XLM`}
+      aria-label={`Claimable: ${formatUSDC(displayValue)} USDC${isOptimistic ? " (pending confirmation)" : ""}`}
     >
-      {formatXlm(claimable)} XLM{" "}
-      <FiatDisplay xlmAmount={xlmAmount} />
+      <span className={isOptimistic ? "text-yellow-400" : "text-green-600"}>
+        {formatUSDC(displayValue)} USDC
+      </span>
+      {isOptimistic && (
+        <span
+          className="text-xs font-normal text-yellow-400/80 italic"
+          aria-hidden="true"
+        >
+          (pending…)
+        </span>
+      )}
+      {!isOptimistic && <FiatDisplay usdcAmount={displayValue / 10000000} />}
     </span>
   );
 }
