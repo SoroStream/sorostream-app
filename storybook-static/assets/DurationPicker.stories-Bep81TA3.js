@@ -1,0 +1,10 @@
+import{r as l}from"./index-D6UiXB3w.js";function M({onChange:t,error:D}){const[r,S]=l.useState(0),[a,y]=l.useState(0),[o,N]=l.useState(0),[R,p]=l.useState(!1);function m(e,d,g){const n=e*86400+d*3600+g*60;t(n)}const C=r*86400+a*3600+o*60,s=D||(R&&C===0?"Duration must be greater than 0.":null);return React.createElement("div",null,React.createElement("div",{className:"flex gap-2",role:"group","aria-label":"Stream duration"},[{label:"Days",value:r,set:S,max:3650},{label:"Hours",value:a,set:y,max:23},{label:"Minutes",value:o,set:N,max:59}].map(({label:e,value:d,set:g,max:n})=>React.createElement("label",{key:e,className:"flex flex-col gap-1 flex-1"},React.createElement("span",{className:"text-xs text-slate-500"},e),React.createElement("input",{type:"number",min:0,max:n,value:d,onChange:k=>{const u=Math.max(0,Math.min(n,Number(k.target.value)));g(u),p(!0),e==="Days"?m(u,a,o):e==="Hours"?m(r,u,o):m(r,a,u)},onBlur:()=>p(!0),className:`rounded-lg border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-sky-500 ${s?"border-red-500 focus:ring-red-500":"border-slate-300"}`,"aria-label":e,"aria-invalid":!!s})))),s&&React.createElement("p",{id:"duration-error",className:"text-red-400 text-sm mt-1",role:"alert","aria-live":"polite"},s))}const _={title:"UI/DurationPicker",component:M},c={args:{onChange:t=>console.log("duration",t)}},i={args:{onChange:t=>console.log("duration",t),error:"Duration must be set before continuing."}};var f,x,v;c.parameters={...c.parameters,docs:{...(f=c.parameters)==null?void 0:f.docs,source:{originalSource:`{
+  args: {
+    onChange: value => console.log("duration", value)
+  }
+}`,...(v=(x=c.parameters)==null?void 0:x.docs)==null?void 0:v.source}}};var E,b,h;i.parameters={...i.parameters,docs:{...(E=i.parameters)==null?void 0:E.docs,source:{originalSource:`{
+  args: {
+    onChange: value => console.log("duration", value),
+    error: "Duration must be set before continuing."
+  }
+}`,...(h=(b=i.parameters)==null?void 0:b.docs)==null?void 0:h.source}}};const B=["Default","ErrorState"];export{c as Default,i as ErrorState,B as __namedExportsOrder,_ as default};
