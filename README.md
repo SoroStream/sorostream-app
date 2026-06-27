@@ -23,20 +23,31 @@ npm install
 
 # 2. Configure environment
 cp .env.example .env.local
-# Edit .env.local with your contract ID
+# Edit .env.local — see .env.example for inline docs on each variable
 
 # 3. Run dev server
 npm run dev
 # Open http://localhost:3000
 ```
 
+## Deploying
+
+| Platform | Guide |
+|----------|-------|
+| Vercel | Push to `main` — zero config required |
+| Docker / bare-metal / nginx | [docs/DEPLOYMENT.md](./docs/DEPLOYMENT.md) |
+| Railway, Render, Fly.io | [docs/DEPLOYMENT.md#5-other-platforms](./docs/DEPLOYMENT.md#5-other-platforms) |
+
 ## Env Vars
+
+Each variable is documented with its purpose, valid values, and whether a
+rebuild is required directly in [`.env.example`](./.env.example).
 
 | Variable | Required | Description |
 |----------|----------|-------------|
-| `NEXT_PUBLIC_STELLAR_NETWORK` | Yes | `testnet` or `mainnet` |
-| `NEXT_PUBLIC_CONTRACT_ID` | Yes | Deployed StreamContract address |
-| `NEXT_PUBLIC_RPC_URL` | No | Custom Soroban RPC (defaults to testnet) |
+| `NEXT_PUBLIC_STELLAR_NETWORK` | Yes | `testnet` or `mainnet` — rebuild required |
+| `NEXT_PUBLIC_CONTRACT_ID` | Yes | Deployed StreamContract address — rebuild required |
+| `NEXT_PUBLIC_RPC_URL` | No | Custom Soroban RPC endpoint — rebuild required |
 
 ## Tech Stack
 
