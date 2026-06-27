@@ -11,6 +11,7 @@ const NAV_LINKS = [
   { href: "/", label: "Home" },
   { href: "/dashboard", label: "Dashboard" },
   { href: "/stream/new", label: "Create" },
+  { href: "/settings", label: "Settings" },
 ];
 
 export default function NavHeader() {
