@@ -19,6 +19,7 @@ import {
   toStroops,
 } from "@/src/lib/sorostream";
 import { useToast } from "@/src/lib/toast";
+import StreamQrModal from "@/components/StreamQrModal";
 
 /** Grace period in seconds before a cancel is submitted on-chain. */
 const CANCEL_GRACE_SECONDS = 5;
@@ -65,6 +66,7 @@ export default function StreamDetail({ params }: { params: { id: string } }) {
   /** True while the 5-second cancel grace period is active. */
   const [cancelPending, setCancelPending] = useState(false);
   const [showCancelModal, setShowCancelModal] = useState(false);
+  const [showQrModal, setShowQrModal] = useState(false);
 
   // ── Top-up form state ──────────────────────────────────────────────────────
   const [showTopUp, setShowTopUp] = useState(false);
@@ -464,6 +466,13 @@ export default function StreamDetail({ params }: { params: { id: string } }) {
             </button>
           </div>
 
+          <button
+            onClick={() => setShowQrModal(true)}
+            className="w-full border border-gray-600 text-gray-300 py-2 rounded-lg text-sm hover:bg-gray-700 transition-colors"
+          >
+            QR Code
+          </button>
+
           {/* Top-up form */}
           {showTopUp && (
             <div className="space-y-2">
@@ -566,6 +575,15 @@ export default function StreamDetail({ params }: { params: { id: string } }) {
           </StreamErrorBoundary>
         </div>
       </div>
+
+      <StreamQrModal
+        open={showQrModal}
+        onClose={() => setShowQrModal(false)}
+        recipient={stream.recipient}
+        amount={(stream.deposit / 10_000_000).toString()}
+        token="USDC"
+        duration={Math.round((new Date(stream.endTime).getTime() - new Date(stream.startTime).getTime()) / 1000)}
+      />
 
       {/* Cancel confirmation modal */}
       {showCancelModal && (
