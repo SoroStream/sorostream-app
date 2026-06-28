@@ -1,6 +1,7 @@
 "use client";
 import { useState, useEffect, useMemo, useRef } from "react";
 import Link from "next/link";
+import { useSearchParams, useRouter } from "next/navigation";
 import { StreamListSkeleton } from "@/components/Skeleton";
 import StreamVirtualList from "@/components/StreamVirtualList";
 import StreamEventFeed from "@/components/StreamEventFeed";
@@ -11,9 +12,15 @@ type DashboardState = "loading" | "empty" | "ready";
 
 export default function Dashboard() {
   const rpcFetch = useRpcFetch();
+  const searchParams = useSearchParams();
+  const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [streams, setStreams] = useState<StreamData[]>([]);
-  const [search, setSearch] = useState("");
+  
+  // Filter states from URL params
+  const [statusFilter, setStatusFilter] = useState(searchParams.get("status") || "");
+  const [tokenFilter, setTokenFilter] = useState(searchParams.get("token") || "");
+  const [search, setSearch] = useState(searchParams.get("search") || "");
 
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
@@ -53,16 +60,55 @@ export default function Dashboard() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Get unique tokens from streams for dropdown
+  const uniqueTokens = useMemo(() => {
+    const tokens = new Set(streams.map((s) => s.token));
+    return Array.from(tokens).sort();
+  }, [streams]);
+
   const filtered = useMemo(() => {
-    if (!search.trim()) return streams;
-    const q = search.trim().toLowerCase();
-    return streams.filter(
-      (s) =>
-        s.sender.toLowerCase().includes(q) ||
-        s.recipient.toLowerCase().includes(q) ||
-        s.status.toLowerCase().includes(q)
-    );
-  }, [streams, search]);
+    return streams.filter((s) => {
+      // Status filter
+      if (statusFilter && s.status !== statusFilter) return false;
+      
+      // Token filter
+      if (tokenFilter && s.token !== tokenFilter) return false;
+      
+      // Search filter (recipient, sender, or stream ID)
+      if (search.trim()) {
+        const q = search.trim().toLowerCase();
+        const matchesSearch =
+          s.sender.toLowerCase().includes(q) ||
+          s.recipient.toLowerCase().includes(q) ||
+          s.id.toLowerCase().includes(q);
+        if (!matchesSearch) return false;
+      }
+      
+      return true;
+    });
+  }, [streams, statusFilter, tokenFilter, search]);
+
+  // Update URL params when filters change
+  useEffect(() => {
+    const params = new URLSearchParams();
+    if (statusFilter) params.set("status", statusFilter);
+    if (tokenFilter) params.set("token", tokenFilter);
+    if (search.trim()) params.set("search", search);
+    
+    const queryString = params.toString();
+    const newPath = queryString ? `/dashboard?${queryString}` : "/dashboard";
+    router.replace(newPath);
+  }, [statusFilter, tokenFilter, search, router]);
+
+  // Clear all filters
+  const clearFilters = () => {
+    setStatusFilter("");
+    setTokenFilter("");
+    setSearch("");
+  };
+
+  // Check if any filters are active
+  const hasActiveFilters = statusFilter || tokenFilter || search.trim();
 
   const state: DashboardState = loading
     ? "loading"
@@ -85,14 +131,80 @@ export default function Dashboard() {
 
         <div className="flex flex-col lg:flex-row gap-6">
           <div className="flex-1 min-w-0">
-            <input
-              type="search"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search by address or status…"
-              className="w-full mb-6 bg-gray-800 border border-gray-700 rounded-lg px-4 py-2 text-sm text-white placeholder-gray-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-500 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-900"
-              aria-label="Search streams"
-            />
+            {/* Filter Bar */}
+            <div className="mb-6 space-y-3">
+              <div className="flex flex-wrap gap-3">
+                {/* Status Filter */}
+                <select
+                  value={statusFilter}
+                  onChange={(e) => setStatusFilter(e.target.value)}
+                  className="bg-gray-800 border border-gray-700 rounded-lg px-4 py-2 text-sm text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-500 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-900"
+                  aria-label="Filter by status"
+                >
+                  <option value="">All Statuses</option>
+                  <option value="Active">Active</option>
+                  <option value="Ended">Ended</option>
+                  <option value="Cancelled">Cancelled</option>
+                </select>
+
+                {/* Token Filter */}
+                <select
+                  value={tokenFilter}
+                  onChange={(e) => setTokenFilter(e.target.value)}
+                  className="bg-gray-800 border border-gray-700 rounded-lg px-4 py-2 text-sm text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-500 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-900"
+                  aria-label="Filter by token"
+                  disabled={uniqueTokens.length === 0}
+                >
+                  <option value="">All Tokens</option>
+                  {uniqueTokens.map((token) => (
+                    <option key={token} value={token}>
+                      {token}
+                    </option>
+                  ))}
+                </select>
+
+                {/* Search Input */}
+                <input
+                  type="search"
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  placeholder="Search by recipient, sender, or ID…"
+                  className="flex-1 min-w-[200px] bg-gray-800 border border-gray-700 rounded-lg px-4 py-2 text-sm text-white placeholder-gray-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-500 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-900"
+                  aria-label="Search streams"
+                />
+
+                {/* Clear Filters Button */}
+                {hasActiveFilters && (
+                  <button
+                    onClick={clearFilters}
+                    className="bg-gray-700 text-white px-4 py-2 rounded-lg text-sm hover:bg-gray-600 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-500 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-900"
+                  >
+                    Clear All
+                  </button>
+                )}
+              </div>
+
+              {/* Active Filters Display */}
+              {hasActiveFilters && (
+                <div className="flex flex-wrap gap-2 text-xs text-gray-400">
+                  {statusFilter && (
+                    <span className="bg-gray-800 px-2 py-1 rounded">
+                      Status: {statusFilter}
+                    </span>
+                  )}
+                  {tokenFilter && (
+                    <span className="bg-gray-800 px-2 py-1 rounded">
+                      Token: {tokenFilter}
+                    </span>
+                  )}
+                  {search.trim() && (
+                    <span className="bg-gray-800 px-2 py-1 rounded">
+                      Search: "{search}"
+                    </span>
+                  )}
+                </div>
+              )}
+            </div>
 
             {state === "loading" ? (
               <StreamListSkeleton />
