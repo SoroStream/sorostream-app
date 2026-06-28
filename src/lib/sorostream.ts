@@ -48,6 +48,29 @@ export interface CreateStreamParams {
   durationSeconds?: number;
 }
 
+export function watchClaimable(streams: StreamData[]): StreamData[] {
+  return streams.map((s) => ({
+    ...s,
+    lastWithdrawTime: new Date(
+      new Date(s.lastWithdrawTime).getTime() + 1000
+    ).toISOString(),
+  }));
+}
+
+export function simulateNewEvent(): StreamEvent {
+  const types: StreamEvent["type"][] = ["withdrawal", "top-up", "creation"];
+  const type = types[Math.floor(Math.random() * types.length)];
+  const streamId = String(Math.floor(Math.random() * 5) + 1);
+  const amount = type !== "creation" ? String(Math.floor(Math.random() * 5000000000) + 1000000000) : undefined;
+  return addStreamEvent({
+    type,
+    streamId,
+    amount,
+    timestamp: new Date().toISOString(),
+    txHash: `0x${Math.random().toString(36).slice(2, 8)}`,
+  });
+}
+
 export const sorostream = {
   createStream: async (params?: CreateStreamParams) => {
     const id = String(nextId++);
@@ -78,6 +101,7 @@ export const sorostream = {
   getClaimable: async (streamId: string) => claimableNow(getMockStream(streamId)),
   getStreamsBySender: async () => MOCK_STREAMS,
   getStreamsByRecipient: async () => MOCK_STREAMS,
+  getEvents: async () => getStreamEvents(),
   batchWithdraw: async (streamIds: string[]) => ({
     txHash: "mock-batch-tx-hash",
     amounts: Object.fromEntries(streamIds.map(id => [id, "0"])),
@@ -154,6 +178,35 @@ export function claimableNow(stream: any): string {
 
   const elapsedSeconds = Math.max(0, (Date.now() - lastWithdrawTime) / 1000);
   return Math.floor(flowRate * elapsedSeconds).toString();
+}
+
+export interface StreamEvent {
+  id: string;
+  type: "withdrawal" | "top-up" | "creation" | "cancellation";
+  streamId: string;
+  timestamp: string;
+  amount?: string;
+  txHash: string;
+}
+
+const MOCK_EVENTS: StreamEvent[] = [
+  { id: "e1", type: "creation", streamId: "4", timestamp: new Date(Date.now() - 30000).toISOString(), txHash: "0xabc" },
+  { id: "e2", type: "withdrawal", streamId: "1", timestamp: new Date(Date.now() - 120000).toISOString(), amount: "2500000000", txHash: "0xdef" },
+  { id: "e3", type: "top-up", streamId: "2", timestamp: new Date(Date.now() - 300000).toISOString(), amount: "5000000000", txHash: "0xghi" },
+  { id: "e4", type: "withdrawal", streamId: "3", timestamp: new Date(Date.now() - 600000).toISOString(), amount: "1000000000", txHash: "0xjkl" },
+  { id: "e5", type: "creation", streamId: "5", timestamp: new Date(Date.now() - 900000).toISOString(), txHash: "0xmno" },
+];
+
+let nextEventId = 6;
+
+export function getStreamEvents(): StreamEvent[] {
+  return [...MOCK_EVENTS];
+}
+
+export function addStreamEvent(event: Omit<StreamEvent, "id">): StreamEvent {
+  const newEvent: StreamEvent = { ...event, id: `e${nextEventId++}` };
+  MOCK_EVENTS.unshift(newEvent);
+  return newEvent;
 }
 
 export function truncateAddress(address: string): string {

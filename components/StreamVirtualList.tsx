@@ -49,7 +49,7 @@ export default function StreamVirtualList({ streams }: StreamVirtualListProps) {
     if (container.scrollTop !== savedScrollTop.current) {
       container.scrollTop = savedScrollTop.current;
     }
-  }, [streams.length]);
+  }, [streams]);
 
   const rowCount = useMemo(() => Math.ceil(streams.length / 2), [streams.length]);
   const totalHeight = rowCount * ROW_HEIGHT;
