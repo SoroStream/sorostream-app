@@ -71,12 +71,16 @@ function NewStreamWizard() {
   const [touched, setTouched] = useState({ recipient: false, amount: false });
   const [durationPickerKey, setDurationPickerKey] = useState(0);
 
-  function handleTemplateSelect(seconds: number, suggestedAmount?: string) {
+  function handleTemplateSelect(seconds: number, suggestedAmount?: string, recipientOverride?: string) {
     setDuration(seconds);
     setErrors((prev) => ({ ...prev, duration: "" }));
     if (suggestedAmount) {
       setAmount(suggestedAmount);
       setErrors((prev) => ({ ...prev, amount: "" }));
+    }
+    if (recipientOverride && /^G[A-Z2-7]{55}$/.test(recipientOverride)) {
+      setRecipient(recipientOverride);
+      setErrors((prev) => ({ ...prev, recipient: "" }));
     }
   }
 
@@ -251,7 +255,12 @@ function NewStreamWizard() {
               )}
             </div>
 
-            <StreamTemplatePicker onSelect={handleTemplateSelect} />
+            <StreamTemplatePicker
+              onSelect={handleTemplateSelect}
+              currentRecipient={recipient}
+              currentAmount={amount}
+              currentDuration={duration}
+            />
 
             <div>
               <label className="text-gray-200 text-sm font-medium block mb-2">{t("duration_label")}</label>
