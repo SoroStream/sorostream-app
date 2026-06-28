@@ -13,7 +13,7 @@ import { useWallet, WalletProvider } from '../WalletContext';
 // Mock @stellar/freighter-api
 // ---------------------------------------------------------------------------
 
-type WatchCallback = (payload: { publicKey?: string; network?: string }) => void;
+type WatchCallback = (payload: { address?: string; publicKey?: string; network?: string }) => void;
 
 class MockWatchWalletChanges {
   private cb: WatchCallback | null = null;
@@ -32,8 +32,12 @@ class MockWatchWalletChanges {
   }
 
   /** Test helper — fire one watcher tick with given payload. */
-  emit(payload: { publicKey?: string; network?: string }) {
-    this.cb?.(payload);
+  emit(payload: { address?: string; publicKey?: string; network?: string }) {
+    this.cb?.({
+      address: payload.address || payload.publicKey,
+      publicKey: payload.publicKey || payload.address,
+      network: payload.network,
+    });
   }
 }
 

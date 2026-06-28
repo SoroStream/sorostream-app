@@ -62,16 +62,16 @@ export function WalletProvider({ children }: { children: ReactNode }) {
     if (watcherRef.current) return; // already watching
     const watcher = createWatchWalletChanges(WATCH_INTERVAL);
     watcherRef.current = watcher;
-    watcher.watch(({ publicKey, network }) => {
+    watcher.watch(({ address: watchAddress, network }) => {
       // --- account change detection ---
-      if (publicKey) {
+      if (watchAddress) {
         setAddress((prev) => {
           // Only update (and clear any stale error) when the key actually changed
-          if (prev !== null && prev !== publicKey) {
+          if (prev !== null && prev !== watchAddress) {
             setError(null);
           }
           // If Freighter has a key, keep address in sync regardless
-          return publicKey;
+          return watchAddress;
         });
       }
 

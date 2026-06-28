@@ -10,7 +10,7 @@ import CountdownTimer from "@/components/CountdownTimer";
 import VestingChart from "@/components/VestingChart";
 import StreamHistory from "@/components/StreamHistory";
 import { StreamErrorBoundary } from "@/components/StreamErrorBoundary";
-import { StreamListSkeleton } from "@/components/Skeleton";
+import { SkeletonDetail } from "@/components/Skeleton";
 import { downloadCSV, downloadJSON, type StreamHistoryEntry } from "@/src/lib/export";
 import {
   sorostream,
@@ -161,15 +161,6 @@ export default function StreamDetail({ params }: { params: { id: string } }) {
     setOptimisticDeposit(prevDeposit + addedStroops);
     setTopUpLoading(true);
 
-  async function handleWithdraw() {
-    setWithdrawLoading(true);
-    setTxStatus(null);
-    setError(null);
-    try {
-      const result = await sorostream.withdraw();
-      setTxStatus(`Withdrawal submitted! Tx: ${result.txHash}`);
-      const result = await rpcFetch(() => sorostream.withdraw());
-      setTxStatus(`Withdrawal submitted! Tx: ${result.txHash}`);
     try {
       await sorostream.topUp();
       const updated = await sorostream.getStream(params.id);
@@ -287,7 +278,7 @@ export default function StreamDetail({ params }: { params: { id: string } }) {
             </Link>
           </div>
           <h1 className="text-2xl font-bold mb-8">Stream #{params.id}</h1>
-          <StreamListSkeleton rows={1} />
+          <SkeletonDetail />
         </div>
       </main>
     );
@@ -301,8 +292,7 @@ export default function StreamDetail({ params }: { params: { id: string } }) {
           <div className="mb-4">
             <Link
               href="/dashboard"
-              className="text-sm text-gray-300 hover:text-white transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-500 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-900 rounded"
-              className="text-sm text-gray-400 hover:text-white transition-colors"
+              className="text-sm text-gray-400 hover:text-white transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-500 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-900 rounded"
             >
               ← Dashboard
             </Link>
@@ -326,8 +316,7 @@ export default function StreamDetail({ params }: { params: { id: string } }) {
         <div className="mb-4">
           <Link
             href="/dashboard"
-            className="text-sm text-gray-300 hover:text-white transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-500 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-900 rounded"
-            className="text-sm text-gray-400 hover:text-white transition-colors"
+            className="text-sm text-gray-400 hover:text-white transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-500 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-900 rounded"
           >
             ← Dashboard
           </Link>
@@ -428,9 +417,6 @@ export default function StreamDetail({ params }: { params: { id: string } }) {
           <div className="text-center">
             <p className="text-gray-400 text-sm mb-1">Stream balance (deposit)</p>
             <p
-              role="status"
-              className={`text-sm text-center ${
-                txStatus.toLowerCase().includes("fail") ? "text-red-400" : "text-green-400"
               className={`font-mono font-semibold text-lg ${
                 isDepositOptimistic ? "text-yellow-400" : "text-white"
               }`}
@@ -447,28 +433,18 @@ export default function StreamDetail({ params }: { params: { id: string } }) {
           {/* Vesting analytics chart */}
           <VestingChart stream={stream} history={historyEntries} />
 
-          {error && <p className="text-red-400 text-sm text-center">{error}</p>}
-
           {error && (
             <p role="alert" className="text-red-400 text-sm text-center">
               {error}
             </p>
           )}
 
-          {/* Primary actions */}
-          <div className="flex gap-4">
-            <button
-              onClick={handleWithdraw}
-              disabled={withdrawLoading}
-              aria-busy={withdrawLoading}
-              className="flex-1 bg-green-600 text-white py-3 rounded-lg font-medium hover:bg-green-700 disabled:opacity-50 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-500 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-900"
-              className="flex-1 bg-green-600 text-white py-3 rounded-lg font-medium hover:bg-green-700 disabled:opacity-50 transition-colors"
           {/* Withdraw / Cancel */}
           <div className="flex gap-4">
             <button
               onClick={handleWithdraw}
               disabled={isBusy}
-              className="flex-1 bg-green-600 text-white py-3 rounded-lg font-medium hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              className="flex-1 bg-green-600 text-white py-3 rounded-lg font-medium hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-500 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-900"
             >
               {withdrawLoading ? (
                 <>
@@ -483,18 +459,12 @@ export default function StreamDetail({ params }: { params: { id: string } }) {
             <button
               onClick={cancelPending ? handleCancelUndo : () => setShowCancelModal(true)}
               disabled={cancelLoading || withdrawLoading || topUpLoading}
-              className={`flex-1 py-3 rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
-                cancelPending
-                  ? "bg-amber-600 text-white hover:bg-amber-700"
-                  : "border border-red-600 text-red-400 hover:bg-red-900"
-              }`}
               aria-live="polite"
-              onClick={() => setShowCancelModal(true)}
-              disabled={cancelLoading}
-              aria-busy={cancelLoading}
-              className="flex-1 border border-red-600 text-red-400 py-3 rounded-lg font-medium hover:bg-red-900 disabled:opacity-50 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-900"
-              disabled={cancelLoading || withdrawLoading}
-              className="flex-1 border border-red-600 text-red-400 py-3 rounded-lg font-medium hover:bg-red-900 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              className={`flex-1 py-3 rounded-lg font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-900 disabled:opacity-50 disabled:cursor-not-allowed ${
+                cancelPending
+                  ? "bg-amber-600 text-white hover:bg-amber-700 focus-visible:ring-amber-500"
+                  : "border border-red-600 text-red-400 hover:bg-red-900 focus-visible:ring-red-500"
+              }`}
             >
               {cancelLoading ? (
                 <>
@@ -511,7 +481,7 @@ export default function StreamDetail({ params }: { params: { id: string } }) {
 
           <button
             onClick={() => setShowQrModal(true)}
-            className="w-full border border-gray-600 text-gray-300 py-2 rounded-lg text-sm hover:bg-gray-700 transition-colors"
+            className="w-full border border-gray-600 text-gray-300 py-2 rounded-lg text-sm hover:bg-gray-700 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-500 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-900"
           >
             QR Code
           </button>
@@ -528,21 +498,14 @@ export default function StreamDetail({ params }: { params: { id: string } }) {
                 value={topUpAmount}
                 onChange={(e) => setTopUpAmount(e.target.value)}
                 placeholder="Amount (USDC)"
+                min="0"
+                step="0.01"
                 className="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 text-white text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-500 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-900"
               />
               <button
                 onClick={handleTopUp}
-                disabled={topUpLoading}
-                aria-busy={topUpLoading}
-                className="w-full bg-blue-600 text-white py-2 rounded-lg text-sm hover:bg-blue-700 disabled:opacity-50 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-900"
-                min="0"
-                step="0.01"
-                className="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 text-white text-sm"
-              />
-              <button
-                onClick={handleTopUp}
                 disabled={topUpLoading || !topUpAmount || parseFloat(topUpAmount) <= 0}
-                className="w-full bg-blue-600 text-white py-2 rounded-lg text-sm hover:bg-blue-700 disabled:opacity-50 transition-colors"
+                className="w-full bg-blue-600 text-white py-2 rounded-lg text-sm hover:bg-blue-700 disabled:opacity-50 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-900"
               >
                 {topUpLoading ? (
                   <>
@@ -558,9 +521,8 @@ export default function StreamDetail({ params }: { params: { id: string } }) {
           <button
             onClick={() => setShowTopUp((v) => !v)}
             aria-expanded={showTopUp}
-            className="w-full border border-gray-600 text-gray-300 py-2 rounded-lg text-sm hover:bg-gray-700 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-500 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-900"
             disabled={topUpLoading}
-            className="w-full border border-gray-600 text-gray-300 py-2 rounded-lg text-sm hover:bg-gray-700 transition-colors disabled:opacity-50"
+            className="w-full border border-gray-600 text-gray-300 py-2 rounded-lg text-sm hover:bg-gray-700 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-500 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-900 disabled:opacity-50"
           >
             {showTopUp ? "Cancel Top-up" : "Top Up Stream"}
           </button>
@@ -579,40 +541,17 @@ export default function StreamDetail({ params }: { params: { id: string } }) {
                 <div className="flex gap-3">
                   <button
                     onClick={() => downloadCSV(historyEntries, params.id)}
-                    className="flex-1 bg-gray-700 text-white py-2 rounded-lg text-sm hover:bg-gray-600 transition-colors"
+                    className="flex-1 bg-gray-700 text-white py-2 rounded-lg text-sm hover:bg-gray-600 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-500 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-900"
                   >
                     Download CSV
                   </button>
                   <button
                     onClick={() => downloadJSON(historyEntries, params.id)}
-                    className="flex-1 bg-gray-700 text-white py-2 rounded-lg text-sm hover:bg-gray-600 transition-colors"
+                    className="flex-1 bg-gray-700 text-white py-2 rounded-lg text-sm hover:bg-gray-600 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-500 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-900"
                   >
                     Download JSON
                   </button>
                 </div>
-          {/* History */}
-          <section aria-labelledby="history-heading">
-            <h2 id="history-heading" className="text-lg font-semibold mb-3">
-              Transaction History
-            </h2>
-            <StreamHistory entries={historyEntries} />
-            <div className="mt-4">
-              <p className="text-gray-400 text-sm font-medium mb-3">
-                History Export
-              </p>
-              <div className="flex gap-3">
-                <button
-                  onClick={() => downloadCSV(historyEntries, params.id)}
-                  className="flex-1 bg-gray-700 text-white py-2 rounded-lg text-sm hover:bg-gray-600 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-500 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-900"
-                >
-                  Download CSV
-                </button>
-                <button
-                  onClick={() => downloadJSON(historyEntries, params.id)}
-                  className="flex-1 bg-gray-700 text-white py-2 rounded-lg text-sm hover:bg-gray-600 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-500 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-900"
-                >
-                  Download JSON
-                </button>
               </div>
             </section>
           </StreamErrorBoundary>
@@ -631,10 +570,6 @@ export default function StreamDetail({ params }: { params: { id: string } }) {
       {/* Cancel confirmation modal */}
       {showCancelModal && (
         <div
-          className="fixed inset-0 bg-black/60 flex items-center justify-center z-50"
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="cancel-modal-title"
           role="dialog"
           aria-modal="true"
           aria-labelledby="cancel-modal-title"
@@ -644,7 +579,6 @@ export default function StreamDetail({ params }: { params: { id: string } }) {
             <h2 id="cancel-modal-title" className="text-lg font-semibold text-white">
               Cancel Stream?
             </h2>
-            <h2 className="text-lg font-semibold text-white">Cancel Stream?</h2>
             <p className="text-gray-400 text-sm">
               This is irreversible. Any unstreamed funds will be returned to the
               sender. You&apos;ll have 5 seconds to undo after confirming.
@@ -653,21 +587,15 @@ export default function StreamDetail({ params }: { params: { id: string } }) {
               <button
                 onClick={() => setShowCancelModal(false)}
                 className="flex-1 border border-gray-600 text-gray-300 py-2 rounded-lg hover:bg-gray-700 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-500 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-900"
-                className="flex-1 border border-gray-600 text-gray-300 py-2 rounded-lg hover:bg-gray-700 transition-colors"
               >
                 Go Back
               </button>
               <button
                 onClick={handleCancelConfirmed}
-                className="flex-1 bg-red-600 text-white py-2 rounded-lg hover:bg-red-700 transition-colors"
                 disabled={cancelLoading}
-                aria-busy={cancelLoading}
                 className="flex-1 bg-red-600 text-white py-2 rounded-lg hover:bg-red-700 disabled:opacity-50 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-900"
               >
                 {cancelLoading ? "Cancelling…" : "Yes, Cancel"}
-                className="flex-1 bg-red-600 text-white py-2 rounded-lg hover:bg-red-700 disabled:opacity-50 transition-colors"
-              >
-                Yes, Cancel
               </button>
             </div>
           </div>

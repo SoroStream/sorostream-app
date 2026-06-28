@@ -54,12 +54,11 @@ export function ToastProvider({ children }: { children: ReactNode }) {
   const removeToast = useCallback((id: number) => {
     setToasts((prev) => prev.filter((t) => t.id !== id));
     // Clean up the persistent map entry if present
-    for (const [key, storedId] of persistentMap.current.entries()) {
+    persistentMap.current.forEach((storedId, key) => {
       if (storedId === id) {
         persistentMap.current.delete(key);
-        break;
       }
-    }
+    });
   }, []);
 
   const addToast = useCallback(

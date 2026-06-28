@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useState, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import DurationPicker from "@/components/DurationPicker";
 import FlowRatePreview from "@/components/FlowRatePreview";
@@ -38,13 +38,10 @@ const stepLabels: Record<Step, { title: string; number: number }> = {
 
 const STEPS: Step[] = ["recipient", "amount", "review"];
 
-export default function NewStream() {
+function NewStreamWizard() {
   const router = useRouter();
   const t = useTranslations("stream_new");
   const [step, setStep] = useState<Step>("recipient");
-  const [recipient, setRecipient] = useState("");
-  const [amount, setAmount] = useState("");
-  const [duration, setDuration] = useState(0);
   const searchParams = useSearchParams();
 
   const recipientParam = searchParams.get("recipient");
@@ -192,28 +189,6 @@ export default function NewStream() {
                 )}
               </div>
             ))}
-        <h1 className="text-xl sm:text-2xl font-bold mb-6 sm:mb-8">{t("title")}</h1>
-        <form onSubmit={handleCreateStream} className="space-y-6">
-          <div>
-            <label htmlFor="recipient" className="text-gray-200 text-sm font-medium block mb-2">
-              {t("recipient_label")}
-            </label>
-            <RecipientAutocomplete
-              value={recipient}
-              onChange={(v) => {
-                setRecipient(v);
-                setErrors((prev) => ({ ...prev, recipient: "" }));
-              }}
-              onBlur={handleRecipientBlur}
-              placeholder={t("recipient_placeholder")}
-              error={errors.recipient}
-              touched={touched.recipient}
-            />
-            {errors.recipient && (
-              <p id="recipient-error" className="text-red-400 text-sm mt-1">
-                {errors.recipient}
-              </p>
-            )}
           </div>
           <h1 className="text-xl sm:text-2xl font-bold text-center">{stepLabels[step].title}</h1>
         </div>
@@ -225,21 +200,16 @@ export default function NewStream() {
               <label htmlFor="recipient" className="text-gray-200 text-sm font-medium block mb-2">
                 {t("recipient_label")}
               </label>
-              <input
-                id="recipient"
+              <RecipientAutocomplete
                 value={recipient}
-                onChange={(e) => {
-                  setRecipient(e.target.value);
+                onChange={(v) => {
+                  setRecipient(v);
                   setErrors((prev) => ({ ...prev, recipient: "" }));
                 }}
                 onBlur={handleRecipientBlur}
                 placeholder={t("recipient_placeholder")}
-                className="w-full bg-gray-800 border border-gray-600 rounded-lg px-4 py-3 text-white font-mono focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-500 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-900"
-                aria-required="true"
-                aria-invalid={!!(touched.recipient && errors.recipient)}
-                aria-describedby={
-                  touched.recipient && errors.recipient ? "recipient-error" : undefined
-                }
+                error={errors.recipient}
+                touched={touched.recipient}
               />
               {errors.recipient && (
                 <p id="recipient-error" className="text-red-400 text-sm mt-1">
@@ -287,6 +257,7 @@ export default function NewStream() {
               <label className="text-gray-200 text-sm font-medium block mb-2">{t("duration_label")}</label>
               <DurationPicker
                 key={durationPickerKey}
+                initialSeconds={duration > 0 ? duration : undefined}
                 onChange={(s) => {
                   setDuration(s);
                   if (s > 0) setErrors((prev) => ({ ...prev, duration: "" }));
@@ -327,19 +298,6 @@ export default function NewStream() {
                 <FlowRatePreview amount={amount} durationSeconds={duration} />
               </div>
             </div>
-          <StreamTemplatePicker onSelect={handleTemplateSelect} />
-
-          <div>
-            <label className="text-gray-200 text-sm font-medium block mb-2">{t("duration_label")}</label>
-            <DurationPicker
-              key={durationPickerKey}
-              initialSeconds={duration > 0 ? duration : undefined}
-              onChange={(s) => {
-                setDuration(s);
-                if (s > 0) setErrors((prev) => ({ ...prev, duration: "" }));
-              }}
-              error={errors.duration || undefined}
-            />
           </div>
         )}
 
@@ -377,5 +335,13 @@ export default function NewStream() {
         </div>
       </div>
     </main>
+  );
+}
+
+export default function NewStreamPage() {
+  return (
+    <Suspense fallback={<main className="min-h-screen bg-gray-900 text-white p-4 sm:p-8"><div className="max-w-lg mx-auto"><SkeletonForm /></div></main>}>
+      <NewStreamWizard />
+    </Suspense>
   );
 }

@@ -34,6 +34,6 @@ class ResizeObserver {
 }
 
 if (typeof global.ResizeObserver === 'undefined') {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  // eslint-disable-next-line
   (global as any).ResizeObserver = ResizeObserver;
 }

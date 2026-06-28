@@ -11,7 +11,6 @@ import PageViewTracker from "@/src/components/PageViewTracker";
 import "./globals.css";
 import { validateEnv } from "@/src/lib/env";
 import { initAnalytics } from "@/src/lib/analytics";
-import PageViewTracker from "@/src/components/PageViewTracker";
 import WebVitalsReporter from "@/src/components/WebVitalsReporter";
 
 validateEnv();
@@ -54,16 +53,20 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
       </head>
       <body className="min-h-screen">
-        <ThemeProvider>
-          <NetworkProvider>
-            <ToastProvider>
-              <NavHeader />
-              <PageViewTracker />
-              <WebVitalsReporter />
-              {children}
-            </ToastProvider>
-          </NetworkProvider>
-        </ThemeProvider>
+        <SettingsProvider>
+          <WalletProvider>
+            <ThemeProvider>
+              <NetworkProvider>
+                <ToastProvider>
+                  <NavHeader />
+                  <PageViewTracker />
+                  <WebVitalsReporter />
+                  {children}
+                </ToastProvider>
+              </NetworkProvider>
+            </ThemeProvider>
+          </WalletProvider>
+        </SettingsProvider>
       </body>
     </html>
   );

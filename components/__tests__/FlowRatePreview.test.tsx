@@ -1,5 +1,10 @@
 import { render, screen } from '@testing-library/react';
+import { vi } from 'vitest';
 import FlowRatePreview from '../FlowRatePreview';
+
+vi.mock('@/components/FiatDisplay', () => ({
+  default: () => null,
+}));
 
 describe('FlowRatePreview', () => {
   it('renders nothing when amount is empty', () => {
