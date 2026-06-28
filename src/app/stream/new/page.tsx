@@ -1,6 +1,6 @@
 "use client";
 import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import DurationPicker from "@/components/DurationPicker";
 import FlowRatePreview from "@/components/FlowRatePreview";
 import StreamTemplatePicker from "@/components/StreamTemplatePicker";
@@ -30,9 +30,30 @@ function validateDuration(seconds: number): string {
 export default function NewStream() {
   const router = useRouter();
   const t = useTranslations("stream_new");
-  const [recipient, setRecipient] = useState("");
-  const [amount, setAmount] = useState("");
-  const [duration, setDuration] = useState(0);
+  const searchParams = useSearchParams();
+
+  const recipientParam = searchParams.get("recipient");
+  const amountParam = searchParams.get("amount");
+  const durationParam = searchParams.get("duration");
+
+  const initialRecipient =
+    recipientParam && /^G[A-Z2-7]{55}$/.test(recipientParam)
+      ? recipientParam
+      : "";
+  const initialAmount = (() => {
+    if (!amountParam) return "";
+    const num = parseFloat(amountParam);
+    return !isNaN(num) && num > 0 ? amountParam : "";
+  })();
+  const initialDuration = (() => {
+    if (!durationParam) return 0;
+    const num = parseInt(durationParam, 10);
+    return !isNaN(num) && num > 0 ? num : 0;
+  })();
+
+  const [recipient, setRecipient] = useState(initialRecipient);
+  const [amount, setAmount] = useState(initialAmount);
+  const [duration, setDuration] = useState(initialDuration);
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState({ recipient: "", amount: "", duration: "" });
   const [touched, setTouched] = useState({ recipient: false, amount: false });
@@ -171,6 +192,7 @@ export default function NewStream() {
             <label className="text-gray-200 text-sm font-medium block mb-2">{t("duration_label")}</label>
             <DurationPicker
               key={durationPickerKey}
+              initialSeconds={duration > 0 ? duration : undefined}
               onChange={(s) => {
                 setDuration(s);
                 if (s > 0) setErrors((prev) => ({ ...prev, duration: "" }));

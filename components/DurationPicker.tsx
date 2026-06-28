@@ -1,23 +1,35 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 interface DurationPickerProps {
   /** Called with the total duration in seconds whenever it changes. */
   onChange: (seconds: number) => void;
   /** Optional external error message to display (e.g. from parent form validation). */
   error?: string;
+  /** Prefill the picker with an initial duration in seconds (used once on mount). */
+  initialSeconds?: number;
 }
 
 /**
  * Days / hours / minutes input that converts to total seconds.
  * Shows an inline error when all fields are 0 (zero-duration guard).
  */
-export default function DurationPicker({ onChange, error: externalError }: DurationPickerProps) {
-  const [days, setDays] = useState(0);
-  const [hours, setHours] = useState(0);
-  const [minutes, setMinutes] = useState(0);
+export default function DurationPicker({ onChange, error: externalError, initialSeconds }: DurationPickerProps) {
+  const initDays = initialSeconds ? Math.floor(initialSeconds / 86400) : 0;
+  const initHours = initialSeconds ? Math.floor((initialSeconds % 86400) / 3600) : 0;
+  const initMinutes = initialSeconds ? Math.floor((initialSeconds % 3600) / 60) : 0;
+  const [days, setDays] = useState(initDays);
+  const [hours, setHours] = useState(initHours);
+  const [minutes, setMinutes] = useState(initMinutes);
   const [touched, setTouched] = useState(false);
+
+  useEffect(() => {
+    if (initialSeconds && initialSeconds > 0) {
+      onChange(initialSeconds);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   function update(d: number, h: number, m: number) {
     const seconds = d * 86_400 + h * 3_600 + m * 60;
