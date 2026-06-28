@@ -113,7 +113,7 @@ export default function StreamDetail({ params }: { params: { id: string } }) {
         const data = await sorostream.getStream(params.id);
         if (cancelled) return;
         setStream(data);
-        setHistoryEntries(data ? getMockStreamHistory(params.id) : []);
+        setHistoryEntries(data ? getMockStreamHistory(params.id).sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()) : []);
       } catch (err) {
         console.error("Failed to load stream", err);
         if (!cancelled) setError("Failed to load stream data.");
