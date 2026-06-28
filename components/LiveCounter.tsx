@@ -123,7 +123,6 @@ export default function LiveCounter({
       className="font-mono font-semibold tabular-nums inline-flex items-baseline gap-1.5"
       role="status"
       aria-live="polite"
-      aria-label={`Claimable: ${formatUSDCFixed(claimable)} USDC`}
       aria-label={`Claimable: ${formatUSDC(displayValue)} USDC${isOptimistic ? " (pending confirmation)" : ""}`}
     >
       <span className={isOptimistic ? "text-yellow-400" : "text-green-600"}>

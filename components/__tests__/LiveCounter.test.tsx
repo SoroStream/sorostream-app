@@ -3,6 +3,15 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import LiveCounter from '../LiveCounter';
 import { sorostream } from '@/src/lib/sorostream';
 
+const mockRpcFetch = vi.fn((fn: any) => fn());
+vi.mock('@/src/lib/useRpcFetch', () => ({
+  useRpcFetch: () => mockRpcFetch,
+}));
+
+vi.mock('@/components/FiatDisplay', () => ({
+  default: () => null,
+}));
+
 describe('LiveCounter', () => {
   beforeEach(() => {
     vi.useFakeTimers();

@@ -193,7 +193,7 @@ describe('StreamActions — cancel grace period', () => {
     fireEvent.click(screen.getByRole('button', { name: /cancel/i }));
 
     // Grab the action.onClick that was passed to upsertPersistentToast
-    const { action } = mockUpsertPersistentToast.mock.calls[0][3] as {
+    const { onClick: action } = (mockUpsertPersistentToast.mock.calls[0] as any)[3] as {
       label: string;
       onClick: () => void;
     };

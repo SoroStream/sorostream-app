@@ -89,7 +89,7 @@ export default function VestingChart({ stream, history }: VestingChartProps) {
               fontSize: "13px",
             }}
             labelFormatter={(label) => fmtDate(label as number)}
-            formatter={(value: number) => [`${fmtAmount(value)} USDC`, "Vested"]}
+            formatter={(value: any) => [`${fmtAmount(Number(value))} USDC`, "Vested"]}
           />
           <Line
             type="monotone"
