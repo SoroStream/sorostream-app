@@ -44,5 +44,21 @@
     "error_freighter": "Freighter extension not found. Please install it.",
     "error_ledger": "No USB device found. Connect your Ledger.",
     "error_server_keypair": "Please enter a valid secret key."
+  },
+  "settings": {
+    "title": "Address Book",
+    "add_title": "Add Contact",
+    "edit_title": "Edit Contact",
+    "name_label": "Name",
+    "name_placeholder": "Alice",
+    "address_label": "Stellar Address",
+    "address_placeholder": "G...",
+    "save": "Save",
+    "update": "Update",
+    "cancel": "Cancel",
+    "edit": "Edit",
+    "delete": "Delete",
+    "empty": "No saved contacts yet.",
+    "contact_count": "{count}/{max} contacts"
   }
 }

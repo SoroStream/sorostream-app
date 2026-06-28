@@ -4,6 +4,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import DurationPicker from "@/components/DurationPicker";
 import FlowRatePreview from "@/components/FlowRatePreview";
 import StreamTemplatePicker from "@/components/StreamTemplatePicker";
+import RecipientAutocomplete from "@/components/RecipientAutocomplete";
 import { SkeletonForm } from "@/components/Skeleton";
 import { useTranslations } from "@/src/lib/i18n";
 import { trackEvent } from "@/src/lib/analytics";
@@ -135,21 +136,16 @@ export default function NewStream() {
             <label htmlFor="recipient" className="text-gray-200 text-sm font-medium block mb-2">
               {t("recipient_label")}
             </label>
-            <input
-              id="recipient"
+            <RecipientAutocomplete
               value={recipient}
-              onChange={(e) => {
-                setRecipient(e.target.value);
+              onChange={(v) => {
+                setRecipient(v);
                 setErrors((prev) => ({ ...prev, recipient: "" }));
               }}
               onBlur={handleRecipientBlur}
               placeholder={t("recipient_placeholder")}
-              className="w-full bg-gray-800 border border-gray-600 rounded-lg px-4 py-3 text-white font-mono focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-500 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-900"
-              aria-required="true"
-              aria-invalid={!!(touched.recipient && errors.recipient)}
-              aria-describedby={
-                touched.recipient && errors.recipient ? "recipient-error" : undefined
-              }
+              error={errors.recipient}
+              touched={touched.recipient}
             />
             {errors.recipient && (
               <p id="recipient-error" className="text-red-400 text-sm mt-1">
