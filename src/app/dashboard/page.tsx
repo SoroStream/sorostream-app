@@ -1,24 +1,30 @@
 "use client";
 import { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { StreamListSkeleton } from "@/components/Skeleton";
 import StreamVirtualList from "@/components/StreamVirtualList";
 import StreamEventFeed from "@/components/StreamEventFeed";
+import KeyboardShortcutsHelp from "@/components/KeyboardShortcutsHelp";
 import { getMockStreams, watchClaimable, sorostream, getMockStreamHistory, StreamData } from "@/src/lib/sorostream";
 import { useRpcFetch } from "@/src/lib/useRpcFetch";
 import { useToast } from "@/src/lib/toast";
 import { downloadCSV } from "@/src/lib/export";
+import { useKeyboardShortcuts, type ShortcutGroup } from "@/src/lib/useKeyboardShortcuts";
 
 type DashboardState = "loading" | "empty" | "ready";
 
 export default function Dashboard() {
   const rpcFetch = useRpcFetch();
+  const router = useRouter();
   const { addToast } = useToast();
   const [loading, setLoading] = useState(true);
   const [streams, setStreams] = useState<StreamData[]>([]);
   const [search, setSearch] = useState("");
+  const searchRef = useRef<HTMLInputElement | null>(null);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [bulkLoading, setBulkLoading] = useState(false);
+  const [showShortcutsHelp, setShowShortcutsHelp] = useState(false);
 
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
@@ -145,6 +151,20 @@ export default function Dashboard() {
     addToast(`Exported history for ${ids.length} stream(s).`, "success");
   }, [selectedIds, addToast]);
 
+  const shortcutGroups: ShortcutGroup[] = useMemo(() => [
+    {
+      title: "Dashboard",
+      shortcuts: [
+        { key: "n", description: "New stream", action: () => router.push("/stream/new") },
+        { key: "/", description: "Focus search", action: () => searchRef.current?.focus(), ignoreWhenEditing: false },
+        { key: "Escape", description: "Clear search / selection", action: () => { setSearch(""); clearSelection(); (document.activeElement as HTMLElement)?.blur(); } },
+        { key: "?", shift: true, description: "Toggle keyboard shortcuts help", action: () => setShowShortcutsHelp((v) => !v) },
+      ],
+    },
+  ], [router]);
+
+  useKeyboardShortcuts(shortcutGroups);
+
   return (
     <main className="min-h-screen bg-gray-900 text-white p-4 sm:p-8">
       <div className="max-w-6xl mx-auto">
@@ -176,6 +196,7 @@ export default function Dashboard() {
                 </label>
               )}
               <input
+                ref={searchRef}
                 type="search"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
@@ -210,6 +231,12 @@ export default function Dashboard() {
           </div>
         </div>
       </div>
+
+      <KeyboardShortcutsHelp
+        open={showShortcutsHelp}
+        onClose={() => setShowShortcutsHelp(false)}
+        groups={shortcutGroups}
+      />
     </main>
   );
 }

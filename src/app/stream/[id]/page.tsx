@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import Link from "next/link";
 import LiveCounter from "@/components/LiveCounter";
 import FiatDisplay from "@/components/FiatDisplay";
@@ -11,6 +11,7 @@ import VestingChart from "@/components/VestingChart";
 import StreamHistory from "@/components/StreamHistory";
 import { StreamErrorBoundary } from "@/components/StreamErrorBoundary";
 import { SkeletonDetail } from "@/components/Skeleton";
+import KeyboardShortcutsHelp from "@/components/KeyboardShortcutsHelp";
 import { downloadCSV, downloadJSON, type StreamHistoryEntry } from "@/src/lib/export";
 import {
   sorostream,
@@ -22,6 +23,7 @@ import {
 } from "@/src/lib/sorostream";
 import { useToast } from "@/src/lib/toast";
 import StreamQrModal from "@/components/StreamQrModal";
+import { useKeyboardShortcuts, type ShortcutGroup } from "@/src/lib/useKeyboardShortcuts";
 
 /** Grace period in seconds before a cancel is submitted on-chain. */
 const CANCEL_GRACE_SECONDS = 5;
@@ -69,6 +71,7 @@ export default function StreamDetail({ params }: { params: { id: string } }) {
   const [cancelPending, setCancelPending] = useState(false);
   const [showCancelModal, setShowCancelModal] = useState(false);
   const [showQrModal, setShowQrModal] = useState(false);
+  const [showShortcutsHelp, setShowShortcutsHelp] = useState(false);
 
   // ── Top-up form state ──────────────────────────────────────────────────────
   const [showTopUp, setShowTopUp] = useState(false);
@@ -308,6 +311,22 @@ export default function StreamDetail({ params }: { params: { id: string } }) {
   const depositXlm = stream.deposit / 10_000_000;
   const flowXlm = stream.flowRate / 10_000_000;
   const isBusy = withdrawLoading || cancelLoading || cancelPending || topUpLoading;
+
+  // ── Keyboard shortcuts ────────────────────────────────────────────────────
+  const shortcutGroups: ShortcutGroup[] = useMemo(() => [
+    {
+      title: "Stream Detail",
+      shortcuts: [
+        { key: "w", description: "Withdraw", action: () => { if (!isBusy) handleWithdraw(); } },
+        { key: "c", description: "Cancel", action: () => { if (!cancelLoading && !withdrawLoading && !topUpLoading) setShowCancelModal(true); } },
+        { key: "t", description: "Toggle top-up", action: () => setShowTopUp((v) => !v) },
+        { key: "Escape", description: "Close modals", action: () => { setShowCancelModal(false); setShowQrModal(false); setShowTopUp(false); } },
+        { key: "?", shift: true, description: "Toggle keyboard shortcuts help", action: () => setShowShortcutsHelp((v) => !v) },
+      ],
+    },
+  ], [handleWithdraw, isBusy, cancelLoading, withdrawLoading, topUpLoading]);
+
+  useKeyboardShortcuts(shortcutGroups);
 
   // ── Render: detail ─────────────────────────────────────────────────────────
   return (
@@ -565,6 +584,12 @@ export default function StreamDetail({ params }: { params: { id: string } }) {
         amount={(stream.deposit / 10_000_000).toString()}
         token="USDC"
         duration={Math.round((new Date(stream.endTime).getTime() - new Date(stream.startTime).getTime()) / 1000)}
+      />
+
+      <KeyboardShortcutsHelp
+        open={showShortcutsHelp}
+        onClose={() => setShowShortcutsHelp(false)}
+        groups={shortcutGroups}
       />
 
       {/* Cancel confirmation modal */}
