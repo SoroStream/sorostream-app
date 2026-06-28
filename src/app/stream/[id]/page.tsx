@@ -6,6 +6,7 @@ import LiveCounter from "@/components/LiveCounter";
 import FiatDisplay from "@/components/FiatDisplay";
 import FederationName from "@/components/FederationName";
 import StreamTimeline from "@/components/StreamTimeline";
+import VestingChart from "@/components/VestingChart";
 import StreamHistory from "@/components/StreamHistory";
 import { StreamErrorBoundary } from "@/components/StreamErrorBoundary";
 import { StreamListSkeleton } from "@/components/Skeleton";
@@ -439,6 +440,9 @@ export default function StreamDetail({ params }: { params: { id: string } }) {
               )}
             </p>
           </div>
+
+          {/* Vesting analytics chart */}
+          <VestingChart stream={stream} history={historyEntries} />
 
           {error && <p className="text-red-400 text-sm text-center">{error}</p>}
 
