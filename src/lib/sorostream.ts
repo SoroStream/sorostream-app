@@ -4,6 +4,7 @@ export interface StreamData {
   id: string;
   sender: string;
   recipient: string;
+  token: string;
   flowRate: number;
   deposit: number;
   startTime: string;
@@ -15,7 +16,7 @@ export interface StreamData {
 /** Mutable stream store — seeded with test data, extended by createStream(). */
 const MOCK_STREAMS: StreamData[] = [
   {
-    id: "1", sender: "GBAM...BOEP", recipient: "GBCR...XDRL",
+    id: "1", sender: "GBAM...BOEP", recipient: "GBCR...XDRL", token: "USDC",
     flowRate: 1000000, deposit: 10000000000,
     startTime: new Date(Date.now() - 86400000 * 3).toISOString(),
     endTime: new Date(Date.now() + 86400000 * 7).toISOString(),
@@ -23,7 +24,7 @@ const MOCK_STREAMS: StreamData[] = [
     status: "Active",
   },
   {
-    id: "2", sender: "GBAM...BOEP", recipient: "GDEF...XYZ",
+    id: "2", sender: "GBAM...BOEP", recipient: "GDEF...XYZ", token: "USDC",
     flowRate: 500000, deposit: 5000000000,
     startTime: new Date(Date.now() - 86400000 * 10).toISOString(),
     endTime: new Date(Date.now() + 86400000 * 5).toISOString(),
@@ -31,16 +32,32 @@ const MOCK_STREAMS: StreamData[] = [
     status: "Active",
   },
   {
-    id: "3", sender: "GHIJ...KLMN", recipient: "GBAM...BOEP",
+    id: "3", sender: "GHIJ...KLMN", recipient: "GBAM...BOEP", token: "XLM",
     flowRate: 2000000, deposit: 20000000000,
     startTime: new Date(Date.now() - 86400000 * 1).toISOString(),
     endTime: new Date(Date.now() + 86400000 * 14).toISOString(),
     lastWithdrawTime: new Date(Date.now() - 86400000).toISOString(),
     status: "Active",
   },
+  {
+    id: "4", sender: "GBAM...BOEP", recipient: "GXYZ...ABC", token: "USDC",
+    flowRate: 750000, deposit: 7500000000,
+    startTime: new Date(Date.now() - 86400000 * 5).toISOString(),
+    endTime: new Date(Date.now() - 86400000 * 1).toISOString(),
+    lastWithdrawTime: new Date(Date.now() - 86400000 * 2).toISOString(),
+    status: "Ended",
+  },
+  {
+    id: "5", sender: "GDEF...XYZ", recipient: "GHIJ...KLMN", token: "XLM",
+    flowRate: 300000, deposit: 3000000000,
+    startTime: new Date(Date.now() - 86400000 * 2).toISOString(),
+    endTime: new Date(Date.now() + 86400000 * 3).toISOString(),
+    lastWithdrawTime: new Date(Date.now() - 86400000 * 1).toISOString(),
+    status: "Cancelled",
+  },
 ];
 
-let nextId = 4;
+let nextId = 6;
 
 export interface CreateStreamParams {
   recipient?: string;
@@ -84,6 +101,7 @@ export const sorostream = {
       id,
       sender: "GTEST...SENDER",
       recipient: params?.recipient ?? "GTEST...RECIP",
+      token: "USDC",
       flowRate,
       deposit,
       startTime: now.toISOString(),

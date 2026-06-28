@@ -12,8 +12,7 @@ import VestingChart from "@/components/VestingChart";
 import StreamHistory from "@/components/StreamHistory";
 import { StreamErrorBoundary } from "@/components/StreamErrorBoundary";
 import { SkeletonDetail } from "@/components/Skeleton";
-import KeyboardShortcutsHelp from "@/components/KeyboardShortcutsHelp";
-import { downloadCSV, downloadJSON, type StreamHistoryEntry } from "@/src/lib/export";
+import { downloadCSV, downloadCSVStreaming, downloadJSON, type StreamHistoryEntry } from "@/src/lib/export";
 import {
   sorostream,
   type StreamData,
@@ -118,7 +117,7 @@ export default function StreamDetail({ params }: { params: { id: string } }) {
         const data = await sorostream.getStream(params.id);
         if (cancelled) return;
         setStream(data);
-        setHistoryEntries(data ? getMockStreamHistory(params.id) : []);
+        setHistoryEntries(data ? getMockStreamHistory(params.id).sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()) : []);
       } catch (err) {
         console.error("Failed to load stream", err);
         if (!cancelled) setError("Failed to load stream data.");
@@ -579,25 +578,33 @@ export default function StreamDetail({ params }: { params: { id: string } }) {
                 Transaction History
               </h2>
               <StreamHistory entries={historyEntries} />
-              <div className="mt-4">
-                <p className="text-gray-400 text-sm font-medium mb-3">
-                  History Export
-                </p>
-                <div className="flex gap-3">
-                  <button
-                    onClick={() => downloadCSV(historyEntries, params.id)}
-                    className="flex-1 bg-gray-700 text-white py-2 rounded-lg text-sm hover:bg-gray-600 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-500 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-900"
-                  >
-                    Download CSV
-                  </button>
-                  <button
-                    onClick={() => downloadJSON(historyEntries, params.id)}
-                    className="flex-1 bg-gray-700 text-white py-2 rounded-lg text-sm hover:bg-gray-600 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-500 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-900"
-                  >
-                    Download JSON
-                  </button>
+              {historyEntries.length > 0 && (
+                <div className="mt-4">
+                  <p className="text-gray-400 text-sm font-medium mb-3">
+                    History Export
+                  </p>
+                  <div className="flex gap-3">
+                    <button
+                      onClick={() => {
+                        if (historyEntries.length >= 1000) {
+                          downloadCSVStreaming(historyEntries, params.id);
+                        } else {
+                          downloadCSV(historyEntries, params.id);
+                        }
+                      }}
+                      className="flex-1 bg-gray-700 text-white py-2 rounded-lg text-sm hover:bg-gray-600 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-500 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-900"
+                    >
+                      Download CSV
+                    </button>
+                    <button
+                      onClick={() => downloadJSON(historyEntries, params.id)}
+                      className="flex-1 bg-gray-700 text-white py-2 rounded-lg text-sm hover:bg-gray-600 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-500 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-900"
+                    >
+                      Download JSON
+                    </button>
+                  </div>
                 </div>
-              </div>
+              )}
             </section>
           </StreamErrorBoundary>
         </div>
