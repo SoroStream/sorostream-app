@@ -63,6 +63,7 @@ export interface CreateStreamParams {
   recipient?: string;
   amount?: string;
   durationSeconds?: number;
+  token?: string;
 }
 
 export function watchClaimable(streams: StreamData[]): StreamData[] {
@@ -101,7 +102,7 @@ export const sorostream = {
       id,
       sender: "GTEST...SENDER",
       recipient: params?.recipient ?? "GTEST...RECIP",
-      token: "USDC",
+      token: params?.token ?? "USDC",
       flowRate,
       deposit,
       startTime: now.toISOString(),

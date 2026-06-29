@@ -12,6 +12,15 @@ import { sorostream } from "@/src/lib/sorostream";
 
 type Step = "recipient" | "amount" | "review";
 
+const SUPPORTED_TOKENS = [
+  { symbol: "USDC", name: "USD Coin",        address: "CAQCFVLOBK5GIULPNZRGATJJMIZL5BSP7X5YJVMGCPTUEPFM4AVSRCJU" },
+  { symbol: "XLM",  name: "Stellar Lumens",  address: "native" },
+  { symbol: "AQUA", name: "Aquarius",        address: "GBNZILSTVQZ4R7IKQDGHYGY2QXL5QOFJYQMXPKWRRM5PAV7Y4M67AQUA" },
+  { symbol: "yXLM", name: "Yield XLM",       address: "GARDNV3Q7YGT4AKSDF25LT32YSCCW4EV22Y2TV3I2PU2MMXJTEDL5T55" },
+] as const;
+
+const CUSTOM_TOKEN_VALUE = "__custom__";
+
 function validateRecipient(value: string): string {
   if (!value) return "Recipient address is required.";
   if (!/^G[A-Z2-7]{55}$/.test(value))
@@ -66,6 +75,9 @@ function NewStreamWizard() {
   const [recipient, setRecipient] = useState(initialRecipient);
   const [amount, setAmount] = useState(initialAmount);
   const [duration, setDuration] = useState(initialDuration);
+  const [selectedToken, setSelectedToken] = useState<string>(SUPPORTED_TOKENS[0].symbol);
+  const [customTokenAddress, setCustomTokenAddress] = useState("");
+  const [customTokenError, setCustomTokenError] = useState("");
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState({ recipient: "", amount: "", duration: "" });
   const [touched, setTouched] = useState({ recipient: false, amount: false });
@@ -119,6 +131,16 @@ function NewStreamWizard() {
     if (idx > 0) setStep(STEPS[idx - 1]);
   }
 
+  function resolvedTokenAddress(): string | null {
+    if (selectedToken === CUSTOM_TOKEN_VALUE) {
+      const trimmed = customTokenAddress.trim();
+      if (!trimmed) { setCustomTokenError("Contract address is required."); return null; }
+      setCustomTokenError("");
+      return trimmed;
+    }
+    return SUPPORTED_TOKENS.find((t) => t.symbol === selectedToken)?.address ?? SUPPORTED_TOKENS[0].address;
+  }
+
   async function handleCreateStream() {
     const rErr = validateRecipient(recipient);
     const aErr = validateAmount(amount);
@@ -128,6 +150,9 @@ function NewStreamWizard() {
       return;
     }
 
+    const tokenAddress = resolvedTokenAddress();
+    if (!tokenAddress) return;
+
     setLoading(true);
     trackEvent({ type: "stream_create_start" });
     try {
@@ -135,6 +160,7 @@ function NewStreamWizard() {
         recipient,
         amount,
         durationSeconds: duration,
+        token: selectedToken === CUSTOM_TOKEN_VALUE ? tokenAddress : selectedToken,
       });
       trackEvent({ type: "stream_create_complete", streamId: result.streamId });
       setRecipient("");
@@ -143,7 +169,7 @@ function NewStreamWizard() {
       setErrors({ recipient: "", amount: "", duration: "" });
       setTouched({ recipient: false, amount: false });
       setDurationPickerKey((k) => k + 1);
-      router.push(`/stream/${result.streamId}`);
+      router.push(`/stream/${result.streamId}?new=true`);
     } catch (err) {
       console.error("Failed to create stream:", err);
       setLoading(false);
@@ -227,6 +253,47 @@ function NewStreamWizard() {
         {/* Step: Amount & Duration */}
         {step === "amount" && (
           <div className="space-y-6">
+            {/* Token selector */}
+            <div>
+              <label htmlFor="token-select" className="text-gray-200 text-sm font-medium block mb-2">
+                Token
+              </label>
+              <select
+                id="token-select"
+                value={selectedToken}
+                onChange={(e) => {
+                  setSelectedToken(e.target.value);
+                  setCustomTokenError("");
+                }}
+                className="w-full bg-gray-800 border border-gray-600 rounded-lg px-4 py-3 text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-500 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-900"
+              >
+                {SUPPORTED_TOKENS.map((t) => (
+                  <option key={t.symbol} value={t.symbol}>
+                    {t.symbol} — {t.name} ({t.address === "native" ? "native" : `${t.address.slice(0, 6)}…${t.address.slice(-4)}`})
+                  </option>
+                ))}
+                <option value={CUSTOM_TOKEN_VALUE}>Custom token…</option>
+              </select>
+              {selectedToken === CUSTOM_TOKEN_VALUE && (
+                <div className="mt-2">
+                  <input
+                    id="custom-token-address"
+                    type="text"
+                    value={customTokenAddress}
+                    onChange={(e) => { setCustomTokenAddress(e.target.value); setCustomTokenError(""); }}
+                    placeholder="Contract address (e.g. C…)"
+                    className="w-full bg-gray-800 border border-gray-600 rounded-lg px-4 py-3 text-white text-sm font-mono focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-500 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-900"
+                    aria-label="Custom token contract address"
+                    aria-invalid={!!customTokenError}
+                    aria-describedby={customTokenError ? "custom-token-error" : undefined}
+                  />
+                  {customTokenError && (
+                    <p id="custom-token-error" className="text-red-400 text-xs mt-1">{customTokenError}</p>
+                  )}
+                </div>
+              )}
+            </div>
+
             <div>
               <label htmlFor="amount" className="text-gray-200 text-sm font-medium block mb-2">
                 {t("amount_label")}
@@ -290,8 +357,18 @@ function NewStreamWizard() {
                 <span className="text-white font-mono text-sm">{recipient}</span>
               </div>
               <div className="flex justify-between items-center">
+                <span className="text-gray-400 text-sm">Token</span>
+                <span className="text-white font-mono text-sm">
+                  {selectedToken === CUSTOM_TOKEN_VALUE
+                    ? `Custom (${customTokenAddress.slice(0, 8)}…)`
+                    : selectedToken}
+                </span>
+              </div>
+              <div className="flex justify-between items-center">
                 <span className="text-gray-400 text-sm">Amount</span>
-                <span className="text-white font-mono text-sm">{amount} USDC</span>
+                <span className="text-white font-mono text-sm">
+                  {amount} {selectedToken === CUSTOM_TOKEN_VALUE ? "tokens" : selectedToken}
+                </span>
               </div>
               <div className="flex justify-between items-center">
                 <span className="text-gray-400 text-sm">Duration</span>

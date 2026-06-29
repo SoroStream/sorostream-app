@@ -23,6 +23,9 @@ import {
 } from "@/src/lib/sorostream";
 import { useToast } from "@/src/lib/toast";
 import StreamQrModal from "@/components/StreamQrModal";
+import WithdrawConfirmModal from "@/components/WithdrawConfirmModal";
+import { useSettings } from "@/src/context/SettingsContext";
+import { formatStellarAmount } from "@/src/lib/sorostream";
 import { useKeyboardShortcuts, type ShortcutGroup } from "@/src/lib/useKeyboardShortcuts";
 import { useBookmarks } from "@/src/context/BookmarksContext";
 
@@ -56,10 +59,14 @@ function Spinner() {
   );
 }
 
+const DEEP_LINK_KEY = "sorostream-deep-link";
+const DEEP_LINK_COUNT_KEY = "sorostream-deep-link-count";
+
 export default function StreamDetail({ params }: { params: { id: string } }) {
   const router = useRouter();
   const { addToast, upsertPersistentToast, removeToast } = useToast();
-  const { isBookmarked, toggleBookmark } = useBookmarks();
+  const { withdrawThreshold } = useSettings();
+  const [withdrawConfirmAmount, setWithdrawConfirmAmount] = useState<string | null>(null);
 
   // ── Stream data ────────────────────────────────────────────────────────────
   const [stream, setStream] = useState<StreamData | null>(null);
@@ -80,6 +87,9 @@ export default function StreamDetail({ params }: { params: { id: string } }) {
   const [showTopUp, setShowTopUp] = useState(false);
   const [topUpAmount, setTopUpAmount] = useState("");
   const [topUpLoading, setTopUpLoading] = useState(false);
+
+  // ── Success banner (stream just created) ──────────────────────────────────
+  const [successPhase, setSuccessPhase] = useState<"in" | "out" | null>(null);
 
   // ── Optimistic UI state ────────────────────────────────────────────────────
   /**
@@ -107,6 +117,48 @@ export default function StreamDetail({ params }: { params: { id: string } }) {
       if (submitTimeoutRef.current) clearTimeout(submitTimeoutRef.current);
     };
   }, []);
+
+  // ── Success banner: triggered once by ?new=true, blocked on refresh via sessionStorage ──
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("new") !== "true") return;
+
+    const sessionKey = `sorostream-new-banner-shown`;
+    if (sessionStorage.getItem(sessionKey)) return;
+    sessionStorage.setItem(sessionKey, "1");
+
+    // Remove query param so refresh doesn't retrigger
+    const clean = new URL(window.location.href);
+    clean.searchParams.delete("new");
+    window.history.replaceState({}, "", clean.toString());
+
+    setSuccessPhase("in");
+    const outTimer = setTimeout(() => setSuccessPhase("out"), 1700);
+    const doneTimer = setTimeout(() => setSuccessPhase(null), 2000);
+    return () => { clearTimeout(outTimer); clearTimeout(doneTimer); };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // ── Deep link: store URL when unauthenticated, redirect back after connect ──
+  useEffect(() => {
+    if (address === null) {
+      // Store the intended URL (once per redirect cycle, max 1)
+      const count = parseInt(sessionStorage.getItem(DEEP_LINK_COUNT_KEY) ?? "0", 10);
+      if (count < 1) {
+        sessionStorage.setItem(DEEP_LINK_KEY, window.location.pathname + window.location.search);
+        sessionStorage.setItem(DEEP_LINK_COUNT_KEY, String(count + 1));
+      }
+    } else {
+      // Wallet just connected — redirect to the stored deep link if it's different
+      const stored = sessionStorage.getItem(DEEP_LINK_KEY);
+      sessionStorage.removeItem(DEEP_LINK_KEY);
+      sessionStorage.removeItem(DEEP_LINK_COUNT_KEY);
+      if (stored && stored !== window.location.pathname + window.location.search) {
+        router.push(stored);
+      }
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [address]);
 
   // ── Load stream on mount ───────────────────────────────────────────────────
   useEffect(() => {
@@ -136,7 +188,7 @@ export default function StreamDetail({ params }: { params: { id: string } }) {
   }, [params.id]);
 
   // ── Withdraw with optimistic update ───────────────────────────────────────
-  const handleWithdraw = useCallback(async () => {
+  const executeWithdraw = useCallback(async () => {
     const prevStream = getMockStream(params.id);
     const prevClaimable = prevStream ? Number(claimableNow(prevStream)) : 0;
 
@@ -155,6 +207,18 @@ export default function StreamDetail({ params }: { params: { id: string } }) {
       setWithdrawLoading(false);
     }
   }, [params.id, addToast]);
+
+  const handleWithdraw = useCallback(() => {
+    const prevStream = getMockStream(params.id);
+    const claimableStroops = prevStream ? Number(claimableNow(prevStream)) : 0;
+    const claimableXlm = claimableStroops / 10_000_000;
+
+    if (claimableXlm >= withdrawThreshold) {
+      setWithdrawConfirmAmount(formatStellarAmount(claimableStroops));
+    } else {
+      void executeWithdraw();
+    }
+  }, [params.id, withdrawThreshold, executeWithdraw]);
 
   // ── Top-up with optimistic update ─────────────────────────────────────────
   const handleTopUp = useCallback(async () => {
@@ -270,6 +334,30 @@ export default function StreamDetail({ params }: { params: { id: string } }) {
   const displayDeposit = optimisticDeposit != null ? optimisticDeposit : stream?.deposit ?? 0;
   const isDepositOptimistic = optimisticDeposit != null;
 
+  // ── Render: wallet not connected ──────────────────────────────────────────
+  if (address === null) {
+    return (
+      <main className="min-h-screen bg-gray-900 text-white p-4 sm:p-8">
+        <div className="max-w-sm mx-auto mt-20 text-center space-y-6">
+          <div className="text-5xl" aria-hidden="true">🔒</div>
+          <h1 className="text-xl font-semibold">Connect your wallet</h1>
+          <p className="text-gray-400 text-sm">
+            Connect your wallet to view stream #{params.id}.
+          </p>
+          <div className="flex justify-center">
+            <WalletConnect />
+          </div>
+          <Link
+            href="/dashboard"
+            className="text-sm text-gray-500 hover:text-gray-300 underline transition-colors"
+          >
+            Go to dashboard
+          </Link>
+        </div>
+      </main>
+    );
+  }
+
   // ── Render: loading ────────────────────────────────────────────────────────
   if (pageLoading) {
     return (
@@ -334,6 +422,22 @@ export default function StreamDetail({ params }: { params: { id: string } }) {
   // ── Render: detail ─────────────────────────────────────────────────────────
   return (
     <main className="min-h-screen bg-gray-900 text-white p-4 sm:p-8">
+      {successPhase !== null && (
+        <div
+          aria-live="polite"
+          aria-atomic="true"
+          className={`fixed top-6 left-1/2 -translate-x-1/2 z-50 flex items-center gap-3 bg-green-700 text-white px-6 py-3 rounded-full shadow-lg text-sm font-medium pointer-events-none ${
+            successPhase === "in"
+              ? "animate-stream-success-in"
+              : "animate-stream-success-out"
+          }`}
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <polyline points="20 6 9 17 4 12" />
+          </svg>
+          Stream created successfully!
+        </div>
+      )}
       <div className="max-w-2xl mx-auto animate-fade-in">
         <div className="mb-4">
           <Link
@@ -413,19 +517,9 @@ export default function StreamDetail({ params }: { params: { id: string } }) {
           </button>
           <button
             onClick={() => {
-              const duration = Math.round(
-                (new Date(stream.endTime).getTime() - new Date(stream.startTime).getTime()) / 1000,
-              );
-              const qp = new URLSearchParams({
-                recipient: stream.recipient,
-                amount: (stream.deposit / 10_000_000).toString(),
-                token: "USDC",
-                duration: String(duration),
-                cliff: "0",
-              });
-              const url = `${window.location.origin}/stream/new?${qp.toString()}`;
+              const url = window.location.origin + `/stream/${stream.id}`;
               navigator.clipboard.writeText(url).then(
-                () => addToast("Share link copied to clipboard!", "success"),
+                () => addToast("Deep link copied to clipboard!", "success"),
                 () => {
                   const textarea = document.createElement("textarea");
                   textarea.value = url;
@@ -435,11 +529,12 @@ export default function StreamDetail({ params }: { params: { id: string } }) {
                   textarea.select();
                   document.execCommand("copy");
                   document.body.removeChild(textarea);
-                  addToast("Share link copied to clipboard!", "success");
+                  addToast("Deep link copied to clipboard!", "success");
                 },
               );
             }}
-            className="inline-flex items-center gap-2 bg-gray-700 hover:bg-gray-600 text-white py-2 px-4 rounded-lg text-sm transition-colors"
+            className="inline-flex items-center gap-2 bg-gray-700 hover:bg-gray-600 text-white py-2 px-4 rounded-lg text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-500 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-900"
+            title={`${window.location.origin}/stream/${stream.id}`}
           >
             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <circle cx="18" cy="5" r="3" /><circle cx="6" cy="12" r="3" /><circle cx="18" cy="19" r="3" />
@@ -688,6 +783,14 @@ export default function StreamDetail({ params }: { params: { id: string } }) {
             </div>
           </div>
         </div>
+      )}
+
+      {withdrawConfirmAmount !== null && (
+        <WithdrawConfirmModal
+          amount={withdrawConfirmAmount}
+          onConfirm={() => { setWithdrawConfirmAmount(null); void executeWithdraw(); }}
+          onCancel={() => setWithdrawConfirmAmount(null)}
+        />
       )}
     </main>
   );

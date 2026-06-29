@@ -57,6 +57,7 @@ export default function StreamCard({
             />
           )}
           <span className="text-gray-400 text-xs">Stream #{id}</span>
+          <CopyButton value={id} label="Copy stream ID" />
         </span>
         <div className="flex items-center gap-2">
           <button
