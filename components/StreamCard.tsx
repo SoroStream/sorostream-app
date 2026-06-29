@@ -4,6 +4,7 @@ import CopyButton from "@/components/CopyButton";
 import FiatDisplay from "@/components/FiatDisplay";
 import { truncateAddress, formatStellarAmount } from "@/src/lib/sorostream";
 import FederationName from "@/components/FederationName";
+import { useBookmarks } from "@/src/context/BookmarksContext";
 
 interface StreamCardProps {
   id?: string;
@@ -26,6 +27,9 @@ export default function StreamCard({
   selected = false,
   onToggle,
 }: StreamCardProps) {
+  const { isBookmarked, toggleBookmark } = useBookmarks();
+  const bookmarked = isBookmarked(id);
+
   /** Convert stroops → XLM (display value). */
   const toXlm = (val: number) => (val / 10_000_000).toFixed(2);
   const flowXlm = flowRate / 10_000_000;
@@ -54,16 +58,28 @@ export default function StreamCard({
           )}
           <span className="text-gray-400 text-xs">Stream #{id}</span>
         </span>
-        <span
-          className={`text-xs px-2 py-1 rounded-full ${
-            status === "Active"
-              ? "bg-green-900 text-green-400"
-              : "bg-gray-700 text-gray-400"
-          }`}
-          aria-label={`Status: ${status}`}
-        >
-          {status}
-        </span>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={(e) => { e.stopPropagation(); toggleBookmark(id); }}
+            aria-label={bookmarked ? "Remove bookmark" : "Bookmark stream"}
+            aria-pressed={bookmarked}
+            className={`text-base leading-none transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-500 rounded ${
+              bookmarked ? "text-yellow-400" : "text-gray-600 hover:text-yellow-400"
+            }`}
+          >
+            {bookmarked ? "★" : "☆"}
+          </button>
+          <span
+            className={`text-xs px-2 py-1 rounded-full ${
+              status === "Active"
+                ? "bg-green-900 text-green-400"
+                : "bg-gray-700 text-gray-400"
+            }`}
+            aria-label={`Status: ${status}`}
+          >
+            {status}
+          </span>
+        </div>
       </div>
 
       <div className="text-sm">

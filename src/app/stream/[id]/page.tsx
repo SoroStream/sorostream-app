@@ -24,6 +24,7 @@ import {
 import { useToast } from "@/src/lib/toast";
 import StreamQrModal from "@/components/StreamQrModal";
 import { useKeyboardShortcuts, type ShortcutGroup } from "@/src/lib/useKeyboardShortcuts";
+import { useBookmarks } from "@/src/context/BookmarksContext";
 
 /** Grace period in seconds before a cancel is submitted on-chain. */
 const CANCEL_GRACE_SECONDS = 5;
@@ -58,6 +59,7 @@ function Spinner() {
 export default function StreamDetail({ params }: { params: { id: string } }) {
   const router = useRouter();
   const { addToast, upsertPersistentToast, removeToast } = useToast();
+  const { isBookmarked, toggleBookmark } = useBookmarks();
 
   // ── Stream data ────────────────────────────────────────────────────────────
   const [stream, setStream] = useState<StreamData | null>(null);
@@ -359,7 +361,35 @@ export default function StreamDetail({ params }: { params: { id: string } }) {
           </span>
         </div>
 
-        <div className="flex justify-end gap-2 mb-4">
+        <div className="flex justify-end gap-2 mb-4 print-hidden">
+          {/* Bookmark toggle */}
+          <button
+            onClick={() => toggleBookmark(stream.id)}
+            aria-label={isBookmarked(stream.id) ? "Remove bookmark" : "Bookmark this stream"}
+            aria-pressed={isBookmarked(stream.id)}
+            className={`inline-flex items-center gap-2 py-2 px-4 rounded-lg text-sm border transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-500 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-900 ${
+              isBookmarked(stream.id)
+                ? "border-yellow-500 text-yellow-400 bg-yellow-900/20"
+                : "border-gray-600 text-gray-300 hover:bg-gray-700"
+            }`}
+          >
+            <span aria-hidden="true">{isBookmarked(stream.id) ? "★" : "☆"}</span>
+            {isBookmarked(stream.id) ? "Bookmarked" : "Bookmark"}
+          </button>
+
+          {/* Print / PDF export */}
+          <button
+            onClick={() => window.print()}
+            className="inline-flex items-center gap-2 bg-gray-700 hover:bg-gray-600 text-white py-2 px-4 rounded-lg text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-500 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-900"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <polyline points="6 9 6 2 18 2 18 9" />
+              <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2" />
+              <rect x="6" y="14" width="12" height="8" />
+            </svg>
+            Export PDF
+          </button>
+
           <button
             onClick={() => {
               const duration = Math.round(
@@ -484,7 +514,7 @@ export default function StreamDetail({ params }: { params: { id: string } }) {
           )}
 
           {/* Withdraw / Cancel */}
-          <div className="flex gap-4">
+          <div className="flex gap-4 print-hidden">
             <button
               onClick={handleWithdraw}
               disabled={isBusy}

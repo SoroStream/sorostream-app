@@ -3,6 +3,7 @@ import { ToastProvider } from "@/src/lib/toast";
 import { NetworkProvider } from "@/src/lib/network";
 import { WalletProvider } from "@/src/context/WalletContext";
 import { SettingsProvider } from "@/src/context/SettingsContext";
+import { BookmarksProvider } from "@/src/context/BookmarksContext";
 import NavHeader from "@/components/NavHeader";
 import { ThemeProvider } from "@/src/lib/theme";
 import PwaInit from "@/src/components/PwaInit";
@@ -55,6 +56,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body className="min-h-screen">
         <SettingsProvider>
           <WalletProvider>
+            <BookmarksProvider>
             <ThemeProvider>
               <NetworkProvider>
                 <ToastProvider>
@@ -65,6 +67,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                 </ToastProvider>
               </NetworkProvider>
             </ThemeProvider>
+            </BookmarksProvider>
           </WalletProvider>
         </SettingsProvider>
       </body>

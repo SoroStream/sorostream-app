@@ -47,3 +47,54 @@ body {
 .animate-slide-up {
   animation: slide-up 0.3s ease-out;
 }
+
+@media print {
+  /* Hide chrome that has no place on paper */
+  header,
+  nav,
+  .print-hidden {
+    display: none !important;
+  }
+
+  /* Readable colours on white paper */
+  body {
+    background: #fff !important;
+    color: #111 !important;
+  }
+
+  /* Remove padding so content fills the page */
+  main {
+    padding: 0 !important;
+    min-height: unset !important;
+  }
+
+  /* Ensure cards/panels read well without dark backgrounds */
+  .bg-gray-800,
+  .bg-gray-900,
+  .bg-gray-700 {
+    background: #f9f9f9 !important;
+    border-color: #ccc !important;
+  }
+
+  .text-gray-400,
+  .text-gray-300 {
+    color: #555 !important;
+  }
+
+  .text-white {
+    color: #111 !important;
+  }
+
+  /* Avoid orphaned headings */
+  h1,
+  h2,
+  h3 {
+    page-break-after: avoid;
+  }
+
+  /* Don't break inside detail cards */
+  section,
+  article {
+    page-break-inside: avoid;
+  }
+}

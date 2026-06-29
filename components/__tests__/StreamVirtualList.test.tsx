@@ -1,8 +1,12 @@
 import { render, screen } from "@testing-library/react";
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import StreamVirtualList from "@/components/StreamVirtualList";
 import { SettingsProvider } from "@/src/context/SettingsContext";
 import type { StreamData } from "@/src/lib/sorostream";
+
+vi.mock("@/src/context/BookmarksContext", () => ({
+  useBookmarks: () => ({ bookmarkedIds: new Set(), isBookmarked: () => false, toggleBookmark: vi.fn() }),
+}));
 
 function createStream(id: number): StreamData {
   return {
