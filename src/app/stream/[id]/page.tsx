@@ -1,7 +1,8 @@
 "use client";
 
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import LiveCounter from "@/components/LiveCounter";
 import FiatDisplay from "@/components/FiatDisplay";
 import FederationName from "@/components/FederationName";
@@ -25,6 +26,7 @@ import StreamQrModal from "@/components/StreamQrModal";
 import WithdrawConfirmModal from "@/components/WithdrawConfirmModal";
 import { useSettings } from "@/src/context/SettingsContext";
 import { formatStellarAmount } from "@/src/lib/sorostream";
+import { useKeyboardShortcuts, type ShortcutGroup } from "@/src/lib/useKeyboardShortcuts";
 
 /** Grace period in seconds before a cancel is submitted on-chain. */
 const CANCEL_GRACE_SECONDS = 5;
@@ -57,6 +59,7 @@ function Spinner() {
 }
 
 export default function StreamDetail({ params }: { params: { id: string } }) {
+  const router = useRouter();
   const { addToast, upsertPersistentToast, removeToast } = useToast();
   const { withdrawThreshold } = useSettings();
   const [withdrawConfirmAmount, setWithdrawConfirmAmount] = useState<string | null>(null);
@@ -74,6 +77,7 @@ export default function StreamDetail({ params }: { params: { id: string } }) {
   const [cancelPending, setCancelPending] = useState(false);
   const [showCancelModal, setShowCancelModal] = useState(false);
   const [showQrModal, setShowQrModal] = useState(false);
+  const [showShortcutsHelp, setShowShortcutsHelp] = useState(false);
 
   // ── Top-up form state ──────────────────────────────────────────────────────
   const [showTopUp, setShowTopUp] = useState(false);
@@ -326,6 +330,22 @@ export default function StreamDetail({ params }: { params: { id: string } }) {
   const flowXlm = stream.flowRate / 10_000_000;
   const isBusy = withdrawLoading || cancelLoading || cancelPending || topUpLoading;
 
+  // ── Keyboard shortcuts ────────────────────────────────────────────────────
+  const shortcutGroups: ShortcutGroup[] = useMemo(() => [
+    {
+      title: "Stream Detail",
+      shortcuts: [
+        { key: "w", description: "Withdraw", action: () => { if (!isBusy) handleWithdraw(); } },
+        { key: "c", description: "Cancel", action: () => { if (!cancelLoading && !withdrawLoading && !topUpLoading) setShowCancelModal(true); } },
+        { key: "t", description: "Toggle top-up", action: () => setShowTopUp((v) => !v) },
+        { key: "Escape", description: "Close modals", action: () => { setShowCancelModal(false); setShowQrModal(false); setShowTopUp(false); } },
+        { key: "?", shift: true, description: "Toggle keyboard shortcuts help", action: () => setShowShortcutsHelp((v) => !v) },
+      ],
+    },
+  ], [handleWithdraw, isBusy, cancelLoading, withdrawLoading, topUpLoading]);
+
+  useKeyboardShortcuts(shortcutGroups);
+
   // ── Render: detail ─────────────────────────────────────────────────────────
   return (
     <main className="min-h-screen bg-gray-900 text-white p-4 sm:p-8">
@@ -356,17 +376,41 @@ export default function StreamDetail({ params }: { params: { id: string } }) {
           </span>
         </div>
 
-        <div className="flex justify-end mb-4">
+        <div className="flex justify-end gap-2 mb-4">
           <button
             onClick={() => {
-              const params = new URLSearchParams({
+              const duration = Math.round(
+                (new Date(stream.endTime).getTime() - new Date(stream.startTime).getTime()) / 1000,
+              );
+              const qp = new URLSearchParams({
                 recipient: stream.recipient,
                 amount: (stream.deposit / 10_000_000).toString(),
                 token: "USDC",
-                duration: String(Math.round((new Date(stream.endTime).getTime() - new Date(stream.startTime).getTime()) / 1000)),
+                duration: String(duration),
                 cliff: "0",
               });
-              const url = `${window.location.origin}/stream/new?${params.toString()}`;
+              router.push(`/stream/new?${qp.toString()}`);
+            }}
+            className="inline-flex items-center gap-2 bg-gray-700 hover:bg-gray-600 text-white py-2 px-4 rounded-lg text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-500 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-900"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M4 4v16h16" /><path d="m8 16 4-4 4 4" /><path d="M12 12v9" />
+            </svg>
+            Clone
+          </button>
+          <button
+            onClick={() => {
+              const duration = Math.round(
+                (new Date(stream.endTime).getTime() - new Date(stream.startTime).getTime()) / 1000,
+              );
+              const qp = new URLSearchParams({
+                recipient: stream.recipient,
+                amount: (stream.deposit / 10_000_000).toString(),
+                token: "USDC",
+                duration: String(duration),
+                cliff: "0",
+              });
+              const url = `${window.location.origin}/stream/new?${qp.toString()}`;
               navigator.clipboard.writeText(url).then(
                 () => addToast("Share link copied to clipboard!", "success"),
                 () => {
@@ -386,7 +430,7 @@ export default function StreamDetail({ params }: { params: { id: string } }) {
           >
             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <circle cx="18" cy="5" r="3" /><circle cx="6" cy="12" r="3" /><circle cx="18" cy="19" r="3" />
-              <line x1="8.59" y1="13.51" x2="15.42" y2="17.49" /><line x1="15.41" y1="6.51" x2="8.59" y2="10.49" />
+              <line x1="8.59" y1="13.51" x2="15.42" y2="17.49" /><line x1="15.41" y1="6.51" x2="8.59" y2="10.51" />
             </svg>
             Share
           </button>
@@ -590,6 +634,12 @@ export default function StreamDetail({ params }: { params: { id: string } }) {
         amount={(stream.deposit / 10_000_000).toString()}
         token="USDC"
         duration={Math.round((new Date(stream.endTime).getTime() - new Date(stream.startTime).getTime()) / 1000)}
+      />
+
+      <KeyboardShortcutsHelp
+        open={showShortcutsHelp}
+        onClose={() => setShowShortcutsHelp(false)}
+        groups={shortcutGroups}
       />
 
       {/* Cancel confirmation modal */}

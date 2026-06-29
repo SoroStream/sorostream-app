@@ -12,6 +12,8 @@ interface StreamCardProps {
   flowRate?: number;
   status?: string;
   deposit?: number;
+  selected?: boolean;
+  onToggle?: (id: string) => void;
 }
 
 export default function StreamCard({
@@ -21,6 +23,8 @@ export default function StreamCard({
   flowRate = 0,
   status = "Active",
   deposit = 0,
+  selected = false,
+  onToggle,
 }: StreamCardProps) {
   /** Convert stroops → XLM (display value). */
   const toXlm = (val: number) => (val / 10_000_000).toFixed(2);
@@ -29,12 +33,27 @@ export default function StreamCard({
 
   return (
     <div
-      className="bg-gray-800 rounded-lg p-4 space-y-2 border border-gray-700"
+      className={`bg-gray-800 rounded-lg p-4 space-y-2 border ${
+        selected ? "border-green-500" : "border-gray-700"
+      }`}
       role="article"
       aria-label={`Stream ${id}`}
+      aria-selected={selected}
     >
       <div className="flex justify-between items-center">
-        <span className="text-gray-400 text-xs">Stream #{id}</span>
+        <span className="flex items-center gap-2">
+          {onToggle && (
+            <input
+              type="checkbox"
+              checked={selected}
+              onChange={() => onToggle(id)}
+              className="w-4 h-4 rounded border-gray-600 bg-gray-700 accent-green-500 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-500"
+              aria-label={`Select stream ${id}`}
+              onClick={(e) => e.stopPropagation()}
+            />
+          )}
+          <span className="text-gray-400 text-xs">Stream #{id}</span>
+        </span>
         <span
           className={`text-xs px-2 py-1 rounded-full ${
             status === "Active"

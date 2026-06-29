@@ -7,12 +7,14 @@ import type { StreamData } from "@/src/lib/sorostream";
 
 interface StreamVirtualListProps {
   streams: StreamData[];
+  selectedIds?: Set<string>;
+  onToggleSelect?: (id: string) => void;
 }
 
 const ROW_HEIGHT = 340;
 const OVERSCAN_ROWS = 3;
 
-export default function StreamVirtualList({ streams }: StreamVirtualListProps) {
+export default function StreamVirtualList({ streams, selectedIds, onToggleSelect }: StreamVirtualListProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const savedScrollTop = useRef(0);
   const [scrollTop, setScrollTop] = useState(0);
@@ -86,16 +88,22 @@ export default function StreamVirtualList({ streams }: StreamVirtualListProps) {
         >
           <div className="grid gap-4 md:grid-cols-2">
             {visibleStreams.map((stream) => (
-              <Link key={stream.id} href={`/stream/${stream.id}`} className="block" role="listitem">
-                <StreamCard
-                  id={stream.id}
-                  sender={stream.sender}
-                  recipient={stream.recipient}
-                  flowRate={stream.flowRate}
-                  deposit={stream.deposit}
-                  status={stream.status}
-                />
-              </Link>
+              <div key={stream.id} className="block" role="listitem">
+                <div className="relative">
+                  <Link href={`/stream/${stream.id}`} className="block">
+                    <StreamCard
+                      id={stream.id}
+                      sender={stream.sender}
+                      recipient={stream.recipient}
+                      flowRate={stream.flowRate}
+                      deposit={stream.deposit}
+                      status={stream.status}
+                      selected={selectedIds?.has(stream.id)}
+                      onToggle={onToggleSelect}
+                    />
+                  </Link>
+                </div>
+              </div>
             ))}
           </div>
         </div>

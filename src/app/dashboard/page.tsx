@@ -1,12 +1,16 @@
 "use client";
-import { useState, useEffect, useMemo, useRef } from "react";
+import { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import Link from "next/link";
 import { useSearchParams, useRouter } from "next/navigation";
 import { StreamListSkeleton } from "@/components/Skeleton";
 import StreamVirtualList from "@/components/StreamVirtualList";
 import StreamEventFeed from "@/components/StreamEventFeed";
-import { getMockStreams, watchClaimable, StreamData } from "@/src/lib/sorostream";
+import KeyboardShortcutsHelp from "@/components/KeyboardShortcutsHelp";
+import { getMockStreams, watchClaimable, sorostream, getMockStreamHistory, StreamData } from "@/src/lib/sorostream";
 import { useRpcFetch } from "@/src/lib/useRpcFetch";
+import { useToast } from "@/src/lib/toast";
+import { downloadCSV } from "@/src/lib/export";
+import { useKeyboardShortcuts, type ShortcutGroup } from "@/src/lib/useKeyboardShortcuts";
 
 type DashboardState = "loading" | "empty" | "ready";
 
@@ -116,6 +120,90 @@ export default function Dashboard() {
     ? "empty"
     : "ready";
 
+  const allFilteredSelected = useMemo(
+    () => filtered.length > 0 && filtered.every((s) => selectedIds.has(s.id)),
+    [filtered, selectedIds],
+  );
+
+  const toggleSelect = useCallback((id: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }, []);
+
+  const toggleSelectAll = useCallback(() => {
+    if (allFilteredSelected) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(filtered.map((s) => s.id)));
+    }
+  }, [allFilteredSelected, filtered]);
+
+  const clearSelection = useCallback(() => setSelectedIds(new Set()), []);
+
+  const handleBulkCancel = useCallback(async () => {
+    const ids = Array.from(selectedIds);
+    if (ids.length === 0) return;
+    setBulkLoading(true);
+    try {
+      await Promise.all(ids.map(() => sorostream.cancelStream()));
+      addToast(`Cancelled ${ids.length} stream(s) successfully.`, "success");
+      const data = await rpcFetch(() => Promise.resolve(getMockStreams()));
+      setStreams(data);
+      clearSelection();
+    } catch {
+      addToast("Bulk cancel failed. Please try again.", "error");
+    } finally {
+      setBulkLoading(false);
+    }
+  }, [selectedIds, addToast, rpcFetch]);
+
+  const handleBulkTopUp = useCallback(async () => {
+    const ids = Array.from(selectedIds);
+    if (ids.length === 0) return;
+    setBulkLoading(true);
+    try {
+      await Promise.all(ids.map(() => sorostream.topUp()));
+      addToast(`Topped up ${ids.length} stream(s) successfully.`, "success");
+      const data = await rpcFetch(() => Promise.resolve(getMockStreams()));
+      setStreams(data);
+      clearSelection();
+    } catch {
+      addToast("Bulk top-up failed. Please try again.", "error");
+    } finally {
+      setBulkLoading(false);
+    }
+  }, [selectedIds, addToast, rpcFetch]);
+
+  const handleBulkExport = useCallback(() => {
+    const ids = Array.from(selectedIds);
+    if (ids.length === 0) return;
+    const allEntries = ids.flatMap((id) => getMockStreamHistory(id));
+    if (allEntries.length === 0) {
+      addToast("No history entries for selected streams.", "info");
+      return;
+    }
+    downloadCSV(allEntries, `bulk-${ids.length}-streams`);
+    addToast(`Exported history for ${ids.length} stream(s).`, "success");
+  }, [selectedIds, addToast]);
+
+  const shortcutGroups: ShortcutGroup[] = useMemo(() => [
+    {
+      title: "Dashboard",
+      shortcuts: [
+        { key: "n", description: "New stream", action: () => router.push("/stream/new") },
+        { key: "/", description: "Focus search", action: () => searchRef.current?.focus(), ignoreWhenEditing: false },
+        { key: "Escape", description: "Clear search / selection", action: () => { setSearch(""); clearSelection(); (document.activeElement as HTMLElement)?.blur(); } },
+        { key: "?", shift: true, description: "Toggle keyboard shortcuts help", action: () => setShowShortcutsHelp((v) => !v) },
+      ],
+    },
+  ], [router]);
+
+  useKeyboardShortcuts(shortcutGroups);
+
   return (
     <main className="min-h-screen bg-gray-900 text-white p-4 sm:p-8">
       <div className="max-w-6xl mx-auto">
@@ -217,7 +305,11 @@ export default function Dashboard() {
               </div>
             ) : (
               <div className="rounded-xl border border-gray-700 bg-gray-900 p-2">
-                <StreamVirtualList streams={filtered} />
+                <StreamVirtualList
+                  streams={filtered}
+                  selectedIds={selectedIds}
+                  onToggleSelect={toggleSelect}
+                />
               </div>
             )}
           </div>
@@ -227,6 +319,12 @@ export default function Dashboard() {
           </div>
         </div>
       </div>
+
+      <KeyboardShortcutsHelp
+        open={showShortcutsHelp}
+        onClose={() => setShowShortcutsHelp(false)}
+        groups={shortcutGroups}
+      />
     </main>
   );
 }
