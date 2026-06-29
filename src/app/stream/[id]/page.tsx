@@ -61,6 +61,7 @@ export default function StreamDetail({ params }: { params: { id: string } }) {
   const [historyEntries, setHistoryEntries] = useState<StreamHistoryEntry[]>([]);
   const [pageLoading, setPageLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [routeError, setRouteError] = useState<Error | null>(null);
 
   // ── Action loading states ──────────────────────────────────────────────────
   const [withdrawLoading, setWithdrawLoading] = useState(false);
@@ -116,7 +117,11 @@ export default function StreamDetail({ params }: { params: { id: string } }) {
         setHistoryEntries(data ? getMockStreamHistory(params.id) : []);
       } catch (err) {
         console.error("Failed to load stream", err);
-        if (!cancelled) setError("Failed to load stream data.");
+        if (!cancelled) {
+          const nextError = err instanceof Error ? err : new Error("Failed to load stream data.");
+          setError("Failed to load stream data.");
+          setRouteError(nextError);
+        }
       } finally {
         if (!cancelled) setPageLoading(false);
       }
@@ -128,6 +133,10 @@ export default function StreamDetail({ params }: { params: { id: string } }) {
       cancelled = true;
     };
   }, [params.id]);
+
+  if (routeError) {
+    throw routeError;
+  }
 
   // ── Withdraw with optimistic update ───────────────────────────────────────
   const handleWithdraw = useCallback(async () => {
@@ -161,15 +170,6 @@ export default function StreamDetail({ params }: { params: { id: string } }) {
     setOptimisticDeposit(prevDeposit + addedStroops);
     setTopUpLoading(true);
 
-  async function handleWithdraw() {
-    setWithdrawLoading(true);
-    setTxStatus(null);
-    setError(null);
-    try {
-      const result = await sorostream.withdraw();
-      setTxStatus(`Withdrawal submitted! Tx: ${result.txHash}`);
-      const result = await rpcFetch(() => sorostream.withdraw());
-      setTxStatus(`Withdrawal submitted! Tx: ${result.txHash}`);
     try {
       await sorostream.topUp();
       const updated = await sorostream.getStream(params.id);
