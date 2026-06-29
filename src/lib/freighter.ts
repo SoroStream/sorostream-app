@@ -1,22 +1,12 @@
-import {
-  getAddress,
-  getNetwork as freighterGetNetwork,
-  WatchWalletChanges,
-} from "@stellar/freighter-api";
+"use client";
 
-export type { WatchWalletChanges };
+import { createWatchWalletChanges } from "@stellar/freighter-api";
 
-/**
- * Maps the NEXT_PUBLIC_STELLAR_NETWORK env value to the network name string
- * returned by the Freighter API (case-insensitive comparison is used at call
- * sites, but we normalise here for clarity).
- *
- * Freighter returns one of: "PUBLIC", "TESTNET", "FUTURENET", "SANDBOX",
- * "STANDALONE", or a custom network name.
- */
 export const APP_NETWORK = (
   process.env.NEXT_PUBLIC_STELLAR_NETWORK ?? "testnet"
 ).toLowerCase();
+
+export type { WatchWalletChanges };
 
 /**
  * Fetch the network the Freighter wallet is currently set to.

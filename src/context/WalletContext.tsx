@@ -36,6 +36,9 @@ const WalletContext = createContext<WalletContextValue | undefined>(undefined);
 /** Polling interval (ms) used by WatchWalletChanges. */
 const WATCH_INTERVAL = 2000;
 
+/** Timeout for watch wallet changes operations. */
+const WATCH_WALLET_CHANGES_TIMEOUT = 30000;
+
 export function WalletProvider({ children }: { children: ReactNode }) {
   const [address, setAddress] = useState<string | null>(null);
   const [isConnecting, setIsConnecting] = useState(false);
@@ -53,6 +56,15 @@ export function WalletProvider({ children }: { children: ReactNode }) {
   }, []);
 
   /**
+   * Handle connection timeout - close modal and show error message.
+   */
+  const handleConnectionTimeout = useCallback(() => {
+    setError("Connection timed out. Please check that Freighter is unlocked and try again.");
+    stopWatcher();
+    disconnect();
+  }, [stopWatcher, disconnect]);
+
+  /**
    * Start polling for wallet/network changes.
    * The WatchWalletChanges callback receives { publicKey, network } on every
    * poll tick — we update both address and network mismatch from it so the UI
@@ -60,9 +72,16 @@ export function WalletProvider({ children }: { children: ReactNode }) {
    */
   const startWatcher = useCallback(() => {
     if (watcherRef.current) return; // already watching
-    const watcher = createWatchWalletChanges(WATCH_INTERVAL);
+    const watcher = createWatchWalletChanges(WATCH_WALLET_CHANGES_TIMEOUT);
     watcherRef.current = watcher;
     watcher.watch(({ address: watchAddress, network }) => {
+      // If watch errors or times out, stop watching
+      if (!watchAddress) {
+        // Freighter didn't respond with an address within the timeout
+        handleConnectionTimeout();
+        return;
+      }
+
       // --- account change detection ---
       if (watchAddress) {
         setAddress((prev) => {
@@ -80,7 +99,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
         setNetworkMismatch(network.toLowerCase() !== APP_NETWORK);
       }
     });
-  }, []);
+  }, [handleConnectionTimeout]);
 
   const stopWatcher = useCallback(() => {
     watcherRef.current?.stop();
@@ -123,7 +142,12 @@ export function WalletProvider({ children }: { children: ReactNode }) {
       return publicKey || null;
     } catch (err) {
       const message = err instanceof Error ? err.message : "Connection failed";
-      setError(message);
+      // Check if it's a timeout error
+      if (message.includes("timeout") || message.includes("Timeout")) {
+        setError("Connection timed out. Please check that Freighter is unlocked and try again.");
+      } else {
+        setError(message);
+      }
       return null;
     } finally {
       setIsConnecting(false);
