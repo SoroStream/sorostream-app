@@ -6,11 +6,13 @@ import { StreamListSkeleton } from "@/components/Skeleton";
 import StreamVirtualList from "@/components/StreamVirtualList";
 import StreamEventFeed from "@/components/StreamEventFeed";
 import KeyboardShortcutsHelp from "@/components/KeyboardShortcutsHelp";
+import StatusLegend from "@/components/StatusLegend";
 import { getMockStreams, watchClaimable, sorostream, getMockStreamHistory, StreamData } from "@/src/lib/sorostream";
 import { useRpcFetch } from "@/src/lib/useRpcFetch";
 import { useToast } from "@/src/lib/toast";
 import { downloadCSV } from "@/src/lib/export";
 import { useKeyboardShortcuts, type ShortcutGroup } from "@/src/lib/useKeyboardShortcuts";
+import { useBookmarks } from "@/src/context/BookmarksContext";
 
 type DashboardState = "loading" | "empty" | "ready";
 
@@ -18,14 +20,24 @@ export default function Dashboard() {
   const rpcFetch = useRpcFetch();
   const searchParams = useSearchParams();
   const router = useRouter();
+  const { addToast } = useToast();
+  const { bookmarkedIds } = useBookmarks();
   const [loading, setLoading] = useState(true);
   const [streams, setStreams] = useState<StreamData[]>([]);
-  
+
   // Filter states from URL params
   const [statusFilter, setStatusFilter] = useState(searchParams.get("status") || "");
   const [tokenFilter, setTokenFilter] = useState(searchParams.get("token") || "");
   const [search, setSearch] = useState(searchParams.get("search") || "");
+  const [bookmarksOnly, setBookmarksOnly] = useState(false);
 
+  // Selection and bulk-action state
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [bulkLoading, setBulkLoading] = useState(false);
+
+  // UI state
+  const [showShortcutsHelp, setShowShortcutsHelp] = useState(false);
+  const searchRef = useRef<HTMLInputElement>(null);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   useEffect(() => {
@@ -72,13 +84,9 @@ export default function Dashboard() {
 
   const filtered = useMemo(() => {
     return streams.filter((s) => {
-      // Status filter
+      if (bookmarksOnly && !bookmarkedIds.has(s.id)) return false;
       if (statusFilter && s.status !== statusFilter) return false;
-      
-      // Token filter
       if (tokenFilter && s.token !== tokenFilter) return false;
-      
-      // Search filter (recipient, sender, or stream ID)
       if (search.trim()) {
         const q = search.trim().toLowerCase();
         const matchesSearch =
@@ -87,10 +95,18 @@ export default function Dashboard() {
           s.id.toLowerCase().includes(q);
         if (!matchesSearch) return false;
       }
-      
       return true;
     });
-  }, [streams, statusFilter, tokenFilter, search]);
+  }, [streams, statusFilter, tokenFilter, search, bookmarksOnly, bookmarkedIds]);
+
+  // Pin bookmarked streams to the top of the list
+  const sortedFiltered = useMemo(() => {
+    return [...filtered].sort((a, b) => {
+      const aB = bookmarkedIds.has(a.id) ? 0 : 1;
+      const bB = bookmarkedIds.has(b.id) ? 0 : 1;
+      return aB - bB;
+    });
+  }, [filtered, bookmarkedIds]);
 
   // Update URL params when filters change
   useEffect(() => {
@@ -98,25 +114,24 @@ export default function Dashboard() {
     if (statusFilter) params.set("status", statusFilter);
     if (tokenFilter) params.set("token", tokenFilter);
     if (search.trim()) params.set("search", search);
-    
+
     const queryString = params.toString();
     const newPath = queryString ? `/dashboard?${queryString}` : "/dashboard";
     router.replace(newPath);
   }, [statusFilter, tokenFilter, search, router]);
 
-  // Clear all filters
   const clearFilters = () => {
     setStatusFilter("");
     setTokenFilter("");
     setSearch("");
+    setBookmarksOnly(false);
   };
 
-  // Check if any filters are active
-  const hasActiveFilters = statusFilter || tokenFilter || search.trim();
+  const hasActiveFilters = statusFilter || tokenFilter || search.trim() || bookmarksOnly;
 
   const state: DashboardState = loading
     ? "loading"
-    : filtered.length === 0
+    : sortedFiltered.length === 0
     ? "empty"
     : "ready";
 
@@ -159,7 +174,7 @@ export default function Dashboard() {
     } finally {
       setBulkLoading(false);
     }
-  }, [selectedIds, addToast, rpcFetch]);
+  }, [selectedIds, addToast, rpcFetch, clearSelection]);
 
   const handleBulkTopUp = useCallback(async () => {
     const ids = Array.from(selectedIds);
@@ -176,7 +191,7 @@ export default function Dashboard() {
     } finally {
       setBulkLoading(false);
     }
-  }, [selectedIds, addToast, rpcFetch]);
+  }, [selectedIds, addToast, rpcFetch, clearSelection]);
 
   const handleBulkExport = useCallback(() => {
     const ids = Array.from(selectedIds);
@@ -200,7 +215,7 @@ export default function Dashboard() {
         { key: "?", shift: true, description: "Toggle keyboard shortcuts help", action: () => setShowShortcutsHelp((v) => !v) },
       ],
     },
-  ], [router]);
+  ], [router, clearSelection]);
 
   useKeyboardShortcuts(shortcutGroups);
 
@@ -219,6 +234,9 @@ export default function Dashboard() {
 
         <div className="flex flex-col lg:flex-row gap-6">
           <div className="flex-1 min-w-0">
+            {/* Status legend */}
+            <StatusLegend />
+
             {/* Filter Bar */}
             <div className="mb-6 space-y-3">
               <div className="flex flex-wrap gap-3">
@@ -251,8 +269,23 @@ export default function Dashboard() {
                   ))}
                 </select>
 
+                {/* Bookmarks only toggle */}
+                <button
+                  onClick={() => setBookmarksOnly((v) => !v)}
+                  aria-pressed={bookmarksOnly}
+                  className={`flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm border transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-500 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-900 ${
+                    bookmarksOnly
+                      ? "border-yellow-500 text-yellow-400 bg-yellow-900/20"
+                      : "border-gray-700 text-gray-400 hover:bg-gray-800"
+                  }`}
+                >
+                  <span aria-hidden="true">{bookmarksOnly ? "★" : "☆"}</span>
+                  Bookmarks
+                </button>
+
                 {/* Search Input */}
                 <input
+                  ref={searchRef}
                   type="search"
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
@@ -287,26 +320,86 @@ export default function Dashboard() {
                   )}
                   {search.trim() && (
                     <span className="bg-gray-800 px-2 py-1 rounded">
-                      Search: "{search}"
+                      Search: &quot;{search}&quot;
+                    </span>
+                  )}
+                  {bookmarksOnly && (
+                    <span className="bg-yellow-900/30 text-yellow-400 px-2 py-1 rounded">
+                      ★ Bookmarks only
                     </span>
                   )}
                 </div>
               )}
             </div>
 
+            {/* Bulk actions bar */}
+            {selectedIds.size > 0 && (
+              <div className="mb-4 flex flex-wrap items-center gap-3 bg-gray-800 border border-gray-700 rounded-xl px-4 py-3">
+                <label className="flex items-center gap-2 text-sm text-gray-300 cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    checked={allFilteredSelected}
+                    onChange={toggleSelectAll}
+                    className="w-4 h-4 rounded border-gray-600 bg-gray-700 accent-green-500"
+                    aria-label="Select all visible streams"
+                  />
+                  {selectedIds.size} selected
+                </label>
+                <div className="flex gap-2 ml-auto">
+                  <button
+                    onClick={handleBulkExport}
+                    disabled={bulkLoading}
+                    className="px-3 py-1.5 text-xs bg-gray-700 text-white rounded-lg hover:bg-gray-600 disabled:opacity-50 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-500"
+                  >
+                    Export CSV
+                  </button>
+                  <button
+                    onClick={handleBulkTopUp}
+                    disabled={bulkLoading}
+                    className="px-3 py-1.5 text-xs bg-green-700 text-white rounded-lg hover:bg-green-600 disabled:opacity-50 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-500"
+                  >
+                    {bulkLoading ? "…" : "Top-up All"}
+                  </button>
+                  <button
+                    onClick={handleBulkCancel}
+                    disabled={bulkLoading}
+                    className="px-3 py-1.5 text-xs bg-red-700 text-white rounded-lg hover:bg-red-600 disabled:opacity-50 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-500"
+                  >
+                    {bulkLoading ? "…" : "Cancel All"}
+                  </button>
+                  <button
+                    onClick={clearSelection}
+                    className="px-3 py-1.5 text-xs text-gray-400 hover:text-white transition-colors"
+                    aria-label="Clear selection"
+                  >
+                    ✕
+                  </button>
+                </div>
+              </div>
+            )}
+
             {state === "loading" ? (
               <StreamListSkeleton />
             ) : state === "empty" ? (
               <div className="bg-gray-800 rounded-xl p-8 text-center">
                 <p className="text-gray-400 mb-4">No streams found</p>
-                <Link href="/stream/new" className="text-green-400 hover:text-green-300">
-                  Create your first stream →
-                </Link>
+                {bookmarksOnly ? (
+                  <button
+                    onClick={() => setBookmarksOnly(false)}
+                    className="text-yellow-400 hover:text-yellow-300 text-sm"
+                  >
+                    Show all streams
+                  </button>
+                ) : (
+                  <Link href="/stream/new" className="text-green-400 hover:text-green-300">
+                    Create your first stream →
+                  </Link>
+                )}
               </div>
             ) : (
               <div className="rounded-xl border border-gray-700 bg-gray-900 p-2">
                 <StreamVirtualList
-                  streams={filtered}
+                  streams={sortedFiltered}
                   selectedIds={selectedIds}
                   onToggleSelect={toggleSelect}
                 />

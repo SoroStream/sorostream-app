@@ -1,11 +1,13 @@
 "use client";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import NetworkSelector from "@/components/NetworkSelector";
 import WalletConnect from "@/components/WalletConnect";
 import ThemeToggle from "@/components/ThemeToggle";
 import { useSettings } from "@/src/context/SettingsContext";
+import { useWallet } from "@/src/context/WalletContext";
+import { APP_NETWORK } from "@/src/lib/freighter";
 
 const NAV_LINKS = [
   { href: "/", label: "Home" },
@@ -14,16 +16,51 @@ const NAV_LINKS = [
   { href: "/settings", label: "Settings" },
 ];
 
+const HORIZON_URL =
+  APP_NETWORK === "public" || APP_NETWORK === "mainnet"
+    ? "https://horizon.stellar.org"
+    : APP_NETWORK === "futurenet"
+    ? "https://horizon-futurenet.stellar.org"
+    : "https://horizon-testnet.stellar.org";
+
 export default function NavHeader() {
   const pathname = usePathname();
   const [scrolled, setScrolled] = useState(false);
   const { showUsd, toggleShowUsd } = useSettings();
+  const { address } = useWallet();
+  const [xlmBalance, setXlmBalance] = useState<string | null>(null);
+  const [balanceLoading, setBalanceLoading] = useState(false);
 
   useEffect(() => {
     const handleScroll = () => setScrolled(window.scrollY > 10);
     window.addEventListener("scroll", handleScroll, { passive: true });
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
+
+  const fetchBalance = useCallback(async (addr: string) => {
+    setBalanceLoading(true);
+    try {
+      const res = await fetch(`${HORIZON_URL}/accounts/${addr}`);
+      if (!res.ok) throw new Error(`Horizon ${res.status}`);
+      const data = await res.json() as { balances?: { asset_type: string; balance: string }[] };
+      const native = data.balances?.find((b) => b.asset_type === "native");
+      setXlmBalance(native ? parseFloat(native.balance).toFixed(2) : null);
+    } catch {
+      setXlmBalance(null);
+    } finally {
+      setBalanceLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!address) {
+      setXlmBalance(null);
+      return;
+    }
+    void fetchBalance(address);
+    const interval = setInterval(() => void fetchBalance(address), 60_000);
+    return () => clearInterval(interval);
+  }, [address, fetchBalance]);
 
   return (
     <header
@@ -57,6 +94,18 @@ export default function NavHeader() {
         </div>
         <div className="flex items-center gap-3">
           <NetworkSelector />
+          {address && (
+            <span
+              className="text-xs text-gray-300 font-mono hidden sm:inline-block"
+              aria-label="Wallet XLM balance"
+            >
+              {balanceLoading && xlmBalance === null ? (
+                <span className="inline-block w-16 h-3 bg-gray-700 rounded animate-pulse" aria-hidden="true" />
+              ) : xlmBalance !== null ? (
+                `${xlmBalance} XLM`
+              ) : null}
+            </span>
+          )}
           <WalletConnect />
           <button
             onClick={toggleShowUsd}
