@@ -4,7 +4,9 @@ import { NetworkProvider } from "@/src/lib/network";
 import { WalletProvider } from "@/src/context/WalletContext";
 import { SettingsProvider } from "@/src/context/SettingsContext";
 import { BookmarksProvider } from "@/src/context/BookmarksContext";
+import { NotificationProvider } from "@/src/context/NotificationContext";
 import NavHeader from "@/components/NavHeader";
+import OnboardingWizard from "@/components/OnboardingWizard";
 import { ThemeProvider } from "@/src/lib/theme";
 import PwaInit from "@/src/components/PwaInit";
 import InstallPrompt from "@/src/components/InstallPrompt";
@@ -46,6 +48,15 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
+        {/*
+         * Apply the persisted/system theme before first paint to avoid a
+         * flash of the wrong theme (#192). Mirrors the logic in ThemeProvider.
+         */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `(function(){try{var s=localStorage.getItem('theme');var t=(s==='light'||s==='dark')?s:(window.matchMedia&&window.matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light');var r=document.documentElement;r.classList.add(t);r.classList.remove(t==='light'?'dark':'light');r.style.colorScheme=t;}catch(e){}})();`,
+          }}
+        />
         {/* iOS home screen icon */}
         <link rel="apple-touch-icon" sizes="192x192" href="/icons/icon-192.png" />
         <link rel="apple-touch-icon" sizes="512x512" href="/icons/icon-512.png" />
@@ -60,10 +71,13 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             <ThemeProvider>
               <NetworkProvider>
                 <ToastProvider>
-                  <NavHeader />
-                  <PageViewTracker />
-                  <WebVitalsReporter />
-                  {children}
+                  <NotificationProvider>
+                    <NavHeader />
+                    <PageViewTracker />
+                    <WebVitalsReporter />
+                    {children}
+                    <OnboardingWizard />
+                  </NotificationProvider>
                 </ToastProvider>
               </NetworkProvider>
             </ThemeProvider>

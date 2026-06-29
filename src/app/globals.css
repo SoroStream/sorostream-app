@@ -2,25 +2,91 @@
 @tailwind components;
 @tailwind utilities;
 
-:root {
-  --foreground-rgb: 255, 255, 255;
-  --background-rgb: 17, 24, 39;
-}
-
+/*
+ * Theme tokens (#192). The app's components are authored against Tailwind's
+ * dark gray palette, so the dark theme is the default token set on :root. The
+ * `.light` class (set on <html> by ThemeProvider) remaps those tokens, and the
+ * utility overrides further down remap the most common gray utilities so the
+ * whole UI — modals, cards, tooltips, charts — follows the active theme.
+ */
+:root,
 .dark {
-  color: rgb(var(--foreground-rgb));
-  background: rgb(var(--background-rgb));
+  --foreground-rgb: 243, 244, 246;
+  --background-rgb: 17, 24, 39;
+
+  --color-bg: #111827; /* gray-900 */
+  --color-surface: #1f2937; /* gray-800 */
+  --color-surface-2: #374151; /* gray-700 */
+  --color-border: #374151; /* gray-700 */
+  --color-border-strong: #1f2937; /* gray-800 */
+  --color-text: #f3f4f6; /* gray-100 */
+  --color-text-muted: #9ca3af; /* gray-400 */
+  --color-text-subtle: #6b7280; /* gray-500 */
 }
 
 .light {
-  color: rgb(var(--foreground-rgb));
-  background: rgb(var(--background-rgb));
+  --foreground-rgb: 17, 24, 39;
+  --background-rgb: 249, 250, 251;
+
+  --color-bg: #f9fafb; /* gray-50 */
+  --color-surface: #ffffff; /* white */
+  --color-surface-2: #f3f4f6; /* gray-100 */
+  --color-border: #e5e7eb; /* gray-200 */
+  --color-border-strong: #d1d5db; /* gray-300 */
+  --color-text: #111827; /* gray-900 */
+  --color-text-muted: #4b5563; /* gray-600 */
+  --color-text-subtle: #6b7280; /* gray-500 */
 }
 
 body {
-  color: rgb(var(--foreground-rgb));
-  background: rgb(var(--background-rgb));
+  color: var(--color-text);
+  background: var(--color-bg);
   transition: background 200ms ease-in-out, color 200ms ease-in-out;
+}
+
+/*
+ * Light-theme utility remaps. Selectors are scoped under `html.light` so they
+ * carry higher specificity than the base Tailwind utilities and win without
+ * `!important`. This lets existing components keep their gray-* classes while
+ * still responding to the theme toggle.
+ */
+.light .bg-gray-900,
+.light .bg-gray-900\/95,
+.light .bg-gray-900\/50 {
+  background-color: var(--color-bg);
+}
+.light .bg-gray-800,
+.light .bg-gray-800\/50 {
+  background-color: var(--color-surface);
+}
+.light .bg-gray-700,
+.light .bg-gray-700\/50 {
+  background-color: var(--color-surface-2);
+}
+.light .text-white {
+  color: var(--color-text);
+}
+.light .text-gray-300,
+.light .text-gray-200 {
+  color: var(--color-text-muted);
+}
+.light .text-gray-400,
+.light .text-gray-500 {
+  color: var(--color-text-subtle);
+}
+.light .border-gray-700,
+.light .border-gray-800 {
+  border-color: var(--color-border);
+}
+.light .placeholder-gray-500::placeholder {
+  color: var(--color-text-subtle);
+}
+.light .hover\:bg-gray-700:hover,
+.light .hover\:bg-gray-600:hover {
+  background-color: var(--color-surface-2);
+}
+.light .hover\:text-white:hover {
+  color: var(--color-text);
 }
 
 /*
