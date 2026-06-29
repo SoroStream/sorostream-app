@@ -13,8 +13,9 @@ import { useToast } from "@/src/lib/toast";
 import { downloadCSV } from "@/src/lib/export";
 import { useKeyboardShortcuts, type ShortcutGroup } from "@/src/lib/useKeyboardShortcuts";
 import { useBookmarks } from "@/src/context/BookmarksContext";
+import { useWallet } from "@/src/context/WalletContext";
 
-type DashboardState = "loading" | "empty" | "ready";
+type DashboardState = "loading" | "filtered-empty" | "empty" | "ready";
 
 export default function Dashboard() {
   const rpcFetch = useRpcFetch();
@@ -22,6 +23,7 @@ export default function Dashboard() {
   const router = useRouter();
   const { addToast } = useToast();
   const { bookmarkedIds } = useBookmarks();
+  const { address } = useWallet();
   const [loading, setLoading] = useState(true);
   const [streams, setStreams] = useState<StreamData[]>([]);
 
@@ -42,6 +44,11 @@ export default function Dashboard() {
 
   useEffect(() => {
     let cancelled = false;
+
+    // Clear stale data immediately on wallet change so the UI never shows
+    // streams from a previous wallet session.
+    setStreams([]);
+    setLoading(true);
 
     async function load() {
       try {
@@ -74,7 +81,7 @@ export default function Dashboard() {
       if (pollRef.current) clearInterval(pollRef.current);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [address]);
 
   // Get unique tokens from streams for dropdown
   const uniqueTokens = useMemo(() => {
@@ -131,9 +138,11 @@ export default function Dashboard() {
 
   const state: DashboardState = loading
     ? "loading"
-    : sortedFiltered.length === 0
-    ? "empty"
-    : "ready";
+    : sortedFiltered.length > 0
+    ? "ready"
+    : streams.length > 0 || hasActiveFilters
+    ? "filtered-empty"
+    : "empty";
 
   const allFilteredSelected = useMemo(
     () => filtered.length > 0 && filtered.every((s) => selectedIds.has(s.id)),
@@ -381,8 +390,37 @@ export default function Dashboard() {
             {state === "loading" ? (
               <StreamListSkeleton />
             ) : state === "empty" ? (
-              <div className="bg-gray-800 rounded-xl p-8 text-center">
-                <p className="text-gray-400 mb-4">No streams found</p>
+              <div className="bg-gray-800 rounded-xl p-10 text-center flex flex-col items-center gap-4">
+                <svg width="120" height="120" viewBox="0 0 120 120" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                  <circle cx="60" cy="60" r="56" fill="#1f2937" stroke="#374151" strokeWidth="2" />
+                  <path d="M40 75 Q60 45 80 75" stroke="#10b981" strokeWidth="3" strokeLinecap="round" fill="none" />
+                  <circle cx="40" cy="75" r="4" fill="#10b981" />
+                  <circle cx="60" cy="55" r="4" fill="#10b981" />
+                  <circle cx="80" cy="75" r="4" fill="#10b981" />
+                  <path d="M52 88 L68 88" stroke="#4b5563" strokeWidth="2" strokeLinecap="round" />
+                  <path d="M55 93 L65 93" stroke="#4b5563" strokeWidth="2" strokeLinecap="round" />
+                  <circle cx="60" cy="35" r="6" fill="#374151" />
+                  <path d="M57 35 L63 35 M60 32 L60 38" stroke="#9ca3af" strokeWidth="2" strokeLinecap="round" />
+                </svg>
+                <h2 className="text-xl font-semibold text-white">No streams yet</h2>
+                <p className="text-gray-400 text-sm max-w-xs">Create your first payment stream to get started</p>
+                <Link
+                  href="/stream/new"
+                  className="mt-2 inline-flex items-center gap-2 bg-green-600 text-white px-5 py-2 rounded-lg text-sm font-medium hover:bg-green-700 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-500 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-800"
+                >
+                  + Create Stream
+                </Link>
+              </div>
+            ) : state === "filtered-empty" ? (
+              <div className="bg-gray-800 rounded-xl p-10 text-center flex flex-col items-center gap-4">
+                <svg width="80" height="80" viewBox="0 0 80 80" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                  <circle cx="40" cy="40" r="36" fill="#1f2937" stroke="#374151" strokeWidth="2" />
+                  <circle cx="36" cy="36" r="14" stroke="#6b7280" strokeWidth="3" fill="none" />
+                  <path d="M46 46 L56 56" stroke="#6b7280" strokeWidth="3" strokeLinecap="round" />
+                  <path d="M32 36 L40 36 M36 32 L36 40" stroke="#374151" strokeWidth="2" strokeLinecap="round" />
+                </svg>
+                <h2 className="text-lg font-semibold text-white">No results found</h2>
+                <p className="text-gray-400 text-sm">No streams match your current filters</p>
                 {bookmarksOnly ? (
                   <button
                     onClick={() => setBookmarksOnly(false)}
@@ -391,9 +429,12 @@ export default function Dashboard() {
                     Show all streams
                   </button>
                 ) : (
-                  <Link href="/stream/new" className="text-green-400 hover:text-green-300">
-                    Create your first stream →
-                  </Link>
+                  <button
+                    onClick={clearFilters}
+                    className="mt-1 text-green-400 hover:text-green-300 text-sm"
+                  >
+                    Clear filters
+                  </button>
                 )}
               </div>
             ) : (

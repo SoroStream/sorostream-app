@@ -28,6 +28,7 @@ import { useSettings } from "@/src/context/SettingsContext";
 import { formatStellarAmount } from "@/src/lib/sorostream";
 import { useKeyboardShortcuts, type ShortcutGroup } from "@/src/lib/useKeyboardShortcuts";
 import { useBookmarks } from "@/src/context/BookmarksContext";
+import { useWallet } from "@/src/context/WalletContext";
 
 /** Grace period in seconds before a cancel is submitted on-chain. */
 const CANCEL_GRACE_SECONDS = 5;
@@ -66,6 +67,7 @@ export default function StreamDetail({ params }: { params: { id: string } }) {
   const router = useRouter();
   const { addToast, upsertPersistentToast, removeToast } = useToast();
   const { withdrawThreshold } = useSettings();
+  const { address } = useWallet();
   const [withdrawConfirmAmount, setWithdrawConfirmAmount] = useState<string | null>(null);
 
   // ── Stream data ────────────────────────────────────────────────────────────
@@ -170,11 +172,15 @@ export default function StreamDetail({ params }: { params: { id: string } }) {
       try {
         const data = await sorostream.getStream(params.id);
         if (cancelled) return;
+        if (!data) {
+          setError("Stream not found.");
+          return;
+        }
         setStream(data);
-        setHistoryEntries(data ? getMockStreamHistory(params.id).sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()) : []);
+        setHistoryEntries(getMockStreamHistory(params.id).sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()));
       } catch (err) {
         console.error("Failed to load stream", err);
-        if (!cancelled) setError("Failed to load stream data.");
+        if (!cancelled) setError("Stream not found.");
       } finally {
         if (!cancelled) setPageLoading(false);
       }
@@ -378,12 +384,12 @@ export default function StreamDetail({ params }: { params: { id: string } }) {
     );
   }
 
-  // ── Render: not found ──────────────────────────────────────────────────────
+  // ── Render: not found / error ─────────────────────────────────────────────
   if (!stream) {
     return (
       <main className="min-h-screen bg-gray-900 text-white p-4 sm:p-8">
         <div className="max-w-2xl mx-auto">
-          <div className="mb-4">
+          <div className="mb-6">
             <Link
               href="/dashboard"
               className="text-sm text-gray-400 hover:text-white transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-500 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-900 rounded"
@@ -391,8 +397,20 @@ export default function StreamDetail({ params }: { params: { id: string } }) {
               ← Dashboard
             </Link>
           </div>
-          <h1 className="text-2xl font-bold mb-8">Stream #{params.id}</h1>
-          <p className="text-red-400">{error ?? "Stream not found."}</p>
+          <div className="flex flex-col items-center gap-4 py-16 text-center">
+            <svg width="80" height="80" viewBox="0 0 80 80" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+              <circle cx="40" cy="40" r="36" fill="#1f2937" stroke="#374151" strokeWidth="2" />
+              <path d="M28 28 L52 52 M52 28 L28 52" stroke="#ef4444" strokeWidth="3" strokeLinecap="round" />
+            </svg>
+            <h1 className="text-2xl font-bold">Stream Not Found</h1>
+            <p className="text-gray-400 text-sm max-w-sm">{error ?? "The stream you're looking for doesn't exist or may have been removed."}</p>
+            <Link
+              href="/dashboard"
+              className="mt-2 inline-flex items-center gap-2 bg-green-600 text-white px-5 py-2 rounded-lg text-sm font-medium hover:bg-green-700 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-500 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-900"
+            >
+              ← Back to Dashboard
+            </Link>
+          </div>
         </div>
       </main>
     );
