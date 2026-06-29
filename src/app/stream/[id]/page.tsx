@@ -73,6 +73,7 @@ export default function StreamDetail({ params }: { params: { id: string } }) {
   const [historyEntries, setHistoryEntries] = useState<StreamHistoryEntry[]>([]);
   const [pageLoading, setPageLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [routeError, setRouteError] = useState<Error | null>(null);
 
   // ── Action loading states ──────────────────────────────────────────────────
   const [withdrawLoading, setWithdrawLoading] = useState(false);
@@ -174,7 +175,11 @@ export default function StreamDetail({ params }: { params: { id: string } }) {
         setHistoryEntries(data ? getMockStreamHistory(params.id).sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()) : []);
       } catch (err) {
         console.error("Failed to load stream", err);
-        if (!cancelled) setError("Failed to load stream data.");
+        if (!cancelled) {
+          const nextError = err instanceof Error ? err : new Error("Failed to load stream data.");
+          setError("Failed to load stream data.");
+          setRouteError(nextError);
+        }
       } finally {
         if (!cancelled) setPageLoading(false);
       }
@@ -186,6 +191,10 @@ export default function StreamDetail({ params }: { params: { id: string } }) {
       cancelled = true;
     };
   }, [params.id]);
+
+  if (routeError) {
+    throw routeError;
+  }
 
   // ── Withdraw with optimistic update ───────────────────────────────────────
   const executeWithdraw = useCallback(async () => {
