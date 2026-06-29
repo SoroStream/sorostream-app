@@ -10,7 +10,11 @@ export type AnalyticsEvent =
   | { type: 'stream_create_complete'; streamId?: string }
   | { type: 'stream_view'; streamId: string }
   | { type: 'stream_withdraw'; streamId: string; success: boolean }
-  | { type: 'stream_cancel'; streamId: string; success: boolean };
+  | { type: 'stream_cancel'; streamId: string; success: boolean }
+  | { type: 'onboarding_start' }
+  | { type: 'onboarding_step_complete'; step: number; stepId: string }
+  | { type: 'onboarding_skip'; step: number; stepId: string }
+  | { type: 'onboarding_complete' };
 
 let isInitialized = false;
 

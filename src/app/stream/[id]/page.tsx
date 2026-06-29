@@ -12,7 +12,10 @@ import VestingChart from "@/components/VestingChart";
 import StreamHistory from "@/components/StreamHistory";
 import { StreamErrorBoundary } from "@/components/StreamErrorBoundary";
 import { SkeletonDetail } from "@/components/Skeleton";
-import { downloadCSV, downloadCSVStreaming, downloadJSON, type StreamHistoryEntry } from "@/src/lib/export";
+import WalletConnect from "@/components/WalletConnect";
+import KeyboardShortcutsHelp from "@/components/KeyboardShortcutsHelp";
+import TransactionExportButton from "@/components/TransactionExportButton";
+import { type StreamHistoryEntry } from "@/src/lib/export";
 import {
   sorostream,
   type StreamData,
@@ -68,6 +71,7 @@ export default function StreamDetail({ params }: { params: { id: string } }) {
   const { addToast, upsertPersistentToast, removeToast } = useToast();
   const { withdrawThreshold } = useSettings();
   const { address } = useWallet();
+  const { isBookmarked, toggleBookmark } = useBookmarks();
   const [withdrawConfirmAmount, setWithdrawConfirmAmount] = useState<string | null>(null);
 
   // ── Stream data ────────────────────────────────────────────────────────────
@@ -75,6 +79,7 @@ export default function StreamDetail({ params }: { params: { id: string } }) {
   const [historyEntries, setHistoryEntries] = useState<StreamHistoryEntry[]>([]);
   const [pageLoading, setPageLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [routeError, setRouteError] = useState<Error | null>(null);
 
   // ── Action loading states ──────────────────────────────────────────────────
   const [withdrawLoading, setWithdrawLoading] = useState(false);
@@ -181,6 +186,11 @@ export default function StreamDetail({ params }: { params: { id: string } }) {
       } catch (err) {
         console.error("Failed to load stream", err);
         if (!cancelled) setError("Stream not found.");
+        if (!cancelled) {
+          const nextError = err instanceof Error ? err : new Error("Failed to load stream data.");
+          setError("Failed to load stream data.");
+          setRouteError(nextError);
+        }
       } finally {
         if (!cancelled) setPageLoading(false);
       }
@@ -192,6 +202,10 @@ export default function StreamDetail({ params }: { params: { id: string } }) {
       cancelled = true;
     };
   }, [params.id]);
+
+  if (routeError) {
+    throw routeError;
+  }
 
   // ── Withdraw with optimistic update ───────────────────────────────────────
   const executeWithdraw = useCallback(async () => {
@@ -726,26 +740,11 @@ export default function StreamDetail({ params }: { params: { id: string } }) {
                   <p className="text-gray-400 text-sm font-medium mb-3">
                     History Export
                   </p>
-                  <div className="flex gap-3">
-                    <button
-                      onClick={() => {
-                        if (historyEntries.length >= 1000) {
-                          downloadCSVStreaming(historyEntries, params.id);
-                        } else {
-                          downloadCSV(historyEntries, params.id);
-                        }
-                      }}
-                      className="flex-1 bg-gray-700 text-white py-2 rounded-lg text-sm hover:bg-gray-600 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-500 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-900"
-                    >
-                      Download CSV
-                    </button>
-                    <button
-                      onClick={() => downloadJSON(historyEntries, params.id)}
-                      className="flex-1 bg-gray-700 text-white py-2 rounded-lg text-sm hover:bg-gray-600 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-500 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-900"
-                    >
-                      Download JSON
-                    </button>
-                  </div>
+                  <TransactionExportButton
+                    entries={historyEntries}
+                    account={stream.recipient}
+                    onExported={(filename) => addToast(`Exported ${filename}`, "success")}
+                  />
                 </div>
               )}
             </section>
