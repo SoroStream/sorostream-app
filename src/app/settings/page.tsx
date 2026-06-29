@@ -11,6 +11,7 @@ import {
   type AddressBookContact,
 } from "@/src/lib/addressBook";
 import { useToast } from "@/src/lib/toast";
+import { useSettings } from "@/src/context/SettingsContext";
 
 function truncateAddress(address: string): string {
   if (!address) return "";
@@ -31,6 +32,14 @@ const emptyForm: FormState = { id: "", name: "", address: "" };
 
 export default function SettingsPage() {
   const { addToast } = useToast();
+  const { withdrawThreshold, setWithdrawThreshold } = useSettings();
+  const [thresholdInput, setThresholdInput] = useState(String(withdrawThreshold));
+  const [thresholdError, setThresholdError] = useState("");
+
+  // Sync input when context hydrates from localStorage
+  useEffect(() => {
+    setThresholdInput(String(withdrawThreshold));
+  }, [withdrawThreshold]);
   const [contacts, setContacts] = useState<AddressBookContact[]>([]);
   const [form, setForm] = useState<FormState>(emptyForm);
   const [errors, setErrors] = useState({ name: "", address: "" });
@@ -113,7 +122,53 @@ export default function SettingsPage() {
 
         <h1 className="text-xl sm:text-2xl font-bold mb-6 sm:mb-8">Address Book</h1>
 
-        {/* Add / Edit form */}
+        {/* Withdrawal Threshold */}
+        <div className="bg-gray-800 rounded-xl p-6 space-y-4 mb-8">
+          <h2 className="text-lg font-semibold">Withdrawal Confirmation Threshold</h2>
+          <p className="text-gray-400 text-sm">
+            Withdrawals above this amount will require you to type the exact value to confirm.
+          </p>
+          <div>
+            <label htmlFor="withdraw-threshold" className="text-gray-200 text-sm font-medium block mb-1">
+              Threshold (XLM)
+            </label>
+            <div className="flex gap-3">
+              <input
+                id="withdraw-threshold"
+                type="number"
+                min="0"
+                step="1"
+                value={thresholdInput}
+                onChange={(e) => {
+                  setThresholdInput(e.target.value);
+                  setThresholdError("");
+                }}
+                className="flex-1 bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-white text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-500"
+                aria-invalid={!!thresholdError}
+                aria-describedby={thresholdError ? "threshold-error" : undefined}
+              />
+              <button
+                onClick={() => {
+                  const parsed = parseFloat(thresholdInput);
+                  if (!Number.isFinite(parsed) || parsed < 0) {
+                    setThresholdError("Enter a valid non-negative number.");
+                    return;
+                  }
+                  setWithdrawThreshold(parsed);
+                  addToast("Threshold saved.", "success");
+                }}
+                className="bg-green-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-green-700 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-500"
+              >
+                Save
+              </button>
+            </div>
+            {thresholdError && (
+              <p id="threshold-error" className="text-red-400 text-xs mt-1">{thresholdError}</p>
+            )}
+          </div>
+        </div>
+
+
         <div className="bg-gray-800 rounded-xl p-6 space-y-4 mb-8">
           <h2 className="text-lg font-semibold">{form.id ? "Edit Contact" : "Add Contact"}</h2>
           <div>

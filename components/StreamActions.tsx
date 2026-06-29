@@ -2,8 +2,10 @@
 
 import { useState, useCallback, useRef, useEffect } from "react";
 import LiveCounter from "@/components/LiveCounter";
-import { sorostream, claimableNow, getMockStream } from "@/src/lib/sorostream";
+import WithdrawConfirmModal from "@/components/WithdrawConfirmModal";
+import { sorostream, claimableNow, getMockStream, formatStellarAmount } from "@/src/lib/sorostream";
 import { useToast } from "@/src/lib/toast";
+import { useSettings } from "@/src/context/SettingsContext";
 
 /** Grace period in seconds before a cancel is submitted on-chain. */
 const CANCEL_GRACE_SECONDS = 5;
@@ -48,24 +50,18 @@ export default function StreamActions({
 }: StreamActionsProps) {
   const [withdrawing, setWithdrawing] = useState(false);
   const [cancelling, setCancelling] = useState(false);
-  /** True while the 5-second grace period countdown is running. */
   const [cancelPending, setCancelPending] = useState(false);
+  const [confirmAmount, setConfirmAmount] = useState<string | null>(null);
   const { addToast, upsertPersistentToast, removeToast } = useToast();
+  const { withdrawThreshold } = useSettings();
 
-  /**
-   * optimisticClaimable:
-   *   null  → normal live-ticking mode
-   *   0     → after optimistic withdraw (shows 0, pending tx confirmation)
-   */
   const [optimisticClaimable, setOptimisticClaimable] = useState<number | null>(null);
 
   const countdownIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const submitTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const cancelToastIdRef = useRef<number | null>(null);
-  /** Set to true when the user clicks Undo — prevents the timeout from firing. */
   const undoRef = useRef(false);
 
-  /** Clean up timers on unmount so we don't fire stale callbacks. */
   useEffect(() => {
     return () => {
       if (countdownIntervalRef.current) clearInterval(countdownIntervalRef.current);
@@ -73,7 +69,7 @@ export default function StreamActions({
     };
   }, []);
 
-  const handleWithdraw = useCallback(async () => {
+  const executeWithdraw = useCallback(async () => {
     const stream = getMockStream(streamId);
     const previousClaimable = stream ? Number(claimableNow(stream)) : null;
 
@@ -93,9 +89,23 @@ export default function StreamActions({
     }
   }, [streamId, addToast]);
 
-  /**
-   * Aborts the pending cancellation. Safe to call multiple times.
-   */
+  const handleWithdraw = useCallback(() => {
+    const stream = getMockStream(streamId);
+    const claimableStroops = stream ? Number(claimableNow(stream)) : 0;
+    const claimableXlm = claimableStroops / 10_000_000;
+
+    if (claimableXlm >= withdrawThreshold) {
+      setConfirmAmount(formatStellarAmount(claimableStroops));
+    } else {
+      void executeWithdraw();
+    }
+  }, [streamId, withdrawThreshold, executeWithdraw]);
+
+  const handleConfirmed = useCallback(() => {
+    setConfirmAmount(null);
+    void executeWithdraw();
+  }, [executeWithdraw]);
+
   const handleUndo = useCallback(() => {
     undoRef.current = true;
 
@@ -116,10 +126,6 @@ export default function StreamActions({
     addToast("Cancellation undone.", "info");
   }, [removeToast, addToast]);
 
-  /**
-   * Submits the cancel transaction after the grace period elapses.
-   * Only called when the user has not clicked Undo.
-   */
   const submitCancel = useCallback(async () => {
     setCancelPending(false);
     setCancelling(true);
@@ -139,11 +145,6 @@ export default function StreamActions({
     }
   }, [streamId, addToast, removeToast]);
 
-  /**
-   * Starts the 5-second grace period.
-   * Shows a persistent countdown toast with an inline Undo button.
-   * After 5 seconds, submits the on-chain transaction.
-   */
   const handleCancel = useCallback(() => {
     if (cancelPending || cancelling) return;
 
@@ -151,7 +152,6 @@ export default function StreamActions({
     setCancelPending(true);
 
     let secondsLeft = CANCEL_GRACE_SECONDS;
-
     const toastKey = `cancel-grace-${streamId}`;
 
     const showCountdown = (secs: number) => {
@@ -236,6 +236,14 @@ export default function StreamActions({
           )}
         </button>
       </div>
+
+      {confirmAmount !== null && (
+        <WithdrawConfirmModal
+          amount={confirmAmount}
+          onConfirm={handleConfirmed}
+          onCancel={() => setConfirmAmount(null)}
+        />
+      )}
     </>
   );
 }
