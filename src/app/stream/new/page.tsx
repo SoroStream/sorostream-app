@@ -30,6 +30,7 @@ function validateRecipient(value: string): string {
 
 function validateAmount(value: string): string {
   if (!value) return "Amount is required.";
+  if (!/^\d*\.?\d*$/.test(value.trim())) return "Amount must contain only numbers.";
   if (Number(value) <= 0) return "Amount must be greater than 0.";
   return "";
 }
@@ -300,11 +301,25 @@ function NewStreamWizard() {
               </label>
               <input
                 id="amount"
-                type="number"
+                type="text"
+                inputMode="decimal"
                 value={amount}
                 onChange={(e) => {
-                  setAmount(e.target.value);
-                  setErrors((prev) => ({ ...prev, amount: "" }));
+                  const val = e.target.value;
+                  setAmount(val);
+                  if (touched.amount) {
+                    setErrors((prev) => ({ ...prev, amount: validateAmount(val) }));
+                  } else {
+                    setErrors((prev) => ({ ...prev, amount: "" }));
+                  }
+                }}
+                onPaste={(e) => {
+                  const pasted = e.clipboardData.getData("text");
+                  if (!/^\d*\.?\d*$/.test(pasted.trim())) {
+                    e.preventDefault();
+                    setTouched((prev) => ({ ...prev, amount: true }));
+                    setErrors((prev) => ({ ...prev, amount: "Amount must contain only numbers." }));
+                  }
                 }}
                 onBlur={handleAmountBlur}
                 placeholder={t("amount_placeholder")}

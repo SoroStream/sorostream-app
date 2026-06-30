@@ -160,9 +160,9 @@ export default function WalletConnect({ onConnect }: WalletConnectProps) {
 
   if (publicKey) {
     return (
-      <div className="flex items-center gap-3">
+      <div className="flex items-center gap-2 min-w-0 overflow-hidden">
         <span
-          className="text-sm text-slate-300 font-mono flex items-center"
+          className="text-sm text-slate-300 font-mono flex items-center shrink-0"
           aria-label={`Connected wallet: ${publicKey}`}
         >
           {publicKey.slice(0, 4)}…{publicKey.slice(-4)}
@@ -170,7 +170,7 @@ export default function WalletConnect({ onConnect }: WalletConnectProps) {
         </span>
         <button
           onClick={handleDisconnect}
-          className="rounded-lg border border-slate-500 px-3 py-1.5 text-sm text-slate-200 hover:bg-slate-700 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-500 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-900"
+          className="shrink-0 rounded-lg border border-slate-500 px-3 py-1.5 text-sm text-slate-200 hover:bg-slate-700 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-500 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-900"
           aria-label="Disconnect wallet"
         >
           {t("disconnect")}
