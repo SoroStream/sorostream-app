@@ -17,6 +17,19 @@ import { useWallet } from "@/src/context/WalletContext";
 
 type DashboardState = "loading" | "filtered-empty" | "empty" | "ready";
 
+type SortField = "created" | "endDate" | "amount" | "status";
+type SortOrder = "asc" | "desc";
+
+const SORT_STORAGE_KEY = "sorostream_sort";
+
+function loadSort(): { field: SortField; order: SortOrder } {
+  try {
+    const raw = localStorage.getItem(SORT_STORAGE_KEY);
+    if (raw) return JSON.parse(raw);
+  } catch {}
+  return { field: "created", order: "desc" };
+}
+
 export default function Dashboard() {
   const rpcFetch = useRpcFetch();
   const searchParams = useSearchParams();
@@ -32,6 +45,22 @@ export default function Dashboard() {
   const [tokenFilter, setTokenFilter] = useState(searchParams.get("token") || "");
   const [search, setSearch] = useState(searchParams.get("search") || "");
   const [bookmarksOnly, setBookmarksOnly] = useState(false);
+
+  // Sort state — persisted to localStorage
+  const [sortField, setSortField] = useState<SortField>(() => loadSort().field);
+  const [sortOrder, setSortOrder] = useState<SortOrder>(() => loadSort().order);
+
+  function handleSortFieldChange(field: SortField) {
+    setSortField(field);
+    const order = sortOrder;
+    localStorage.setItem(SORT_STORAGE_KEY, JSON.stringify({ field, order }));
+  }
+
+  function toggleSortOrder() {
+    const next: SortOrder = sortOrder === "asc" ? "desc" : "asc";
+    setSortOrder(next);
+    localStorage.setItem(SORT_STORAGE_KEY, JSON.stringify({ field: sortField, order: next }));
+  }
 
   // Selection and bulk-action state
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
@@ -106,14 +135,31 @@ export default function Dashboard() {
     });
   }, [streams, statusFilter, tokenFilter, search, bookmarksOnly, bookmarkedIds]);
 
-  // Pin bookmarked streams to the top of the list
+  // Sort filtered streams, pinning bookmarks first, then by the chosen sort field.
   const sortedFiltered = useMemo(() => {
+    const dir = sortOrder === "asc" ? 1 : -1;
     return [...filtered].sort((a, b) => {
+      // Always pin bookmarks first
       const aB = bookmarkedIds.has(a.id) ? 0 : 1;
       const bB = bookmarkedIds.has(b.id) ? 0 : 1;
-      return aB - bB;
+      if (aB !== bB) return aB - bB;
+
+      switch (sortField) {
+        case "created":
+          return dir * (new Date(a.startTime).getTime() - new Date(b.startTime).getTime());
+        case "endDate":
+          return dir * (new Date(a.endTime).getTime() - new Date(b.endTime).getTime());
+        case "amount":
+          return dir * (a.deposit - b.deposit);
+        case "status": {
+          const order = { Active: 0, Ended: 1, Cancelled: 2 };
+          return dir * ((order[a.status] ?? 3) - (order[b.status] ?? 3));
+        }
+        default:
+          return 0;
+      }
     });
-  }, [filtered, bookmarkedIds]);
+  }, [filtered, bookmarkedIds, sortField, sortOrder]);
 
   // Update URL params when filters change
   useEffect(() => {
@@ -339,6 +385,39 @@ export default function Dashboard() {
                   )}
                 </div>
               )}
+            </div>
+
+            {/* Sort controls */}
+            <div className="mb-4 flex flex-wrap items-center gap-2">
+              <span className="text-xs text-gray-400 mr-1">Sort by:</span>
+              {(
+                [
+                  { value: "created", label: "Date Created" },
+                  { value: "endDate", label: "End Date" },
+                  { value: "amount",  label: "Amount" },
+                  { value: "status",  label: "Status" },
+                ] as { value: SortField; label: string }[]
+              ).map(({ value, label }) => (
+                <button
+                  key={value}
+                  onClick={() => handleSortFieldChange(value)}
+                  aria-pressed={sortField === value}
+                  className={`px-3 py-1.5 rounded-lg text-xs border transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-500 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-900 ${
+                    sortField === value
+                      ? "bg-green-700 border-green-600 text-white"
+                      : "border-gray-700 text-gray-400 hover:bg-gray-800"
+                  }`}
+                >
+                  {label}
+                </button>
+              ))}
+              <button
+                onClick={toggleSortOrder}
+                aria-label={`Sort order: ${sortOrder === "asc" ? "ascending" : "descending"}`}
+                className="ml-1 px-3 py-1.5 rounded-lg text-xs border border-gray-700 text-gray-300 hover:bg-gray-800 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-500 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-900"
+              >
+                {sortOrder === "asc" ? "↑ Asc" : "↓ Desc"}
+              </button>
             </div>
 
             {/* Bulk actions bar */}
