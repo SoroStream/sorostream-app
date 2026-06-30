@@ -11,6 +11,7 @@ import { ThemeProvider } from "@/src/lib/theme";
 import PwaInit from "@/src/components/PwaInit";
 import InstallPrompt from "@/src/components/InstallPrompt";
 import PageViewTracker from "@/src/components/PageViewTracker";
+import { GlobalShortcutsProvider } from "@/components/GlobalShortcuts";
 import "./globals.css";
 import { validateEnv } from "@/src/lib/env";
 import { initAnalytics } from "@/src/lib/analytics";
@@ -72,11 +73,13 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               <NetworkProvider>
                 <ToastProvider>
                   <NotificationProvider>
-                    <NavHeader />
-                    <PageViewTracker />
-                    <WebVitalsReporter />
-                    {children}
-                    <OnboardingWizard />
+                    <GlobalShortcutsProvider>
+                      <NavHeader />
+                      <PageViewTracker />
+                      <WebVitalsReporter />
+                      {children}
+                      <OnboardingWizard />
+                    </GlobalShortcutsProvider>
                   </NotificationProvider>
                 </ToastProvider>
               </NetworkProvider>

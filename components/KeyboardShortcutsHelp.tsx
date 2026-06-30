@@ -50,12 +50,16 @@ export default function KeyboardShortcutsHelp({
                 <div key={i} className="flex items-center justify-between">
                   <span className="text-sm text-gray-300">{shortcut.description}</span>
                   <kbd className="inline-flex items-center gap-1 bg-gray-700 text-gray-200 text-xs px-2 py-1 rounded font-mono">
-                    {shortcut.ctrl && <span>Ctrl</span>}
-                    {shortcut.alt && <span>Alt</span>}
-                    {shortcut.shift && <span>Shift</span>}
-                    <span className="uppercase">
-                      {shortcut.key === " " ? "Space" : shortcut.key}
-                    </span>
+                    {shortcut.ctrl && <span className="text-[10px]">⌘</span>}
+                    {shortcut.alt && <span className="text-[10px]">⌥</span>}
+                    {shortcut.shift && <span className="text-[10px]">⇧</span>}
+                    {shortcut.key.includes(" ") ? (
+                      <span>{shortcut.key}</span>
+                    ) : (
+                      <span className="uppercase">
+                        {shortcut.key === " " ? "Space" : shortcut.key}
+                      </span>
+                    )}
                   </kbd>
                 </div>
               ))}
