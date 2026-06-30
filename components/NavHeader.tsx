@@ -7,11 +7,12 @@ import WalletConnect from "@/components/WalletConnect";
 import ThemeToggle from "@/components/ThemeToggle";
 import ChangelogModal, { useChangelogUnread } from "@/components/ChangelogModal";
 import NotificationBadge from "@/components/NotificationBadge";
-import { OPEN_ONBOARDING_EVENT } from "@/components/OnboardingWizard";
+import GlobalSearch from "@/components/GlobalSearch";
 import { useNotifications } from "@/src/context/NotificationContext";
 import { useSettings } from "@/src/context/SettingsContext";
 import { useWallet } from "@/src/context/WalletContext";
 import { APP_NETWORK } from "@/src/lib/freighter";
+import { useGlobalShortcuts } from "@/components/GlobalShortcuts";
 
 const NAV_LINKS = [
   { href: "/", label: "Home" },
@@ -37,6 +38,7 @@ export default function NavHeader() {
   const [balanceLoading, setBalanceLoading] = useState(false);
   const [changelogOpen, setChangelogOpen] = useState(false);
   const changelogUnread = useChangelogUnread();
+  const { openHelp } = useGlobalShortcuts();
 
   useEffect(() => {
     const handleScroll = () => setScrolled(window.scrollY > 10);
@@ -111,6 +113,7 @@ export default function NavHeader() {
             </nav>
           </div>
           <div className="flex items-center gap-3 min-w-0 overflow-hidden">
+            <GlobalSearch />
             <NetworkSelector />
             {address && (
               <span
@@ -153,12 +156,13 @@ export default function NavHeader() {
               )}
             </button>
             <button
-              onClick={() => window.dispatchEvent(new Event(OPEN_ONBOARDING_EVENT))}
+              onClick={openHelp}
               className="text-xs px-2 py-1 rounded border border-gray-600 text-gray-400 hover:bg-gray-700 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-500"
-              title="Open the getting-started guide"
-              aria-label="Open onboarding guide"
+              title="Keyboard shortcuts (?)"
+              aria-label="Open keyboard shortcuts help"
             >
-              Help
+              <span className="hidden sm:inline">Shortcuts</span>
+              <span className="sm:hidden">?</span>
             </button>
             <ThemeToggle />
           </div>
