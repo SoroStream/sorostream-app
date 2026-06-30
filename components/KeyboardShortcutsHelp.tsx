@@ -34,7 +34,7 @@ export default function KeyboardShortcutsHelp({
           <button
             onClick={onClose}
             className="text-gray-400 hover:text-white transition-colors text-xl leading-none"
-            aria-label="Close"
+            aria-label="Close keyboard shortcuts help"
           >
             &times;
           </button>

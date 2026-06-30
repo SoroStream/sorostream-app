@@ -45,9 +45,14 @@ export default function Dashboard() {
   useEffect(() => {
     let cancelled = false;
 
-    // Clear stale data immediately on wallet change so the UI never shows
-    // streams from a previous wallet session.
+    // Flush cached data immediately; if no wallet is connected, stop here so
+    // streams from a previous session are never shown to the next connection.
     setStreams([]);
+    if (!address) {
+      setLoading(false);
+      return;
+    }
+
     setLoading(true);
 
     async function load() {
