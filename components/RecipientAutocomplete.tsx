@@ -116,11 +116,13 @@ export default function RecipientAutocomplete({
         aria-describedby={touched && error ? "recipient-error" : undefined}
         aria-expanded={showDropdown}
         aria-autocomplete="list"
+        aria-controls="recipient-listbox"
         role="combobox"
         autoComplete="off"
       />
       {showDropdown && (
         <ul
+          id="recipient-listbox"
           ref={listRef}
           role="listbox"
           className="absolute z-10 top-full mt-1 w-full bg-gray-800 border border-gray-600 rounded-lg shadow-xl max-h-48 overflow-y-auto"

@@ -42,7 +42,7 @@ export default function StreamCard({
       }`}
       role="article"
       aria-label={`Stream ${id}`}
-      aria-selected={selected}
+      aria-current={selected ? "true" : undefined}
     >
       <div className="flex justify-between items-center">
         <span className="flex items-center gap-2">
