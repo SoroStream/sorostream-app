@@ -32,6 +32,50 @@ const STEP_LABELS: Record<StreamCreationStep, { title: string; number: number }>
 
 const ALL_STEPS: StreamCreationStep[] = ["recipient", "amount", "preview", "confirm"];
 
+const ADDRESS_BOOK_STORAGE_KEYS = [
+  "addressBook",
+  "stellarAddressBook",
+  "stellar-address-book",
+  "address-book",
+  "stellar_address_book",
+  "contacts",
+] as const;
+
+interface AddressBookEntry {
+  address: string;
+  alias: string;
+}
+
+function getAddressBookContacts(): AddressBookEntry[] {
+  if (typeof window === "undefined") return [];
+  for (const key of ADDRESS_BOOK_STORAGE_KEYS) {
+    try {
+      const raw = window.localStorage.getItem(key);
+      if (raw === null) continue;
+      const parsed: unknown = JSON.parse(raw);
+      let list: unknown = [];
+      if (Array.isArray(parsed)) {
+        list = parsed;
+      } else if (parsed && typeof parsed === "object") {
+        const obj = parsed as Record<string, unknown>;
+        if (Array.isArray(obj.contacts)) list = obj.contacts;
+        else if (Array.isArray(obj.entries)) list = obj.entries;
+      }
+      const entries: AddressBookEntry[] = (list as unknown[])
+        .filter((item): item is Record<string, unknown> => !!item && typeof item === "object")
+        .map((item) => ({
+          address: String((item.address as string) || (item.publicKey as string) || (item.stellarAddress as string) || ""),
+          alias: String((item.alias as string) || (item.name as string) || (item.label as string) || ""),
+        }))
+        .filter((item) => item.address);
+      return entries;
+    } catch {
+      // Ignore malformed address book data.
+    }
+  }
+  return [];
+}
+
 function validateRecipient(value: string): string {
   if (!value.trim()) return "Recipient address is required.";
   if (!/^G[A-Z2-7]{55}$/.test(value.trim()))
@@ -236,6 +280,9 @@ export default function StreamCreationForm({
     duration: "",
   });
   const [touched, setTouched] = useState({ recipient: false, amount: false });
+  const [contactPickerOpen, setContactPickerOpen] = useState(false);
+  const [contacts, setContacts] = useState<AddressBookEntry[]>([]);
+  const [selectedAlias, setSelectedAlias] = useState("");
 
   const currentIdx = ALL_STEPS.indexOf(step);
   const isLastStep = step === "confirm";
@@ -268,6 +315,19 @@ export default function StreamCreationForm({
       onSubmit?.({ recipient, amount, durationSeconds: duration, token: selectedToken });
     }
   }, [step, recipient, amount, duration, selectedToken, onSubmit]);
+
+  const toggleContactPicker = useCallback(() => {
+    setContacts(getAddressBookContacts());
+    setContactPickerOpen((open) => !open);
+  }, []);
+
+  const selectContact = useCallback((contact: AddressBookEntry) => {
+    setRecipient(contact.address);
+    setSelectedAlias(contact.alias);
+    setContactPickerOpen(false);
+    setTouched((p) => ({ ...p, recipient: true }));
+    setErrors((p) => ({ ...p, recipient: validateRecipient(contact.address) }));
+  }, []);
 
   // Token-derived helpers
   const amountNum = parseFloat(amount) || 0;
@@ -323,10 +383,20 @@ export default function StreamCreationForm({
               >
                 Recipient address
               </label>
+              <div
+                className="relative [&_input]:pr-12"
+                onBlur={(e) => {
+                  if (!e.relatedTarget || !e.currentTarget.contains(e.relatedTarget as Node)) {
+                    setContactPickerOpen(false);
+                  }
+                }}
+              >
               <RecipientAutocomplete
                 value={recipient}
                 onChange={(v) => {
                   setRecipient(v);
+                  setSelectedAlias("");
+                  setContactPickerOpen(false);
                   if (touched.recipient)
                     setErrors((p) => ({ ...p, recipient: validateRecipient(v) }));
                 }}
@@ -341,6 +411,55 @@ export default function StreamCreationForm({
                 error={errors.recipient}
                 touched={touched.recipient}
               />
+              <button
+                type="button"
+                onClick={toggleContactPicker}
+                onMouseDown={(e) => e.preventDefault()}
+                aria-label="Open address book"
+                aria-expanded={contactPickerOpen}
+                aria-haspopup="listbox"
+                className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 rounded-lg text-gray-400 hover:text-white hover:bg-gray-700 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-500"
+              >
+                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} aria-hidden="true">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M17 20h5v-2a4 4 0 00-3-3.87M9 20H4v-2a4 4 0 013-3.87m6-1.13a4 4 0 10-4-4 4 4 0 004 4zm6 0a4 4 0 10-4-4 4 4 0 004 4z" />
+                </svg>
+              </button>
+              {contactPickerOpen && (
+                <div
+                  role="listbox"
+                  aria-label="Saved contacts"
+                  className="absolute left-0 right-0 top-full z-10 mt-2 max-h-64 overflow-auto rounded-lg border border-gray-700 bg-gray-800 shadow-xl"
+                >
+                  {contacts.length === 0 ? (
+                    <div className="px-4 py-3 text-sm text-gray-400">
+                      No saved contacts yet.
+                    </div>
+                  ) : (
+                    contacts.map((contact, index) => (
+                      <button
+                        key={`${contact.address}-${index}`}
+                        type="button"
+                        role="option"
+                        aria-selected={contact.address === recipient}
+                        onClick={() => selectContact(contact)}
+                        onMouseDown={(e) => e.preventDefault()}
+                        className="w-full px-4 py-2.5 text-left flex flex-col gap-0.5 hover:bg-gray-700 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-500"
+                      >
+                        <span className="text-sm font-medium text-white">
+                          {contact.alias || "Unnamed contact"}
+                        </span>
+                        <span className="text-xs font-mono text-gray-400 truncate">
+                          {contact.address}
+                        </span>
+                      </button>
+                    ))
+                  )}
+                </div>
+              )}
+              </div>
+              {selectedAlias && (
+                <p className="text-green-400 text-xs mt-1">✓ {selectedAlias}</p>
+              )}
               {errors.recipient && touched.recipient && (
                 <p className="text-red-400 text-sm mt-1" role="alert">
                   {errors.recipient}
