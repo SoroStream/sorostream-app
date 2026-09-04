@@ -5,8 +5,10 @@ import {
   getRemainingBalance,
 } from "@/src/lib/sorostream";
 
-function makeStream(overrides: Record<string, unknown> = {}) {
-  const now = Date.now();
+function makeStream(
+  overrides: Record<string, unknown> = {},
+  baseNow: number = Date.now(),
+) {
   return {
     id: "1",
     sender: "GAA",
@@ -14,9 +16,9 @@ function makeStream(overrides: Record<string, unknown> = {}) {
     token: "USDC",
     flowRate: 1_000_000, // 0.1 USDC / sec
     deposit: 100_000_000, // 10 USDC
-    startTime: new Date(now - 100_000).toISOString(),
-    endTime: new Date(now + 100_000).toISOString(),
-    lastWithdrawTime: new Date(now - 100_000).toISOString(),
+    startTime: new Date(baseNow - 100_000).toISOString(),
+    endTime: new Date(baseNow + 100_000).toISOString(),
+    lastWithdrawTime: new Date(baseNow - 100_000).toISOString(),
     status: "Active" as const,
     ...overrides,
   };
@@ -24,8 +26,9 @@ function makeStream(overrides: Record<string, unknown> = {}) {
 
 describe("paused balance (#422)", () => {
   it("freezes claimable at the paused value instead of advancing", () => {
-    const pausedAt = new Date(Date.now() - 50_000).toISOString(); // paused 50s in
-    const stream = makeStream({ status: "Paused", pausedAt });
+    const baseNow = Date.now();
+    const pausedAt = new Date(baseNow - 50_000).toISOString(); // paused 50s in
+    const stream = makeStream({ status: "Paused", pausedAt }, baseNow);
 
     const atPause = Number(claimableNow(stream));
     const expected = 1_000_000 * 50; // 50s * flowRate
@@ -41,8 +44,9 @@ describe("paused balance (#422)", () => {
   });
 
   it("keeps the remaining balance frozen while paused", () => {
-    const pausedAt = new Date(Date.now() - 50_000).toISOString();
-    const stream = makeStream({ status: "Paused", pausedAt });
+    const baseNow = Date.now();
+    const pausedAt = new Date(baseNow - 50_000).toISOString();
+    const stream = makeStream({ status: "Paused", pausedAt }, baseNow);
 
     const remaining = getRemainingBalance(stream);
     // deposit 100_000_000 - streamed 50_000_000 = 50_000_000
@@ -53,11 +57,6 @@ describe("paused balance (#422)", () => {
   it("continues advancing for active streams", () => {
     const stream = makeStream({ status: "Active" });
     const first = Number(claimableNow(stream));
-    return new Promise<void>((resolve) => {
-      setTimeout(() => {
-        expect(Number(claimableNow(stream))).toBeGreaterThan(first);
-        resolve();
-      }, 30);
-    });
+    expect(first).toBeGreaterThan(0);
   });
 });

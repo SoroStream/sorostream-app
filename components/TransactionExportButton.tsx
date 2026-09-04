@@ -24,6 +24,7 @@ interface TransactionExportButtonProps {
 const FORMATS: { value: ExportFormat; label: string }[] = [
   { value: "csv", label: "CSV" },
   { value: "json", label: "JSON" },
+  { value: "pdf", label: "PDF" },
 ];
 
 /**

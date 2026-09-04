@@ -79,6 +79,7 @@ export function formatDateUtc(
     `${date.getUTCFullYear()}-${pad(date.getUTCMonth() + 1)}-${pad(date.getUTCDate())} ` +
     `${pad(date.getUTCHours())}:${pad(date.getUTCMinutes())}:${pad(date.getUTCSeconds())} UTC`
   );
+}
 // ---------------------------------------------------------------------------
 // Timezone-aware datetime handling (#427)
 // ---------------------------------------------------------------------------

@@ -22,6 +22,7 @@ import StreamHealthBadge, {
   calculateHealthScore,
   getHealthTier,
 } from "@/components/StreamHealthBadge";
+import StreamHealthCard from "@/components/StreamHealthCard";
 import CollateralUnlockBadge from "@/components/CollateralUnlockBadge";
 import { type StreamHistoryEntry } from "@/src/lib/export";
 import {
@@ -42,6 +43,8 @@ import StartCountdownTimer from "@/components/StartCountdownTimer";
 import EmbedWidgetModal from "@/components/EmbedWidgetModal";
 import StreamComparisonModal from "@/components/StreamComparisonModal";
 import StreamTagEditor from "@/components/StreamTagEditor";
+import TopUpModal from "@/components/TopUpModal";
+import TransactionTimeline from "@/components/TransactionTimeline";
 import { getGiftMessage } from "@/components/GiftStreamModal";
 import { useSettings } from "@/src/context/SettingsContext";
 import { formatStellarAmount } from "@/src/lib/sorostream";
@@ -57,6 +60,7 @@ import {
 } from "@/src/lib/share";
 import StreamShareButtons from "@/components/StreamShareButtons";
 import StreamCloneModal from "@/components/StreamCloneModal";
+import StreamAnalyticsCharts from "@/components/StreamAnalyticsCharts";
 
 /** Grace period in seconds before a cancel is submitted on-chain. */
 const CANCEL_GRACE_SECONDS = 5;
@@ -206,6 +210,9 @@ export default function StreamDetail({ params }: { params: { id: string } }) {
   // ── Clone modal ────────────────────────────────────────────────────────────
   const [showCloneModal, setShowCloneModal] = useState(false);
 
+  // ── Save Template modal ────────────────────────────────────────────────────
+  const [showSaveTemplateModal, setShowSaveTemplateModal] = useState(false);
+
   // ── Success banner (stream just created) ──────────────────────────────────
   const [successPhase, setSuccessPhase] = useState<"in" | "out" | null>(null);
 
@@ -225,6 +232,41 @@ export default function StreamDetail({ params }: { params: { id: string } }) {
   // ── Stream comparison modal state ──────────────────────────────────────────
   const [showComparisonModal, setShowComparisonModal] = useState(false);
   const [allStreams, setAllStreams] = useState<StreamData[]>([]);
+
+  // ── Milestone tracking & push notifications (#358) ───────────────────────────
+  const firedMilestonesRef = useRef<Set<number>>(new Set());
+  const [pushNotificationsEnabled, setPushNotificationsEnabled] = useState<boolean>(() => {
+    if (typeof window === "undefined") return false;
+    return localStorage.getItem(`sorostream_milestones_push_${params.id}`) === "true";
+  });
+
+  const handleTogglePushNotifications = async () => {
+    if (!pushNotificationsEnabled) {
+      if (typeof Notification !== "undefined") {
+        if (Notification.permission === "default") {
+          const perm = await Notification.requestPermission();
+          if (perm !== "granted") {
+            addToast("Notification permission denied by browser.", "info");
+            return;
+          }
+        } else if (Notification.permission === "denied") {
+          addToast("Browser notifications are blocked in settings.", "error");
+          return;
+        }
+      }
+      setPushNotificationsEnabled(true);
+      if (typeof window !== "undefined") {
+        localStorage.setItem(`sorostream_milestones_push_${params.id}`, "true");
+      }
+      addToast("Milestone push notifications enabled.", "success");
+    } else {
+      setPushNotificationsEnabled(false);
+      if (typeof window !== "undefined") {
+        localStorage.setItem(`sorostream_milestones_push_${params.id}`, "false");
+      }
+      addToast("Milestone push notifications disabled.", "info");
+    }
+  };
 
   // ── Optimistic UI state ────────────────────────────────────────────────────
   /**
@@ -295,6 +337,64 @@ export default function StreamDetail({ params }: { params: { id: string } }) {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [address]);
 
+  // Milestone detection effect: fires toast once per milestone per session
+  useEffect(() => {
+    if (!stream || stream.status === "Cancelled") return;
+
+    const checkMilestones = () => {
+      const start = new Date(stream.startTime).getTime();
+      const end = new Date(stream.endTime).getTime();
+      const now = Date.now();
+      const totalDuration = end - start;
+      if (totalDuration <= 0) return;
+
+      const elapsed = now - start;
+      const currentPct = Math.max(0, Math.min(100, (elapsed / totalDuration) * 100));
+
+      const milestones = [25, 50, 75];
+      for (const m of milestones) {
+        if (currentPct >= m && !firedMilestonesRef.current.has(m)) {
+          firedMilestonesRef.current.add(m);
+          addToast(`🎉 Milestone reached: Stream #${stream.id} is ${m}% completed!`, "success");
+
+          // Opt-in browser push notification when tab is not active
+          if (
+            pushNotificationsEnabled &&
+            typeof window !== "undefined" &&
+            typeof Notification !== "undefined" &&
+            Notification.permission === "granted" &&
+            document.hidden
+          ) {
+            try {
+              new Notification("Milestone Reached! 🎉", {
+                body: `Stream #${stream.id} has crossed ${m}% completion.`,
+              });
+            } catch {
+              // Ignore push errors
+            }
+          }
+        }
+      }
+    };
+
+    checkMilestones();
+    const interval = setInterval(checkMilestones, 1000);
+    return () => clearInterval(interval);
+  }, [stream, addToast, pushNotificationsEnabled]);
+
+  // ── Clear stream data on wallet disconnect (#525) ─────────────────────────
+  // When the wallet disconnects (address becomes null), immediately flush the
+  // stream state so stale data from the previous session is never shown to a
+  // different user who subsequently connects.
+  useEffect(() => {
+    if (address === null) {
+      setStream(null);
+      setHistoryEntries([]);
+      setError(null);
+      setAllStreams([]);
+    }
+  }, [address]);
+
   // ── Load stream on mount ───────────────────────────────────────────────────
   useEffect(() => {
     let cancelled = false;
@@ -357,13 +457,12 @@ export default function StreamDetail({ params }: { params: { id: string } }) {
     };
   }, [params.id, fetchKey]);
 
-  // ── Milestone notifications (#421) ────────────────────────────────────────
-  // Fire an in-app toast the first time a stream crosses 25/50/75/100% progress.
-  const firedMilestonesRef = useRef<Set<number>>(new Set());
+  // ── Milestone notifications (#421, #358) ──────────────────────────────────
+  // Fire an in-app toast and opt-in push notification the first time a stream crosses 25/50/75% progress.
   useEffect(() => {
     firedMilestonesRef.current = new Set();
 
-    const milestones = [25, 50, 75, 100];
+    const milestones = [25, 50, 75];
     const computeProgress = (s: StreamData): number => {
       const start = new Date(s.startTime).getTime();
       const end = new Date(s.endTime).getTime();
@@ -375,14 +474,29 @@ export default function StreamDetail({ params }: { params: { id: string } }) {
     const check = () => {
       const s = streamRef.current;
       if (!s) return;
-      // Progress is frozen for paused/cancelled streams — don't fire milestones.
       if (s.status === "Paused" || s.status === "Cancelled") return;
 
       const pct = computeProgress(s);
       for (const m of milestones) {
         if (pct >= m && !firedMilestonesRef.current.has(m)) {
           firedMilestonesRef.current.add(m);
-          addToast(`Stream #${s.id} is ${m}% complete`, "info");
+          addToast(`🎉 Milestone reached: Stream #${s.id} is ${m}% completed!`, "success");
+
+          if (
+            pushNotificationsEnabled &&
+            typeof window !== "undefined" &&
+            typeof Notification !== "undefined" &&
+            Notification.permission === "granted" &&
+            document.hidden
+          ) {
+            try {
+              new Notification("Milestone Reached! 🎉", {
+                body: `Stream #${s.id} has crossed ${m}% completion.`,
+              });
+            } catch {
+              // ignore push errors
+            }
+          }
         }
       }
     };
@@ -390,7 +504,7 @@ export default function StreamDetail({ params }: { params: { id: string } }) {
     check();
     const interval = setInterval(check, 1000);
     return () => clearInterval(interval);
-  }, [stream?.id, addToast]);
+  }, [stream?.id, addToast, pushNotificationsEnabled]);
 
   // ── Load all streams for comparison modal ──────────────────────────────────
   useEffect(() => {
@@ -668,9 +782,27 @@ export default function StreamDetail({ params }: { params: { id: string } }) {
 
   // ── Stream completion ─────────────────────────────────────────────────────
   /** True when the current wall-clock time has passed the stream's end time. */
-  const isCompleted = stream
-    ? Date.now() >= new Date(stream.endTime).getTime()
-    : false;
+  const [isCompleted, setIsCompleted] = useState(false);
+
+  useEffect(() => {
+    if (!stream || stream.status === "Cancelled") {
+      setIsCompleted(false);
+      return;
+    }
+
+    const endMs = new Date(stream.endTime).getTime();
+    const now = Date.now();
+    const completedNow = stream.status === "Ended" || now >= endMs;
+    setIsCompleted(completedNow);
+
+    if (completedNow) return;
+
+    const timeout = window.setTimeout(() => {
+      setIsCompleted(true);
+    }, Math.max(0, endMs - now));
+
+    return () => window.clearTimeout(timeout);
+  }, [stream]);
 
   const handleClaimFinal = useCallback(async () => {
     setClaimFinalLoading(true);
@@ -814,6 +946,11 @@ export default function StreamDetail({ params }: { params: { id: string } }) {
   const depositXlm = stream.deposit / 10_000_000;
   const flowXlm = stream.flowRate / 10_000_000;
 
+  // Determine if we should display USD equivalents and which type
+  const isUsdcToken = stream.token === "USDC";
+  const depositAmount = stream.deposit / 10_000_000;
+  const flowAmount = stream.flowRate / 10_000_000;
+
   // ── Render: detail ─────────────────────────────────────────────────────────
   return (
     <main id="main-content" tabIndex={-1} className="min-h-screen bg-gray-900 text-white p-4 sm:p-8">
@@ -886,34 +1023,12 @@ export default function StreamDetail({ params }: { params: { id: string } }) {
           </p>
         )}
 
-        {/* #452 — Inline QR code for the recipient's Stellar address */}
-        <RecipientQrInline recipient={stream.recipient} />
+        {/* Stream Health Card */}
+        <div className="mb-4">
+          <StreamHealthCard stream={stream} historyEntries={historyEntries} />
+        </div>
 
-        {/* Stream Health Score */}
-        {displayStatus === "Active" && (() => {
-          const now = Date.now();
-          const totalDuration = new Date(stream.endTime).getTime() - new Date(stream.startTime).getTime();
-          const elapsed = now - new Date(stream.startTime).getTime();
-          const timeRemainingRatio = totalDuration > 0 ? Math.max(0, Math.min(1, 1 - elapsed / totalDuration)) : 0;
-          const estimatedStreamed = stream.flowRate * Math.max(0, elapsed / 1000);
-          const depositRemainingRatio = stream.deposit > 0 ? Math.max(0, Math.min(1, 1 - estimatedStreamed / stream.deposit)) : 0;
-          const topUpCount = historyEntries.filter((e) => e.type === "top-up").length;
-          const score = calculateHealthScore({ depositRemainingRatio, timeRemainingRatio, topUpCount });
-          const tier = getHealthTier(score);
-          return (
-            <div className="mt-2">
-              <StreamHealthBadge
-                score={score}
-                tier={tier}
-                depositRemainingRatio={depositRemainingRatio}
-                timeRemainingRatio={timeRemainingRatio}
-                topUpCount={topUpCount}
-              />
-            </div>
-          );
-        })()}
-
-        <div className="flex justify-end gap-2 mb-4 print-hidden">
+        <div className="flex flex-wrap justify-end gap-2 mb-4 print-hidden">
           {/* Bookmark toggle */}
           <button
             onClick={() => toggleBookmark(stream.id)}
@@ -970,6 +1085,20 @@ export default function StreamDetail({ params }: { params: { id: string } }) {
             </svg>
             Clone
           </button>
+          
+          <button
+            onClick={() => setShowSaveTemplateModal(true)}
+            aria-label="Save as template"
+            className="inline-flex items-center gap-2 bg-gray-700 hover:bg-gray-600 text-white py-2 px-4 rounded-lg text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-500 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-900"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" />
+              <polyline points="17 21 17 13 7 13 7 21" />
+              <polyline points="7 3 7 8 15 8" />
+            </svg>
+            Save as Template
+          </button>
+          
           <div className="relative inline-block" ref={shareMenuRef}>
             <button
               onClick={() => setShowShareMenu((v) => !v)}
@@ -1082,6 +1211,24 @@ export default function StreamDetail({ params }: { params: { id: string } }) {
 
           <StreamProgressBar stream={stream} />
 
+          {/* Milestone Push Notification Opt-in toggle (#358) */}
+          <div className="flex items-center justify-between mt-3 pt-2 border-t border-gray-700/60 text-xs text-gray-400">
+            <span>Milestone Push Notifications (25%, 50%, 75%)</span>
+            <button
+              type="button"
+              onClick={handleTogglePushNotifications}
+              data-testid="milestone-push-toggle"
+              aria-pressed={pushNotificationsEnabled}
+              className={`px-3 py-1 rounded-full text-xs font-medium border transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-500 ${
+                pushNotificationsEnabled
+                  ? "bg-green-900/60 border-green-600 text-green-300"
+                  : "bg-gray-800 border-gray-700 text-gray-400 hover:text-gray-200"
+              }`}
+            >
+              {pushNotificationsEnabled ? "🔔 Push Enabled" : "🔕 Enable Push"}
+            </button>
+          </div>
+
           {/* Collateral unlock badge — shown when sender has collateral */}
           {displayStatus !== "Cancelled" && (
             <CollateralUnlockBadge
@@ -1106,14 +1253,18 @@ export default function StreamDetail({ params }: { params: { id: string } }) {
               <p className="text-gray-400 mb-1">Total deposit</p>
               <p className="text-white font-mono">
                 {toXlm(stream.deposit)} {stream.token}
-                <FiatDisplay xlmAmount={depositXlm} />
+                <FiatDisplay
+                  {...(isUsdcToken ? { usdcAmount: depositAmount } : { xlmAmount: depositXlm })}
+                />
               </p>
             </div>
             <div>
               <p className="text-gray-400 mb-1">Flow rate</p>
               <p className="text-green-400 font-mono">
                 {toXlm(stream.flowRate)} {stream.token}/sec
-                <FiatDisplay xlmAmount={flowXlm} />
+                <FiatDisplay
+                  {...(isUsdcToken ? { usdcAmount: flowAmount } : { xlmAmount: flowXlm })}
+                />
               </p>
             </div>
             {stream.autoRenew && (
@@ -1228,6 +1379,7 @@ export default function StreamDetail({ params }: { params: { id: string } }) {
             <button
               onClick={handleWithdraw}
               disabled={isBusy}
+              aria-label={`Withdraw available funds from stream ${stream.id}`}
               className="flex-1 bg-green-700 text-white py-3 rounded-lg font-medium hover:bg-green-800 disabled:opacity-50 disabled:cursor-not-allowed transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-500 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-900"
             >
               {withdrawLoading ? (
@@ -1244,6 +1396,7 @@ export default function StreamDetail({ params }: { params: { id: string } }) {
               onClick={cancelPending ? handleCancelUndo : () => setShowCancelModal(true)}
               disabled={cancelLoading || withdrawLoading || topUpLoading || pauseLoading || resumeLoading}
               aria-live="polite"
+              aria-label={cancelPending ? `Undo cancellation of stream ${stream.id}` : `Cancel stream ${stream.id}. This is irreversible.`}
               className={`flex-1 py-3 rounded-lg font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-900 disabled:opacity-50 disabled:cursor-not-allowed ${
                 cancelPending
                   ? "bg-amber-600 text-white hover:bg-amber-700 focus-visible:ring-amber-500"
@@ -1268,6 +1421,7 @@ export default function StreamDetail({ params }: { params: { id: string } }) {
             <button
               onClick={() => setShowPauseModal(true)}
               disabled={isBusy}
+              aria-label={`Pause stream ${stream.id}. This will temporarily halt the stream, and the recipient will not receive funds while paused.`}
               className="w-full border border-yellow-600 text-yellow-400 py-3 rounded-lg font-medium hover:bg-yellow-900 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-yellow-500 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-900 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
             >
               {pauseLoading ? (
@@ -1307,11 +1461,11 @@ export default function StreamDetail({ params }: { params: { id: string } }) {
             </p>
           )}
 
-          {address && stream.sender.includes(address.slice(0, 5)) && stream.status === "Paused" && (
-          {address && stream.sender.includes(address.slice(0, 5)) && displayStatus === "Paused" && (
-            <button
+	          {address && stream.sender.includes(address.slice(0, 5)) && displayStatus === "Paused" && (
+	            <button
               onClick={() => setShowResumeModal(true)}
               disabled={isBusy}
+              aria-label={`Resume stream ${stream.id}. Funds will start flowing to the recipient again from this point forward.`}
               className="w-full border border-green-600 text-green-400 py-3 rounded-lg font-medium hover:bg-green-900 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-500 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-900 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
             >
               {resumeLoading ? (
@@ -1422,55 +1576,28 @@ export default function StreamDetail({ params }: { params: { id: string } }) {
             {t("compare")}
           </button>
 
-          {/* Top-up form */}
-          {showTopUp && (
-            <div className="space-y-2">
-              <label htmlFor="topup-amount" className="text-gray-200 text-sm font-medium block">
-                Top-up Amount ({stream.token})
-              </label>
-              <input
-                id="topup-amount"
-                type="number"
-                value={topUpAmount}
-                onChange={(e) => setTopUpAmount(e.target.value)}
-                placeholder={`Amount (${stream.token})`}
-                min="0"
-                step="0.01"
-                className="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 text-white text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-500 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-900"
-              />
-              <button
-                onClick={handleTopUp}
-                disabled={topUpLoading || !topUpAmount || parseFloat(topUpAmount) <= 0}
-                className="w-full bg-blue-600 text-white py-2 rounded-lg text-sm hover:bg-blue-700 disabled:opacity-50 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-900"
-              >
-                {topUpLoading ? (
-                  <>
-                    <Spinner />
-                    Topping up…
-                  </>
-                ) : (
-                  "Confirm Top-up"
-                )}
-              </button>
-            </div>
-          )}
+          {/* Top-up button */}
           <button
-            onClick={() => setShowTopUp((v) => !v)}
-            aria-expanded={showTopUp}
+            onClick={() => setShowTopUp(true)}
             disabled={topUpLoading}
-            className="w-full border border-gray-600 text-gray-300 py-2 rounded-lg text-sm hover:bg-gray-700 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-500 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-900 disabled:opacity-50"
+            aria-label="Open top-up stream modal to add funds"
+            className="w-full border border-blue-600 text-blue-400 py-3 rounded-lg font-medium hover:bg-blue-900 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-900 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
           >
-            {showTopUp ? "Cancel Top-up" : "Top Up Stream"}
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <polyline points="12 5 12 19" />
+              <polyline points="5 12 19 12" />
+            </svg>
+            Top Up Stream
           </button>
 
           {/* Tags */}
           <StreamTagEditor streamId={stream.id} />
 
-          {/* Transaction history */}
-          <StreamErrorBoundary section="Transaction History" resetKey={stream.id}>
-            <section aria-labelledby="history-heading">
-              <h2 id="history-heading" className="text-lg font-semibold mb-3">
-                Transaction History
+          {/* Transaction history timeline */}
+          <StreamErrorBoundary section="Transaction History Timeline" resetKey={stream.id}>
+            <section aria-labelledby="history-heading" className="space-y-4">
+              <h2 id="history-heading" className="text-lg font-semibold mb-4">
+                Transaction History Timeline
               </h2>
               {(() => {
                 // Only show entries sourced from real on-chain data. Mock
@@ -1482,7 +1609,7 @@ export default function StreamDetail({ params }: { params: { id: string } }) {
                 if (hasOnlyMockData) {
                   return (
                     <div className="bg-gray-800 rounded-xl p-6 text-center border border-gray-700 space-y-2">
-                      <p className="text-gray-300 font-medium text-sm">No transaction history yet</p>
+                      <p className="text-gray-300 font-medium text-sm">📋 No transaction history yet</p>
                       <p className="text-gray-500 text-xs leading-relaxed">
                         On-chain events are not yet indexed for this stream. Transaction
                         history will appear here once contract event indexing is available.
@@ -1493,11 +1620,11 @@ export default function StreamDetail({ params }: { params: { id: string } }) {
 
                 return (
                   <>
-                    <StreamHistory entries={realEntries} />
+                    <StreamHistory entries={realEntries} streamId={params.id} />
                     {realEntries.length > 0 && (
                       <div className="mt-4">
                         <p className="text-gray-400 text-sm font-medium mb-3">
-                          History Export
+                          📥 History Export
                         </p>
                         <TransactionExportButton
                           entries={realEntries}
@@ -1509,6 +1636,19 @@ export default function StreamDetail({ params }: { params: { id: string } }) {
                   </>
                 );
               })()}
+            </section>
+          </StreamErrorBoundary>
+
+          {/* Analytics section (#358) */}
+          <StreamErrorBoundary section="Stream Analytics" resetKey={stream.id}>
+            <section aria-labelledby="analytics-heading">
+              <h2 id="analytics-heading" className="text-lg font-semibold mb-3">
+                Analytics
+              </h2>
+              <StreamAnalyticsCharts
+                stream={stream}
+                historyEntries={historyEntries}
+              />
             </section>
           </StreamErrorBoundary>
         </div>
@@ -1765,6 +1905,18 @@ export default function StreamDetail({ params }: { params: { id: string } }) {
         />
       )}
 
+      {/* Top-up modal (Issue #475 - Stream Top-Up Flow) */}
+      <TopUpModal
+        open={showTopUp}
+        onClose={() => {
+          setShowTopUp(false);
+          setTopUpAmount("");
+        }}
+        onConfirm={handleTopUp}
+        token={stream.token}
+        loading={topUpLoading}
+      />
+
       {stream && (
         <StreamComparisonModal
           open={showComparisonModal}
@@ -1778,6 +1930,17 @@ export default function StreamDetail({ params }: { params: { id: string } }) {
         <StreamCloneModal
           stream={stream}
           onClose={() => setShowCloneModal(false)}
+        />
+      )}
+
+      {stream && (
+        <SaveTemplateModal
+          open={showSaveTemplateModal}
+          onClose={() => setShowSaveTemplateModal(false)}
+          durationSeconds={stream.endTime - stream.startTime}
+          amount={formatStellarAmount(stream.deposit)}
+          recipient={stream.recipient}
+          token={stream.token}
         />
       )}
     </main>

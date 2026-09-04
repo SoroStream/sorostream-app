@@ -12,7 +12,7 @@ import { StreamErrorBoundary } from "@/components/StreamErrorBoundary";
 import { getStreamsForWallet, watchClaimable, sorostream, getMockStreamHistory, type StreamData } from "@/src/lib/sorostream";
 import { useRpcFetch } from "@/src/lib/useRpcFetch";
 import { useToast } from "@/src/lib/toast";
-import { downloadCSV } from "@/src/lib/export";
+import { downloadCSV, downloadWalletStreamsCsv } from "@/src/lib/export";
 import { useKeyboardShortcuts, type ShortcutGroup } from "@/src/lib/useKeyboardShortcuts";
 import { useBookmarks } from "@/src/context/BookmarksContext";
 import { useWallet } from "@/src/context/WalletContext";
@@ -23,6 +23,9 @@ import StreamExpiryAlerts from "@/components/StreamExpiryAlerts";
 import PortfolioSummaryCard from "@/components/PortfolioSummaryCard";
 import StreamPerformanceMetrics from "@/components/StreamPerformanceMetrics";
 import WatchlistTab from "@/components/WatchlistTab";
+import StreamCard from "@/components/StreamCard";
+import ThemeToggle from "@/components/ThemeToggle";
+import PullToRefresh from "@/components/PullToRefresh";
 
 type DashboardState = "loading" | "filtered-empty" | "empty" | "ready";
 
@@ -46,6 +49,8 @@ function parseSortOrder(value: string | null): SortOrder {
   return "desc";
 }
 
+import { exportStreamsPdf } from "@/src/lib/pdfExport";
+
 function DashboardContent() {
   const rpcFetch = useRpcFetch();
   const searchParams = useSearchParams();
@@ -55,12 +60,20 @@ function DashboardContent() {
   const { address, streamRefreshTrigger, setActiveStreamCount } = useWallet();
   const [loading, setLoading] = useState(true);
   const [streams, setStreams] = useState<StreamData[]>([]);
+  const [currentPage, setCurrentPage] = useState(1);
+  const pageSize = 10;
 
   // Filter states from URL params
   const [statusFilter, setStatusFilter] = useState(searchParams.get("status") || "");
   const [tokenFilter, setTokenFilter] = useState(searchParams.get("token") || "");
   const [search, setSearch] = useState(searchParams.get("search") || "");
   const [bookmarksOnly, setBookmarksOnly] = useState(false);
+  // Date range filters — ISO date strings (YYYY-MM-DD), persisted in URL (#520)
+  const [dateFrom, setDateFrom] = useState(searchParams.get("dateFrom") || "");
+  const [dateTo, setDateTo] = useState(searchParams.get("dateTo") || "");
+  // Min/max stream rate filters in stroops/sec (#520)
+  const [minRate, setMinRate] = useState(searchParams.get("minRate") || "");
+  const [maxRate, setMaxRate] = useState(searchParams.get("maxRate") || "");
   // Tag filter — multiselect, client-side only
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [allTags, setAllTags] = useState<string[]>([]);
@@ -89,6 +102,11 @@ function DashboardContent() {
   const [bulkLoading, setBulkLoading] = useState(false);
   const [multiSelectMode, setMultiSelectMode] = useState(false);
   const [showBulkCancelConfirm, setShowBulkCancelConfirm] = useState(false);
+  const [optimisticOps, setOptimisticOps] = useState<Record<string, { type: string; optimisticDeposit?: number; optimisticStatus?: string; optimisticClaimable?: number }>>({});
+
+  // Pagination state (#383)
+  const [visibleCount, setVisibleCount] = useState(12);
+  const PAGE_SIZE = 12;
 
   // Tab state
   const [activeTab, setActiveTab] = useState<"streams" | "watchlist">("streams");
@@ -96,10 +114,16 @@ function DashboardContent() {
   // UI state
   const [showShortcutsHelp, setShowShortcutsHelp] = useState(false);
   const [showGiftModal, setShowGiftModal] = useState(false);
-  // When "asset", streams are grouped by their token in the list view.
-  const [groupBy, setGroupBy] = useState<"none" | "asset">("none");
+  // When "asset", streams are grouped by their token; when "tag", by their tag label.
+  const [groupBy, setGroupBy] = useState<"none" | "asset" | "tag">("none");
+  // Track which tag groups are collapsed. Key = tag label, value = true when collapsed.
+  const [collapsedGroups, setCollapsedGroups] = useState<Record<string, boolean>>({});
   const searchRef = useRef<HTMLInputElement>(null);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  // Whether the filter bar is expanded (toggle with "f" shortcut)
+  const [showFilterBar, setShowFilterBar] = useState(true);
+  // Index of the currently keyboard-focused stream card (-1 = none)
+  const [focusedStreamIndex, setFocusedStreamIndex] = useState(-1);
 
   useEffect(() => {
     let cancelled = false;
@@ -121,7 +145,10 @@ function DashboardContent() {
         const data = await rpcFetch(() =>
           Promise.resolve(getStreamsForWallet(address)),
         );
-        if (!cancelled) setStreams(data);
+        if (!cancelled) {
+          setStreams(data);
+          setLastRefreshTime(Date.now());
+        }
       } catch {
         // Errors are surfaced via toast by rpcFetch; leave streams empty.
       } finally {
@@ -136,7 +163,10 @@ function DashboardContent() {
         const data = await rpcFetch(() =>
           Promise.resolve(watchClaimable(getStreamsForWallet(address))),
         );
-        if (!cancelled) setStreams(data);
+        if (!cancelled) {
+          setStreams(data);
+          setLastRefreshTime(Date.now());
+        }
       } catch {
         // silently keep current data
       }
@@ -152,14 +182,18 @@ function DashboardContent() {
   // Manual refresh ("r" shortcut / refresh event) — re-fetch without resetting filters.
   const refreshStreams = useCallback(async () => {
     if (!address) return;
+    setIsRefreshing(true);
     try {
       const data = await rpcFetch(() =>
         Promise.resolve(getStreamsForWallet(address)),
       );
       setStreams(data);
+      setLastRefreshTime(Date.now());
       addToast("Stream list refreshed.", "info");
     } catch {
       // Errors are surfaced via toast by rpcFetch.
+    } finally {
+      setIsRefreshing(false);
     }
   }, [address, rpcFetch, addToast]);
 
@@ -182,10 +216,26 @@ function DashboardContent() {
 
   const filtered = useMemo(() => {
     const tagMap = selectedTags.length > 0 ? getTagMap() : null;
+    const fromMs = dateFrom ? new Date(dateFrom).getTime() : undefined;
+    const toMs = dateTo ? new Date(dateTo + "T23:59:59").getTime() : undefined;
+    const minRateNum = minRate !== "" ? parseFloat(minRate) : undefined;
+    const maxRateNum = maxRate !== "" ? parseFloat(maxRate) : undefined;
     return streams.filter((s) => {
       if (bookmarksOnly && !bookmarkedIds.has(s.id)) return false;
       if (statusFilter && s.status !== statusFilter) return false;
       if (tokenFilter && s.token !== tokenFilter) return false;
+      // Date range filter: compare stream creation date against from/to (#520)
+      if (fromMs !== undefined) {
+        const startMs = new Date(s.startTime).getTime();
+        if (startMs < fromMs) return false;
+      }
+      if (toMs !== undefined) {
+        const startMs = new Date(s.startTime).getTime();
+        if (startMs > toMs) return false;
+      }
+      // Min/max rate filter — flowRate is in stroops/sec (#520)
+      if (minRateNum !== undefined && s.flowRate < minRateNum) return false;
+      if (maxRateNum !== undefined && s.flowRate > maxRateNum) return false;
       if (search.trim()) {
         const q = search.trim().toLowerCase();
         const matchesSearch =
@@ -201,7 +251,12 @@ function DashboardContent() {
       }
       return true;
     });
-  }, [streams, statusFilter, tokenFilter, search, bookmarksOnly, bookmarkedIds, selectedTags]);
+  }, [streams, statusFilter, tokenFilter, search, bookmarksOnly, bookmarkedIds, selectedTags, dateFrom, dateTo, minRate, maxRate]);
+
+  useEffect(() => {
+    // Reset to page 1 when filters change
+    setCurrentPage(1);
+  }, [statusFilter, tokenFilter, search, bookmarksOnly, selectedTags, dateFrom, dateTo, minRate, maxRate]);
 
   // Sort filtered streams, pinning bookmarks first, then by the chosen sort field.
   const sortedFiltered = useMemo(() => {
@@ -220,7 +275,7 @@ function DashboardContent() {
         case "amount":
           return dir * (a.deposit - b.deposit);
         case "status": {
-          const order: Record<string, number> = { Active: 0, Ended: 1, Cancelled: 2, Paused: 3 };
+          const order: Record<string, number> = { Active: 0, Paused: 1, Ended: 2, Cancelled: 3 };
           return dir * ((order[a.status] ?? 3) - (order[b.status] ?? 3));
         }
         default:
@@ -237,6 +292,12 @@ function DashboardContent() {
     if (statusFilter) params.set("status", statusFilter);
     if (tokenFilter) params.set("token", tokenFilter);
     if (search.trim()) params.set("search", search);
+    // Date range filters (#520)
+    if (dateFrom) params.set("dateFrom", dateFrom);
+    if (dateTo) params.set("dateTo", dateTo);
+    // Min/max rate filters (#520)
+    if (minRate) params.set("minRate", minRate);
+    if (maxRate) params.set("maxRate", maxRate);
     // Only write sort params when they differ from defaults to keep URLs clean.
     if (sortField !== "created") params.set("sort", sortField);
     if (sortOrder !== "desc") params.set("dir", sortOrder);
@@ -244,7 +305,7 @@ function DashboardContent() {
     const queryString = params.toString();
     const newPath = queryString ? `/dashboard?${queryString}` : "/dashboard";
     router.replace(newPath);
-  }, [statusFilter, tokenFilter, search, sortField, sortOrder, router]);
+  }, [statusFilter, tokenFilter, search, sortField, sortOrder, dateFrom, dateTo, minRate, maxRate, router]);
 
   const clearFilters = () => {
     setStatusFilter("");
@@ -252,9 +313,19 @@ function DashboardContent() {
     setSearch("");
     setBookmarksOnly(false);
     setSelectedTags([]);
+    setDateFrom("");
+    setDateTo("");
+    setMinRate("");
+    setMaxRate("");
+    setVisibleCount(PAGE_SIZE);
   };
 
-  const hasActiveFilters = statusFilter || tokenFilter || search.trim() || bookmarksOnly || selectedTags.length > 0;
+  const hasActiveFilters = !!(statusFilter || tokenFilter || search.trim() || bookmarksOnly || selectedTags.length > 0 || dateFrom || dateTo || minRate || maxRate);
+
+  // Reset pagination when filters change
+  useEffect(() => {
+    setVisibleCount(PAGE_SIZE);
+  }, [statusFilter, tokenFilter, search, bookmarksOnly, selectedTags, dateFrom, dateTo, minRate, maxRate]);
 
   // Grouped view: bucket the (already filtered + sorted) streams by token.
   const assetGroups = useMemo(() => {
@@ -269,6 +340,39 @@ function DashboardContent() {
       .sort((a, b) => a[0].localeCompare(b[0]))
       .map(([token, items]) => ({ token, items }));
   }, [groupBy, sortedFiltered]);
+
+  // Grouped view: bucket streams by their tag labels.
+  // Streams with no tags are placed into an "(Untagged)" group.
+  const tagGroups = useMemo(() => {
+    if (groupBy !== "tag") return [];
+    const tagMap = getTagMap();
+    const map = new Map<string, StreamData[]>();
+    for (const s of sortedFiltered) {
+      const tags = tagMap[s.id] ?? [];
+      if (tags.length === 0) {
+        const key = "(Untagged)";
+        if (!map.has(key)) map.set(key, []);
+        map.get(key)!.push(s);
+      } else {
+        for (const tag of tags) {
+          if (!map.has(tag)) map.set(tag, []);
+          map.get(tag)!.push(s);
+        }
+      }
+    }
+    // Sort: named tags alphabetically first, then "(Untagged)" last.
+    return Array.from(map.entries())
+      .sort((a, b) => {
+        if (a[0] === "(Untagged)") return 1;
+        if (b[0] === "(Untagged)") return -1;
+        return a[0].localeCompare(b[0]);
+      })
+      .map(([label, items]) => ({ label, items }));
+  }, [groupBy, sortedFiltered]);
+
+  const toggleGroupCollapse = useCallback((key: string) => {
+    setCollapsedGroups((prev) => ({ ...prev, [key]: !prev[key] }));
+  }, []);
 
   const state: DashboardState = loading
     ? "loading"
@@ -331,7 +435,16 @@ function DashboardContent() {
   const handleBulkCancel = useCallback(async () => {
     const ids = Array.from(selectedIds);
     if (ids.length === 0) return;
+
+    // Apply optimistic updates immediately
+    const prevOps = { ...optimisticOps };
+    const newOps = { ...prevOps };
+    ids.forEach((id) => {
+      newOps[id] = { type: "cancel", optimisticStatus: "Cancelled" };
+    });
+    setOptimisticOps(newOps);
     setBulkLoading(true);
+
     try {
       await Promise.all(ids.map((id) => sorostream.cancelStream(id)));
       addToast(`Cancelled ${ids.length} stream(s) successfully.`, "success");
@@ -339,29 +452,55 @@ function DashboardContent() {
       setStreams(data);
       clearSelection();
       setShowBulkCancelConfirm(false);
+      // Clear optimistic overrides once data is refreshed
+      setOptimisticOps((current) => {
+        const next = { ...current };
+        ids.forEach((id) => delete next[id]);
+        return next;
+      });
     } catch (err) {
+      // Roll back optimistic state on failure
+      setOptimisticOps(prevOps);
       addToast("Bulk cancel failed. Please try again.", "error");
     } finally {
       setBulkLoading(false);
     }
-  }, [selectedIds, addToast, rpcFetch, clearSelection, address]);
+  }, [selectedIds, optimisticOps, addToast, rpcFetch, clearSelection, address]);
 
   const handleBulkTopUp = useCallback(async () => {
     const ids = Array.from(selectedIds);
     if (ids.length === 0) return;
+
+    // Apply optimistic top-up immediately
+    const prevOps = { ...optimisticOps };
+    const newOps = { ...prevOps };
+    ids.forEach((id) => {
+      const currentStream = streams.find((s) => s.id === id);
+      const currentDeposit = currentStream?.deposit ?? 0;
+      newOps[id] = { type: "top-up", optimisticDeposit: currentDeposit + 100_000_000 };
+    });
+    setOptimisticOps(newOps);
     setBulkLoading(true);
+
     try {
       await Promise.all(ids.map((id) => sorostream.topUp(id)));
       addToast(`Topped up ${ids.length} stream(s) successfully.`, "success");
       const data = await rpcFetch(() => Promise.resolve(getStreamsForWallet(address)));
       setStreams(data);
       clearSelection();
+      setOptimisticOps((current) => {
+        const next = { ...current };
+        ids.forEach((id) => delete next[id]);
+        return next;
+      });
     } catch {
+      // Roll back on failure
+      setOptimisticOps(prevOps);
       addToast("Bulk top-up failed. Please try again.", "error");
     } finally {
       setBulkLoading(false);
     }
-  }, [selectedIds, addToast, rpcFetch, clearSelection, address]);
+  }, [selectedIds, optimisticOps, streams, addToast, rpcFetch, clearSelection, address]);
 
   const handleBulkExport = useCallback(() => {
     const ids = Array.from(selectedIds);
@@ -379,6 +518,22 @@ function DashboardContent() {
     addToast(`Exported history for ${ids.length} stream(s).`, "success");
   }, [selectedIds, addToast]);
 
+  const handleExportPdf = useCallback(() => {
+    const targets = selectedIds.size > 0
+      ? streams.filter((s) => selectedIds.has(s.id))
+      : sortedFiltered.length > 0
+      ? sortedFiltered
+      : streams;
+
+    if (targets.length === 0) {
+      addToast("No streams available to export.", "info");
+      return;
+    }
+
+    const { filename } = exportStreamsPdf(targets, address);
+    addToast(`Exported PDF report: ${filename}`, "success");
+  }, [selectedIds, streams, sortedFiltered, address, addToast]);
+
   const shortcutGroups: ShortcutGroup[] = useMemo(() => [
     {
       title: "Dashboard",
@@ -386,20 +541,63 @@ function DashboardContent() {
         { key: "n", description: "New stream", action: () => router.push("/stream/new") },
         { key: "r", description: "Refresh list", action: () => void refreshStreams() },
         { key: "/", description: "Focus search", action: () => searchRef.current?.focus(), ignoreWhenEditing: false },
-        { key: "Escape", description: "Clear search / selection", action: () => { setSearch(""); clearSelection(); (document.activeElement as HTMLElement)?.blur(); } },
+        { key: "f", description: "Toggle filter bar", action: () => setShowFilterBar((v) => !v) },
+        {
+          key: "j",
+          description: "Next stream",
+          action: () => {
+            if (sortedFiltered.length === 0) return;
+            setFocusedStreamIndex((i) => {
+              const next = i < sortedFiltered.length - 1 ? i + 1 : 0;
+              return next;
+            });
+          },
+        },
+        {
+          key: "k",
+          description: "Previous stream",
+          action: () => {
+            if (sortedFiltered.length === 0) return;
+            setFocusedStreamIndex((i) => {
+              const prev = i > 0 ? i - 1 : sortedFiltered.length - 1;
+              return prev;
+            });
+          },
+        },
+        {
+          key: "Enter",
+          description: "Open focused stream",
+          action: () => {
+            if (focusedStreamIndex >= 0 && focusedStreamIndex < sortedFiltered.length) {
+              router.push(`/stream/${sortedFiltered[focusedStreamIndex].id}`);
+            }
+          },
+        },
+        { key: "Escape", description: "Clear search / selection", action: () => { setSearch(""); clearSelection(); setFocusedStreamIndex(-1); (document.activeElement as HTMLElement)?.blur(); } },
         { key: "?", shift: true, description: "Toggle keyboard shortcuts help", action: () => setShowShortcutsHelp((v) => !v) },
       ],
     },
-  ], [router, clearSelection, refreshStreams]);
+  ], [router, clearSelection, refreshStreams, sortedFiltered, focusedStreamIndex]);
 
   useKeyboardShortcuts(shortcutGroups);
 
   return (
-    <main id="main-content" tabIndex={-1} className="min-h-screen bg-gray-900 text-white p-4 sm:p-8">
+    <main id="main-content" tabIndex={-1} className="min-h-screen bg-gray-900 text-white p-4 sm:p-6">
       <div className="max-w-6xl mx-auto">
-        <div className="flex justify-between items-center mb-6">
+        <div className="flex flex-wrap justify-between items-center gap-3 mb-6">
           <h1 className="text-2xl font-bold">Dashboard</h1>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              onClick={() => {
+                const result = downloadWalletStreamsCsv(streams, address);
+                addToast(`Exported ${result.rowCount} stream${result.rowCount === 1 ? "" : "s"} to ${result.filename}`, "success");
+              }}
+              disabled={!address || streams.length === 0}
+              className="px-4 py-2 rounded-lg text-sm font-medium border border-gray-700 text-gray-300 hover:bg-gray-800 disabled:opacity-50 disabled:cursor-not-allowed transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-500 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-900"
+            >
+              Export CSV
+            </button>
             <button
               onClick={() => {
                 setMultiSelectMode(!multiSelectMode);
@@ -421,8 +619,9 @@ function DashboardContent() {
               href="/stream/new"
               className="bg-green-700 text-white px-4 py-2 rounded-lg text-sm hover:bg-green-800 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-500 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-900"
             >
-              + New Stream
+              + Create Stream
             </Link>
+            <ThemeToggle />
           </div>
         </div>
 
@@ -431,6 +630,29 @@ function DashboardContent() {
             {/* Portfolio summary */}
             {address && (
               <PortfolioSummaryCard streams={streams} walletAddress={address} />
+            )}
+
+            {/* Wallet-scoped analytics (#521) */}
+            {address && streams.length > 0 && (
+              <div className="mb-6">
+                <details className="group" open>
+                  <summary className="flex items-center gap-2 cursor-pointer text-sm font-semibold text-gray-300 hover:text-white py-2 select-none list-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-500 rounded">
+                    <span
+                      className="transition-transform duration-200 group-open:rotate-90"
+                      aria-hidden="true"
+                    >
+                      ▶
+                    </span>
+                    Wallet Analytics
+                    <span className="ml-1 text-xs font-normal text-gray-500">(last 30 days)</span>
+                  </summary>
+                  <div className="mt-3">
+                    <StreamErrorBoundary section="Wallet Analytics">
+                      <WalletAnalyticsDashboard streams={streams} walletAddress={address} />
+                    </StreamErrorBoundary>
+                  </div>
+                </details>
+              </div>
             )}
 
             {/* Aggregated performance metrics (#419) */}
@@ -486,6 +708,32 @@ function DashboardContent() {
 
             {/* Filter Bar */}
             <div className="mb-6 space-y-3">
+              <div className="flex items-center justify-between">
+                <button
+                  type="button"
+                  onClick={() => setShowFilterBar((v) => !v)}
+                  aria-expanded={showFilterBar}
+                  aria-controls="filter-bar-content"
+                  className="flex items-center gap-1.5 text-xs text-gray-400 hover:text-white transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-500 rounded"
+                >
+                  <span
+                    aria-hidden="true"
+                    className="transition-transform duration-200"
+                    style={{ display: "inline-block", transform: showFilterBar ? "rotate(0deg)" : "rotate(-90deg)" }}
+                  >
+                    ▼
+                  </span>
+                  Filters
+                  {hasActiveFilters && (
+                    <span className="ml-1 bg-green-800 text-green-300 rounded-full px-1.5 py-0.5 text-[10px] font-semibold">
+                      active
+                    </span>
+                  )}
+                  <kbd className="hidden sm:inline-flex ml-1 bg-gray-700 text-gray-400 text-[10px] px-1 rounded font-mono">F</kbd>
+                </button>
+              </div>
+              {showFilterBar && (
+              <div id="filter-bar-content">
               <div className="flex flex-wrap gap-3">
                 {/* Status Filter */}
                 <select
@@ -496,6 +744,7 @@ function DashboardContent() {
                 >
                   <option value="">All Statuses</option>
                   <option value="Active">Active</option>
+                  <option value="Paused">Paused</option>
                   <option value="Ended">Ended</option>
                   <option value="Cancelled">Cancelled</option>
                 </select>
@@ -515,6 +764,65 @@ function DashboardContent() {
                     </option>
                   ))}
                 </select>
+
+                {/* Date range filter (#520) */}
+                <div className="flex items-center gap-1.5">
+                  <label className="text-xs text-gray-400 whitespace-nowrap" htmlFor="filter-date-from">
+                    From
+                  </label>
+                  <input
+                    id="filter-date-from"
+                    type="date"
+                    value={dateFrom}
+                    onChange={(e) => setDateFrom(e.target.value)}
+                    max={dateTo || undefined}
+                    className="bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-500 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-900 [color-scheme:dark]"
+                    aria-label="Filter streams created from date"
+                  />
+                  <label className="text-xs text-gray-400 whitespace-nowrap" htmlFor="filter-date-to">
+                    To
+                  </label>
+                  <input
+                    id="filter-date-to"
+                    type="date"
+                    value={dateTo}
+                    onChange={(e) => setDateTo(e.target.value)}
+                    min={dateFrom || undefined}
+                    className="bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-500 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-900 [color-scheme:dark]"
+                    aria-label="Filter streams created to date"
+                  />
+                </div>
+
+                {/* Min/max rate filter — stroops/sec (#520) */}
+                <div className="flex items-center gap-1.5">
+                  <label className="text-xs text-gray-400 whitespace-nowrap" htmlFor="filter-min-rate">
+                    Rate
+                  </label>
+                  <input
+                    id="filter-min-rate"
+                    type="number"
+                    value={minRate}
+                    onChange={(e) => setMinRate(e.target.value)}
+                    placeholder="Min"
+                    min="0"
+                    step="1"
+                    className="w-20 bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-500 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-900"
+                    aria-label="Minimum stream rate (stroops/sec)"
+                  />
+                  <span className="text-xs text-gray-500">–</span>
+                  <input
+                    id="filter-max-rate"
+                    type="number"
+                    value={maxRate}
+                    onChange={(e) => setMaxRate(e.target.value)}
+                    placeholder="Max"
+                    min="0"
+                    step="1"
+                    className="w-20 bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-500 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-900"
+                    aria-label="Maximum stream rate (stroops/sec)"
+                  />
+                  <span className="text-xs text-gray-500">stroops/s</span>
+                </div>
 
                 {/* Bookmarks only toggle */}
                 <button
@@ -564,7 +872,7 @@ function DashboardContent() {
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
                   placeholder="Search by recipient, sender, or ID…"
-                  className="flex-1 min-w-[200px] bg-gray-800 border border-gray-700 rounded-lg px-4 py-2 text-sm text-white placeholder-gray-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-500 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-900"
+                  className="flex-1 min-w-0 w-full sm:min-w-[200px] bg-gray-800 border border-gray-700 rounded-lg px-4 py-2 text-sm text-white placeholder-gray-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-500 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-900"
                   aria-label="Search streams"
                 />
 
@@ -592,6 +900,26 @@ function DashboardContent() {
                       Token: {tokenFilter}
                     </span>
                   )}
+                  {dateFrom && (
+                    <span className="bg-gray-800 px-2 py-1 rounded">
+                      From: {dateFrom}
+                    </span>
+                  )}
+                  {dateTo && (
+                    <span className="bg-gray-800 px-2 py-1 rounded">
+                      To: {dateTo}
+                    </span>
+                  )}
+                  {minRate && (
+                    <span className="bg-gray-800 px-2 py-1 rounded">
+                      Rate ≥ {minRate}
+                    </span>
+                  )}
+                  {maxRate && (
+                    <span className="bg-gray-800 px-2 py-1 rounded">
+                      Rate ≤ {maxRate}
+                    </span>
+                  )}
                   {search.trim() && (
                     <span className="bg-gray-800 px-2 py-1 rounded">
                       Search: &quot;{search}&quot;
@@ -609,11 +937,14 @@ function DashboardContent() {
                   )}
                 </div>
               )}
+              </div>
+              )}
             </div>
 
             {/* Sort controls */}
-            <div className="mb-4 flex flex-wrap items-center gap-2">
-              <span className="text-xs text-gray-400 mr-1">Sort by:</span>
+            <div className="mb-4 overflow-x-auto">
+            <div className="flex flex-wrap items-center gap-2 min-w-0">
+              <span className="text-xs text-gray-400 mr-1 whitespace-nowrap">Sort by:</span>
               {(
                 [
                   { value: "created", label: "Date Created" },
@@ -653,7 +984,19 @@ function DashboardContent() {
               >
                 Group by asset
               </button>
-            </div>
+              <button
+                onClick={() => setGroupBy((g) => (g === "tag" ? "none" : "tag"))}
+                aria-pressed={groupBy === "tag"}
+                className={`ml-1 px-3 py-1.5 rounded-lg text-xs border transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-500 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-900 ${
+                  groupBy === "tag"
+                    ? "bg-green-700 border-green-600 text-white"
+                    : "border-gray-700 text-gray-400 hover:bg-gray-800"
+                }`}
+              >
+                Group by tag
+              </button>
+            </div>{/* end sort inner flex */}
+            </div>{/* end sort overflow wrapper */}
 
             {/* Bulk actions bar */}
             {selectedIds.size > 0 && (
@@ -675,6 +1018,14 @@ function DashboardContent() {
                     className="px-3 py-1.5 text-xs bg-gray-700 text-white rounded-lg hover:bg-gray-600 disabled:opacity-50 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-500"
                   >
                     Export CSV
+                  </button>
+                  <button
+                    onClick={handleExportPdf}
+                    disabled={bulkLoading}
+                    data-testid="bulk-export-pdf-button"
+                    className="px-3 py-1.5 text-xs bg-green-800 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-500"
+                  >
+                    Export PDF
                   </button>
                   <button
                     onClick={handleBulkTopUp}
@@ -702,6 +1053,7 @@ function DashboardContent() {
             )}
 
             <StreamErrorBoundary section="Stream List">
+            <PullToRefresh onRefresh={refreshStreams}>
             {state === "loading" ? (
               <div
                 className="rounded-xl border border-gray-700 bg-gray-900 p-2"
@@ -709,7 +1061,7 @@ function DashboardContent() {
                 aria-busy="true"
                 aria-label="Loading streams"
               >
-                <ul className="grid gap-4 md:grid-cols-2" role="list">
+                <ul className="grid gap-4 sm:grid-cols-1 md:grid-cols-2" role="list">
                   {Array.from({ length: 6 }, (_, index) => (
                     <li key={index}>
                       <SkeletonCard />
@@ -776,7 +1128,7 @@ function DashboardContent() {
                       </span>
                     </div>
                     <div className="rounded-xl border border-gray-700 bg-gray-900 p-2">
-                      <div className="grid gap-4 md:grid-cols-2">
+                      <div className="grid gap-4 sm:grid-cols-1 md:grid-cols-2">
                         {items.map((s) => (
                           <div key={s.id} className="relative">
                             <Link href={`/stream/${s.id}`} className="block">
@@ -793,26 +1145,140 @@ function DashboardContent() {
                                 scheduledStartTime={s.scheduledStartTime}
                                 startTime={s.startTime}
                                 endTime={s.endTime}
+                                token={s.token}
                               />
                             </Link>
                           </div>
                         ))}
-                      </div>
+                       </div>
                     </div>
                   </section>
-                ))}
+                  );
+                })}
+              </div>
+            ) : groupBy === "tag" ? (
+              <div className="space-y-6">
+                {tagGroups.map(({ label, items }) => {
+                  const isCollapsed = collapsedGroups[label] ?? false;
+                  const activeCount = items.filter((s) => s.status === "Active").length;
+                  return (
+                    <section key={label} aria-label={`Streams tagged ${label}`}>
+                      <button
+                        type="button"
+                        onClick={() => toggleGroupCollapse(label)}
+                        className="flex items-center gap-2 mb-3 w-full text-left group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-500 rounded"
+                        aria-expanded={!isCollapsed}
+                      >
+                        <span
+                          className="text-gray-400 transition-transform duration-200 text-xs"
+                          aria-hidden="true"
+                          style={{ display: "inline-block", transform: isCollapsed ? "rotate(-90deg)" : "rotate(0deg)" }}
+                        >
+                          ▼
+                        </span>
+                        <h3 className="text-sm font-semibold text-white group-hover:text-green-300 transition-colors">
+                          {label}
+                        </h3>
+                        <span
+                          className="text-xs bg-gray-800 text-gray-400 rounded-full px-2 py-0.5"
+                          title={`${items.length} stream${items.length !== 1 ? "s" : ""} total`}
+                        >
+                          {items.length}
+                        </span>
+                        {activeCount > 0 && (
+                          <span
+                            className="text-xs bg-green-900/60 text-green-400 border border-green-700/50 rounded-full px-2 py-0.5"
+                            title={`${activeCount} active`}
+                          >
+                            {activeCount} active
+                          </span>
+                        )}
+                      </button>
+                      {!isCollapsed && (
+                        <div className="rounded-xl border border-gray-700 bg-gray-900 p-2">
+                          <div className="grid gap-4 sm:grid-cols-1 md:grid-cols-2">
+                            {items.map((s) => (
+                              <div key={s.id} className="relative">
+                                <Link href={`/stream/${s.id}`} className="block">
+                                  <StreamCard
+                                    id={s.id}
+                                    sender={s.sender}
+                                    recipient={s.recipient}
+                                    flowRate={s.flowRate}
+                                    deposit={s.deposit}
+                                    status={s.status}
+                                    selected={multiSelectMode ? selectedIds.has(s.id) : false}
+                                    onToggle={multiSelectMode ? toggleSelect : undefined}
+                                    onClone={handleClone}
+                                    scheduledStartTime={s.scheduledStartTime}
+                                    startTime={s.startTime}
+                                    endTime={s.endTime}
+                                  />
+                                </Link>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </section>
+                  );
+                })}
               </div>
             ) : (
               <div className="rounded-xl border border-gray-700 bg-gray-900 p-2">
                 <StreamVirtualList
-                  streams={sortedFiltered}
+                  streams={sortedFiltered.slice(0, visibleCount)}
                   selectedIds={multiSelectMode ? selectedIds : undefined}
                   onToggleSelect={multiSelectMode ? toggleSelect : undefined}
                   onClone={handleClone}
+                  focusedStreamId={focusedStreamIndex >= 0 && focusedStreamIndex < sortedFiltered.length ? sortedFiltered[focusedStreamIndex].id : undefined}
+                  optimisticOps={optimisticOps}
                 />
+                <div className="flex justify-between items-center p-4">
+                  <button 
+                    disabled={currentPage === 1}
+                    onClick={() => setCurrentPage(p => p - 1)}
+                    className="px-4 py-2 bg-gray-800 text-white rounded disabled:opacity-50"
+                  >
+                    Previous
+                  </button>
+                  <span className="text-sm text-gray-400">
+                    Page {currentPage} of {Math.ceil(sortedFiltered.length / pageSize) || 1}
+                  </span>
+                  <button 
+                    disabled={currentPage >= Math.ceil(sortedFiltered.length / pageSize)}
+                    onClick={() => setCurrentPage(p => p + 1)}
+                    className="px-4 py-2 bg-gray-800 text-white rounded disabled:opacity-50"
+                  >
+                    Next
+                  </button>
+                </div>
               </div>
             )}
+            </PullToRefresh>
             </StreamErrorBoundary>
+
+            {/* Pagination: Load More (#383) */}
+            {sortedFiltered.length > visibleCount && (
+              <div className="mt-4 text-center">
+                <button
+                  onClick={() => setVisibleCount((c) => c + PAGE_SIZE)}
+                  className="px-6 py-2 bg-gray-800 border border-gray-700 text-gray-300 rounded-lg text-sm hover:bg-gray-700 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-500 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-900"
+                >
+                  Load More ({Math.min(PAGE_SIZE, sortedFiltered.length - visibleCount)} of {sortedFiltered.length - visibleCount} remaining)
+                </button>
+                <p className="text-xs text-gray-500 mt-2">
+                  Showing {Math.min(visibleCount, sortedFiltered.length)} of {sortedFiltered.length} streams
+                </p>
+              </div>
+            )}
+            {sortedFiltered.length > 0 && sortedFiltered.length <= visibleCount && (
+              <div className="mt-4 text-center">
+                <p className="text-xs text-gray-500">
+                  All {sortedFiltered.length} stream{sortedFiltered.length === 1 ? "" : "s"} loaded
+                </p>
+              </div>
+            )}
             </div>
             )}{/* end activeTab conditional */}
           </div>

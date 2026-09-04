@@ -64,6 +64,13 @@ export default function StreamActions({
   const submitTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const cancelToastIdRef = useRef<number | null>(null);
   const undoRef = useRef(false);
+  /**
+   * Synchronous guard that is set to `true` as soon as a withdrawal begins,
+   * before the first React re-render.  This prevents a second click from
+   * sneaking through the gap between the initial `void executeWithdraw()` call
+   * and the batched state update that sets `withdrawing = true`.
+   */
+  const withdrawingRef = useRef(false);
 
   useEffect(() => {
     return () => {
@@ -76,6 +83,9 @@ export default function StreamActions({
     const stream = getMockStream(streamId);
     const previousClaimable = stream ? Number(claimableNow(stream)) : null;
 
+    // Set the ref synchronously so any re-entrant call in handleWithdraw is
+    // blocked before the first React state update is flushed.
+    withdrawingRef.current = true;
     setOptimisticClaimable(0);
     setWithdrawing(true);
 
@@ -91,11 +101,17 @@ export default function StreamActions({
       void previousClaimable;
       addToast("Withdrawal failed. Please try again.", "error");
     } finally {
+      withdrawingRef.current = false;
       setWithdrawing(false);
     }
   }, [streamId, addToast, refetchBalance]);
 
   const handleWithdraw = useCallback(() => {
+    // Guard against double-clicks: the ref check is synchronous and blocks a
+    // second invocation even before React has flushed the withdrawing=true
+    // state update from the first click.
+    if (withdrawing || withdrawingRef.current) return;
+
     const stream = getMockStream(streamId);
     const claimableStroops = stream ? Number(claimableNow(stream)) : 0;
     const claimableXlm = claimableStroops / 10_000_000;
@@ -106,7 +122,7 @@ export default function StreamActions({
     } else {
       void executeWithdraw();
     }
-  }, [streamId, withdrawThreshold, executeWithdraw]);
+  }, [streamId, withdrawThreshold, withdrawing, executeWithdraw]);
 
   const handleConfirmed = useCallback(() => {
     setConfirmAmount(null);
@@ -282,7 +298,8 @@ export default function StreamActions({
 
         <button
           onClick={cancelPending ? handleUndo : () => setShowCancelConfirm(true)}
-          disabled={cancelling || withdrawing}
+          disabled={cancelling || cancelPending || withdrawing}
+          aria-busy={cancelling}
           aria-live="polite"
           className={`flex-1 py-3 rounded-lg font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-900 disabled:opacity-50 disabled:cursor-not-allowed ${
             cancelPending

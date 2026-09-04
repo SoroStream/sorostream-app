@@ -1,7 +1,17 @@
 import React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
-import { describe, it, expect, vi, beforeAll, afterAll } from 'vitest';
+import { describe, it, expect, vi, beforeAll, afterAll, beforeEach } from 'vitest';
 import StreamCompletedBanner from '../StreamCompletedBanner';
+
+const addToast = vi.fn();
+
+vi.mock('@/src/lib/toast', () => ({
+  useToast: () => ({
+    addToast,
+    upsertPersistentToast: vi.fn(),
+    removeToast: vi.fn(),
+  }),
+}));
 
 // ---------------------------------------------------------------------------
 // Suppress Notification API noise in jsdom
@@ -34,6 +44,10 @@ afterAll(() => {
 // ---------------------------------------------------------------------------
 
 describe('StreamCompletedBanner', () => {
+  beforeEach(() => {
+    addToast.mockClear();
+  });
+
   it('renders the completed banner with the final amount', () => {
     render(
       <StreamCompletedBanner
@@ -46,6 +60,7 @@ describe('StreamCompletedBanner', () => {
     expect(screen.getByTestId('stream-completed-banner')).toBeInTheDocument();
     expect(screen.getByText(/Stream Completed/i)).toBeInTheDocument();
     expect(screen.getByText(/100.0000000 USDC/i)).toBeInTheDocument();
+    expect(addToast).toHaveBeenCalledOnce();
   });
 
   it('shows the "Claim Final Amount" button', () => {

@@ -57,6 +57,17 @@ function renderActions() {
   return render(<StreamActions {...defaultProps} />);
 }
 
+/**
+ * Helper that advances the cancel flow past the confirmation dialog.
+ * The Cancel button now opens a confirm dialog first; calling this helper
+ * clicks "Cancel" → then "Cancel Stream" in the dialog to start the grace
+ * period countdown.
+ */
+function startCancelGracePeriod() {
+  fireEvent.click(screen.getByRole('button', { name: /^cancel$/i }));
+  fireEvent.click(screen.getByRole('button', { name: /cancel stream/i }));
+}
+
 // ---------------------------------------------------------------------------
 // Tests
 // ---------------------------------------------------------------------------
@@ -76,7 +87,7 @@ describe('StreamActions — cancel grace period', () => {
 
   it('shows a countdown toast immediately when Cancel is clicked', () => {
     renderActions();
-    fireEvent.click(screen.getByRole('button', { name: /cancel/i }));
+    startCancelGracePeriod();
 
     expect(mockUpsertPersistentToast).toHaveBeenCalledWith(
       'cancel-grace-42',
@@ -88,7 +99,7 @@ describe('StreamActions — cancel grace period', () => {
 
   it('counts down each second in the toast', () => {
     renderActions();
-    fireEvent.click(screen.getByRole('button', { name: /cancel/i }));
+    startCancelGracePeriod();
 
     act(() => { vi.advanceTimersByTime(1000); });
     expect(mockUpsertPersistentToast).toHaveBeenCalledWith(
@@ -109,7 +120,7 @@ describe('StreamActions — cancel grace period', () => {
 
   it('submits the transaction after 5 seconds', async () => {
     renderActions();
-    fireEvent.click(screen.getByRole('button', { name: /cancel/i }));
+    startCancelGracePeriod();
 
     await act(async () => { vi.advanceTimersByTime(5000); });
 
@@ -122,7 +133,7 @@ describe('StreamActions — cancel grace period', () => {
 
   it('does NOT submit the transaction before 5 seconds', () => {
     renderActions();
-    fireEvent.click(screen.getByRole('button', { name: /cancel/i }));
+    startCancelGracePeriod();
 
     act(() => { vi.advanceTimersByTime(4999); });
 
@@ -131,17 +142,21 @@ describe('StreamActions — cancel grace period', () => {
 
   it('button changes to "Undo Cancel" while grace period is active', () => {
     renderActions();
-    fireEvent.click(screen.getByRole('button', { name: /cancel/i }));
+    startCancelGracePeriod();
 
     expect(screen.getByRole('button', { name: /undo cancel/i })).toBeInTheDocument();
   });
 
   it('clicking Undo Cancel aborts the transaction', async () => {
     renderActions();
-    fireEvent.click(screen.getByRole('button', { name: /cancel/i }));
+    startCancelGracePeriod();
 
-    // Click the button-level undo
-    fireEvent.click(screen.getByRole('button', { name: /undo cancel/i }));
+    // The button is now disabled (#485 fix); undo is done via the toast action.
+    const { onClick: undoAction } = (mockUpsertPersistentToast.mock.calls[0] as any)[3] as {
+      label: string;
+      onClick: () => void;
+    };
+    act(() => { undoAction(); });
 
     // Advance past the 5-second mark
     await act(async () => { vi.advanceTimersByTime(6000); });
@@ -155,16 +170,28 @@ describe('StreamActions — cancel grace period', () => {
     mockUpsertPersistentToast.mockReturnValue(1);
 
     renderActions();
-    fireEvent.click(screen.getByRole('button', { name: /cancel/i }));
-    fireEvent.click(screen.getByRole('button', { name: /undo cancel/i }));
+    startCancelGracePeriod();
+
+    // The button is disabled (#485 fix); invoke the toast action directly.
+    const { onClick: undoAction } = (mockUpsertPersistentToast.mock.calls[0] as any)[3] as {
+      label: string;
+      onClick: () => void;
+    };
+    act(() => { undoAction(); });
 
     expect(mockRemoveToast).toHaveBeenCalledWith(1);
   });
 
-  it('restores the Cancel button after Undo', () => {
+  it('restores the Cancel button after Undo via toast action', () => {
     renderActions();
-    fireEvent.click(screen.getByRole('button', { name: /cancel/i }));
-    fireEvent.click(screen.getByRole('button', { name: /undo cancel/i }));
+    startCancelGracePeriod();
+
+    // The "Undo Cancel" button is disabled (#485 fix); undo via the toast action.
+    const { onClick: undoAction } = (mockUpsertPersistentToast.mock.calls[0] as any)[3] as {
+      label: string;
+      onClick: () => void;
+    };
+    act(() => { undoAction(); });
 
     expect(screen.getByRole('button', { name: /^cancel$/i })).toBeInTheDocument();
   });
@@ -173,7 +200,7 @@ describe('StreamActions — cancel grace period', () => {
     mockUpsertPersistentToast.mockReturnValue(99);
 
     renderActions();
-    fireEvent.click(screen.getByRole('button', { name: /cancel/i }));
+    startCancelGracePeriod();
 
     await act(async () => { vi.advanceTimersByTime(5000); });
 
@@ -186,7 +213,7 @@ describe('StreamActions — cancel grace period', () => {
     );
 
     renderActions();
-    fireEvent.click(screen.getByRole('button', { name: /cancel/i }));
+    startCancelGracePeriod();
 
     await act(async () => { vi.advanceTimersByTime(5000); });
 
@@ -198,7 +225,7 @@ describe('StreamActions — cancel grace period', () => {
 
   it('calling Undo via the toast action callback also aborts', async () => {
     renderActions();
-    fireEvent.click(screen.getByRole('button', { name: /cancel/i }));
+    startCancelGracePeriod();
 
     // Grab the action.onClick that was passed to upsertPersistentToast
     const { onClick: action } = (mockUpsertPersistentToast.mock.calls[0] as any)[3] as {
@@ -212,6 +239,50 @@ describe('StreamActions — cancel grace period', () => {
 
     expect(sorostream.cancelStream).not.toHaveBeenCalled();
     expect(mockAddToast).toHaveBeenCalledWith('Cancellation undone.', 'info');
+  });
+});
+
+describe('StreamActions — cancel button disabled during grace period (#485)', () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+    vi.clearAllMocks();
+    (sorostream.cancelStream as ReturnType<typeof vi.fn>).mockResolvedValue({
+      txHash: 'mock-tx-hash',
+    });
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it('cancel button is disabled as soon as the grace period starts', () => {
+    renderActions();
+    startCancelGracePeriod();
+
+    // During the grace period the button shows "Undo Cancel" and must be disabled
+    // so the user cannot accidentally submit a second cancellation.
+    const undoBtn = screen.getByRole('button', { name: /undo cancel/i });
+    expect(undoBtn).toBeDisabled();
+  });
+
+  it('cancel button is disabled while the on-chain transaction is in flight', async () => {
+    let resolveCancelStream!: (value: { txHash: string }) => void;
+    (sorostream.cancelStream as ReturnType<typeof vi.fn>).mockReturnValueOnce(
+      new Promise<{ txHash: string }>((res) => { resolveCancelStream = res; }),
+    );
+
+    renderActions();
+    startCancelGracePeriod();
+
+    // Advance past the grace period to trigger the on-chain call
+    await act(async () => { vi.advanceTimersByTime(5000); });
+
+    // The button should still be disabled while cancelling is true
+    const cancelBtn = screen.getByRole('button', { name: /cancelling/i });
+    expect(cancelBtn).toBeDisabled();
+
+    // Clean up — resolve the promise
+    await act(async () => { resolveCancelStream({ txHash: 'tx-123' }); });
   });
 });
 
@@ -252,5 +323,57 @@ describe('StreamActions — withdraw (unchanged behaviour)', () => {
       'Withdrawal failed. Please try again.',
       'error',
     );
+  });
+
+  it('withdraw button is disabled while a withdrawal is in flight', async () => {
+    // Keep the promise unresolved so the component stays in the withdrawing state
+    let resolveWithdraw!: (value: { txHash: string; amount: string }) => void;
+    (sorostream.withdraw as ReturnType<typeof vi.fn>).mockReturnValueOnce(
+      new Promise<{ txHash: string; amount: string }>((res) => {
+        resolveWithdraw = res;
+      }),
+    );
+
+    renderActions();
+    const btn = screen.getByRole('button', { name: /withdraw/i });
+
+    // Click to start the withdrawal
+    fireEvent.click(btn);
+
+    // Button should be disabled (and show spinner text) while tx is pending
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: /withdrawing/i })).toBeDisabled(),
+    );
+
+    // Resolve so the component can clean up
+    await act(async () => {
+      resolveWithdraw({ txHash: 'tx-123', amount: '5.00' });
+    });
+  });
+
+  it('clicking the withdraw button multiple times only submits one transaction', async () => {
+    // Keep the first call pending so the guard has a chance to block subsequent clicks
+    let resolveWithdraw!: (value: { txHash: string; amount: string }) => void;
+    (sorostream.withdraw as ReturnType<typeof vi.fn>).mockReturnValueOnce(
+      new Promise<{ txHash: string; amount: string }>((res) => {
+        resolveWithdraw = res;
+      }),
+    );
+
+    renderActions();
+    const btn = screen.getByRole('button', { name: /withdraw/i });
+
+    // Rapidly fire three clicks
+    fireEvent.click(btn);
+    fireEvent.click(btn);
+    fireEvent.click(btn);
+
+    // Resolve the in-flight transaction
+    await act(async () => {
+      resolveWithdraw({ txHash: 'tx-abc', amount: '5.00' });
+    });
+
+    // Despite three clicks, only one withdraw call should have been made
+    expect(sorostream.withdraw).toHaveBeenCalledTimes(1);
   });
 });

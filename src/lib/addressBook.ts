@@ -110,7 +110,25 @@ export function getContacts(owner?: string): AddressBookContact[] {
   return [...getOwnerContacts(owner)];
 }
 
+/**
+ * Look up a saved contact by its Stellar address (case-insensitive).
+ * Useful for the create-stream quick-fill to show the stored alias
+ * alongside a previously-saved recipient address.
+ */
+export function getContactByAddress(
+  address: string,
+  owner?: string,
+): AddressBookContact | undefined {
+  if (!isValidAddress(address)) return undefined;
+  const contacts = getContacts(owner);
+  const lower = address.toLowerCase();
+  return contacts.find((c) => c.address.toLowerCase() === lower);
+}
+
 export function saveContact(contact: AddressBookContact, owner?: string): boolean {
+  if (owner !== undefined && !isValidOwner(owner)) {
+    return false;
+  }
   if (!isValidOwner(owner)) {
     // Legacy global behaviour
     const contacts = readLegacyContacts();
@@ -125,10 +143,12 @@ export function saveContact(contact: AddressBookContact, owner?: string): boolea
     }
   }
 
-  const contacts = getOwnerContacts(owner);
+  const store = readStore();
+  const contacts = Object.prototype.hasOwnProperty.call(store, owner)
+    ? store[owner]
+    : [];
   if (contacts.length >= MAX_CONTACTS) return false;
   if (contacts.some((c) => c.id === contact.id)) return false;
-  const store = readStore();
   store[owner] = [...contacts, contact];
   writeStore(store);
   return true;

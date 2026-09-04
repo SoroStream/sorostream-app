@@ -28,35 +28,75 @@ interface Step {
   action: string;
 }
 
-const STEPS: Step[] = [
+interface StepWithDetails extends Step {
+  details?: string[];
+  docLink?: { label: string; href: string };
+}
+
+const STEPS: StepWithDetails[] = [
   {
     id: "welcome",
     title: "Welcome to SoroStream 👋",
     body: "Stream XLM and tokens in real time on Stellar Soroban. This quick setup gets you ready in under a minute.",
+    details: [
+      "Real-time streaming: Funds flow continuously to recipients",
+      "Flexible scheduling: Set start and end dates for streams",
+      "Instant cancellation: Stop streams anytime and recover remaining balance",
+      "Perfect for: Payroll, vesting schedules, subscriptions, and more",
+    ],
+    docLink: { label: "Learn more about SoroStream", href: "/docs" },
     action: "Get started",
   },
   {
     id: "connect-wallet",
     title: "Connect your wallet",
     body: "Connect Freighter so you can create and manage streams. We never store your keys.",
+    details: [
+      "Your wallet is your identity on the blockchain",
+      "Freighter is a secure browser extension for Stellar",
+      "You control your private keys at all times",
+      "Installing Freighter takes less than a minute",
+    ],
+    docLink: { label: "Install Freighter", href: "https://www.freighter.app/" },
     action: "Connect wallet",
   },
   {
     id: "choose-stream",
     title: "Choose your first stream",
     body: "Streams send a steady flow of funds to a recipient over time — great for payroll, vesting, or subscriptions.",
+    details: [
+      "Pick from pre-built templates or create a custom stream",
+      "Specify the recipient address and amount",
+      "Set the duration or end date",
+      "Review the estimated completion date and flow rate",
+    ],
+    docLink: { label: "View stream templates", href: "/stream/new" },
     action: "Pick a template",
   },
   {
     id: "confirm",
     title: "Confirm your subscription",
     body: "Review the details and create your first stream. You can edit or cancel it any time from the dashboard.",
+    details: [
+      "Double-check the recipient address and amount",
+      "Verify the start and end dates",
+      "Confirm the flow rate and deposit requirements",
+      "Sign the transaction in your wallet to create the stream",
+    ],
+    docLink: { label: "Creating streams guide", href: "/docs/guides/creating-streams" },
     action: "Create first stream",
   },
   {
     id: "done",
     title: "You're all set 🎉",
     body: "That's it! Explore your dashboard to track live streams and claimable balances.",
+    details: [
+      "View all your active and past streams",
+      "Monitor real-time flow rates and balances",
+      "Manage stream settings and create new streams",
+      "Track claimable balances from incoming streams",
+    ],
+    docLink: { label: "View dashboard guide", href: "/docs/guides/dashboard" },
     action: "Go to dashboard",
   },
 ];
@@ -135,6 +175,10 @@ export default function OnboardingWizard() {
           setError("Wallet connection was not completed. Please try again.");
           return;
         }
+        // Automatically advance to next step after successful wallet connection
+        trackEvent({ type: "onboarding_step_complete", step, stepId: current.id });
+        setStep((s) => Math.min(s + 1, STEPS.length - 1));
+        return;
       } catch {
         setError("Could not connect to Freighter. Is the extension installed?");
         return;
@@ -213,10 +257,39 @@ export default function OnboardingWizard() {
           {current.body}
         </p>
 
+        {/* Details list */}
+        {current.details && current.details.length > 0 && (
+          <ul className="mt-4 space-y-2">
+            {current.details.map((detail, idx) => (
+              <li key={idx} className="flex items-start gap-2 text-xs text-gray-400">
+                <span className="text-green-500 mt-0.5">•</span>
+                <span>{detail}</span>
+              </li>
+            ))}
+          </ul>
+        )}
+
         {current.id === "connect-wallet" && address && (
           <p className="mt-3 rounded-lg bg-green-900/30 px-3 py-2 text-xs text-green-400">
             ✓ Wallet connected: {address.slice(0, 4)}…{address.slice(-4)}
           </p>
+        )}
+
+        {/* Documentation link */}
+        {current.docLink && (
+          <div className="mt-4">
+            <a
+              href={current.docLink.href}
+              target={current.docLink.href.startsWith("http") ? "_blank" : undefined}
+              rel={current.docLink.href.startsWith("http") ? "noopener noreferrer" : undefined}
+              className="inline-flex items-center gap-1 text-xs text-green-400 hover:text-green-300 transition-colors"
+            >
+              {current.docLink.label}
+              {current.docLink.href.startsWith("http") && (
+                <span aria-hidden="true">↗</span>
+              )}
+            </a>
+          </div>
         )}
 
         {error && (

@@ -140,7 +140,10 @@ export default function AnalyticsPage() {
                     <YAxis tick={{ fill: "#9ca3af", fontSize: 11 }} tickFormatter={stroopsToDisplay} />
                     <Tooltip
                       contentStyle={{ background: "#1f2937", border: "1px solid #374151", borderRadius: 8 }}
-                      formatter={(value: number, name: string) => [`${stroopsToDisplay(value as number)} ${name.toUpperCase()}`, name]}
+                      formatter={((value: number | string | undefined, name: string) => [
+                        `${stroopsToDisplay(Number(value ?? 0))} ${name.toUpperCase()}`,
+                        name,
+                      ]) as any}
                     />
                     <Legend />
                     <Area type="monotone" dataKey="usdc" name="USDC" stroke="#22c55e" strokeWidth={2} fill="url(#grad-usdc)" />
@@ -172,7 +175,7 @@ export default function AnalyticsPage() {
                   </Pie>
                   <Tooltip
                     contentStyle={{ background: "#1f2937", border: "1px solid #374151", borderRadius: 8 }}
-                    formatter={(value: number) => `${stroopsToDisplay(value as number)}`}
+                    formatter={((value: number | string | undefined) => stroopsToDisplay(Number(value ?? 0))) as any}
                   />
                 </PieChart>
               </ResponsiveContainer>
@@ -196,7 +199,7 @@ export default function AnalyticsPage() {
                     <Tooltip
                       cursor={{ fill: "rgba(255,255,255,0.05)" }}
                       contentStyle={{ background: "#1f2937", border: "1px solid #374151", borderRadius: 8 }}
-                      formatter={(value: number) => [`${stroopsToDisplay(value as number)}`, "Value"]}
+                      formatter={((value: number | string | undefined) => [`${stroopsToDisplay(Number(value ?? 0))}`, "Value"]) as any}
                       labelFormatter={(label) => truncateAddress(String(label))}
                     />
                     <Bar dataKey="totalStroops" name="Value" fill="#22c55e" radius={[4, 4, 0, 0]} />

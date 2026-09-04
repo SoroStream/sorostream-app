@@ -1,6 +1,6 @@
 import { signTransaction as signWithFreighter } from "@/src/lib/freighter";
 
-export type WalletType = "freighter" | "ledger" | "server-keypair";
+export type WalletType = "freighter" | "lobstr" | "ledger" | "server-keypair";
 
 export interface WalletAdapter {
   type: WalletType;
@@ -19,6 +19,22 @@ export const freighterAdapter: WalletAdapter = {
   },
   async getPublicKey() {
     return (window as any).freighter.getPublicKey();
+  },
+  async signTransaction(xdr) {
+    return signWithFreighter(xdr);
+  },
+  disconnect() {},
+};
+
+// ── Lobstr (shares the Freighter-shaped mock API in this codebase) ────────
+export const lobstrAdapter: WalletAdapter = {
+  type: "lobstr",
+  async isAvailable() {
+    if (typeof window === "undefined") return false;
+    return !!(window as any).freighter;
+  },
+  async getPublicKey() {
+    return (window as any).freighter?.getPublicKey?.();
   },
   async signTransaction(xdr) {
     return signWithFreighter(xdr);
@@ -79,7 +95,6 @@ export class ServerKeypairAdapter implements WalletAdapter {
 
 export const WALLET_LABELS: Record<WalletType, string> = {
   freighter: "Freighter",
-  lobstr: "Lobstr",
   ledger: "Ledger",
   "server-keypair": "Server Keypair",
 };

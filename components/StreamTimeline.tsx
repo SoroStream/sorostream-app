@@ -9,7 +9,7 @@ interface StreamTimelineProps {
   sender?: string;
   recipient?: string;
   status?: "Active" | "Paused" | "Cancelled" | "Completed" | string;
-  flowRate?: number;
+  flowRate?: number | string;
 }
 
 export default function StreamTimeline({
@@ -31,8 +31,8 @@ export default function StreamTimeline({
   const isPaused = status === "Paused";
   const isInactive = status === "Cancelled" || status === "Completed" || now >= end;
   
-  // Calculate animation speed inverse to flowRate (higher rate = faster pulse/stream)
-  const animSpeedSeconds = Math.max(1, Math.min(4, 5 / Math.max(0.1, flowRate)));
+  const numFlowRate = Number(flowRate) || 0.1;
+  const animSpeedSeconds = Math.max(1, Math.min(4, 5 / Math.max(0.1, numFlowRate)));
 
   return (
     <div className="space-y-4">
@@ -78,7 +78,7 @@ export default function StreamTimeline({
         </div>
 
         <div className="flex justify-between items-center text-[11px] text-gray-400">
-          <span>Flow Rate: {flowRate.toFixed(4)} / sec</span>
+          <span>Flow Rate: {(Number(flowRate) || 0).toFixed(4)} / sec</span>
           <span
             className="font-semibold text-gray-300"
             role="status"

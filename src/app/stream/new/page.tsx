@@ -12,6 +12,7 @@ import TransactionStepper, { TxStage } from "@/components/TransactionStepper";
 import SchedulingToggle from "@/components/SchedulingToggle";
 import FeeEstimationPanel from "@/components/FeeEstimationPanel";
 import StreamCostCalculator from "@/components/StreamCostCalculator";
+import StreamRateCalculator from "@/components/StreamRateCalculator";
 import BatchCreateTab from "@/components/BatchCreateTab";
 import NetReceivedDisplay from "@/components/NetReceivedDisplay";
 import StreamDryRunPreview from "@/components/StreamDryRunPreview";
@@ -21,7 +22,7 @@ import { SkeletonForm } from "@/components/Skeleton";
 import { useTranslations } from "@/src/lib/i18n";
 import { trackEvent } from "@/src/lib/analytics";
 import { verifyAddress, canCreateStream, type AddressVerification } from "@/src/lib/addressVerification";
-import { sorostream, getFeeConfig, calcWithdrawBreakdown, validateMetadataUri, getCollateralConfig, checkIsNewSender, calcCollateral, getGasFeeEstimate, type GasFeeEstimate } from "@/src/lib/sorostream";
+import { sorostream, getFeeConfig, calcWithdrawBreakdown, validateMetadataUri, getCollateralConfig, checkIsNewSender, calcCollateral, getGasFeeEstimate, getStreamCapConfig, type GasFeeEstimate } from "@/src/lib/sorostream";
 import { getContacts, saveContact, isRecipientApproved, isWhitelistEnforced, type AddressBookContact } from "@/src/lib/addressBook";
 import { useWallet } from "@/src/context/WalletContext";
 import { getOptionalEnvVar } from "@/src/lib/env";
@@ -51,8 +52,11 @@ function validateRecipient(value: string): string {
 
 function validateAmount(value: string): string {
   if (!value) return "Amount is required.";
+  // Check if value contains a minus sign (negative number)
+  if (value.includes("-")) return "Amount must be a positive number.";
   if (!/^\d*\.?\d*$/.test(value.trim())) return "Amount must contain only numbers.";
-  if (Number(value) <= 0) return "Amount must be greater than 0.";
+  const numValue = Number(value);
+  if (isNaN(numValue) || numValue <= 0) return "Amount must be greater than 0.";
   return "";
 }
 
@@ -118,7 +122,7 @@ function NewStreamWizard() {
   const [activeTab, setActiveTab] = useState<PageTab>("single");
   const [step, setStep] = useState<Step>("recipient");
   const searchParams = useSearchParams();
-  const { address } = useWallet();
+  const { address, triggerStreamRefresh } = useWallet();
   const { defaultToken, defaultDuration, defaultCliffDuration } = usePreferences();
   const settings = useSettings();
 
@@ -260,13 +264,19 @@ function NewStreamWizard() {
     return () => { active = false; };
   }, [step]);
 
+  // Gas fee estimate
+  const [gasFee, setGasFee] = useState<GasFeeEstimate | null>(null);
+  const [gasFeeLoading, setGasFeeLoading] = useState(false);
+  const [gasFeeStale, setGasFeeStale] = useState(false);
+  const gasFeeDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   // Also surface the Soroban network fee estimate on the review step so users
   // know the cost before signing, even if they skipped past the amount step
   // (e.g. when arriving from a clone action).
   useEffect(() => {
     if (step !== "review") return;
     const parsed = parseFloat(amount);
-    if (!(parsed > 0) || gasFee) return;
+    if (!(parsed > 0)) return;
     let active = true;
     setGasFeeLoading(true);
     getGasFeeEstimate(Math.round(parsed * 10_000_000))
@@ -282,7 +292,7 @@ function NewStreamWizard() {
     return () => {
       active = false;
     };
-  }, [step, amount, gasFee]);
+  }, [step, amount]);
 
   // Address verification state
   const [addressVerification, setAddressVerification] = useState<AddressVerification | null>(null);
@@ -396,11 +406,7 @@ function NewStreamWizard() {
     setConfirmAmountInput("");
   }, [amount, step]);
 
-  // Gas fee estimate
-  const [gasFee, setGasFee] = useState<GasFeeEstimate | null>(null);
-  const [gasFeeLoading, setGasFeeLoading] = useState(false);
-  const [gasFeeStale, setGasFeeStale] = useState(false);
-  const gasFeeDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
 
   // Debounced gas fee re-fetch whenever amount changes on the amount step
   useEffect(() => {
@@ -429,10 +435,27 @@ function NewStreamWizard() {
   }, [amount, step]);
 
   // Balance top-up state (issue #357)
-  const [mockBalance, setMockBalance] = useState<number>(500); // 500 tokens simulated balance
+  const [mockBalance, setMockBalance] = useState<number>(() => {
+    if (typeof window !== "undefined" && typeof (window as unknown as Record<string, unknown>).__MOCK_WALLET_BALANCE__ === "number") {
+      return (window as unknown as Record<string, unknown>).__MOCK_WALLET_BALANCE__ as number;
+    }
+    return 500; // 500 tokens default simulated balance
+  });
   const [showTopUpBanner, setShowTopUpBanner] = useState(false);
   const [shortfall, setShortfall] = useState(0);
   const balancePollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  // Listen for external mock balance updates (for e2e/unit tests & top-up flow)
+  useEffect(() => {
+    function handleBalanceEvent(e: Event) {
+      const customEvent = e as CustomEvent<number>;
+      if (typeof customEvent.detail === "number") {
+        setMockBalance(customEvent.detail);
+      }
+    }
+    window.addEventListener("mock-balance-update", handleBalanceEvent);
+    return () => window.removeEventListener("mock-balance-update", handleBalanceEvent);
+  }, []);
 
   // Check balance when entering review step and whenever amount changes
   useEffect(() => {
@@ -442,25 +465,27 @@ function NewStreamWizard() {
       return;
     }
     const amountNum = parseFloat(amount) || 0;
-    const diff = amountNum - mockBalance;
+    const currentBal = (typeof window !== "undefined" && typeof (window as unknown as Record<string, unknown>).__MOCK_WALLET_BALANCE__ === "number")
+      ? ((window as unknown as Record<string, unknown>).__MOCK_WALLET_BALANCE__ as number)
+      : mockBalance;
+    const diff = amountNum - currentBal;
     if (diff > 0) {
       setShortfall(diff);
       setShowTopUpBanner(true);
-      // Poll every 5s to check if balance became sufficient
+      // Poll every 1s to check if balance became sufficient
       balancePollRef.current = setInterval(() => {
-        // In production this would re-fetch on-chain balance
-        // Here we just re-check mockBalance (user would top-up externally)
-        setMockBalance((prev) => {
-          const updated = prev; // No auto-update in mock
-          const stillShort = amountNum - updated;
-          if (stillShort <= 0) {
-            setShowTopUpBanner(false);
-            setShortfall(0);
-            if (balancePollRef.current) clearInterval(balancePollRef.current);
-          }
-          return updated;
-        });
-      }, 5000);
+        const checkBal = (typeof window !== "undefined" && typeof (window as unknown as Record<string, unknown>).__MOCK_WALLET_BALANCE__ === "number")
+          ? ((window as unknown as Record<string, unknown>).__MOCK_WALLET_BALANCE__ as number)
+          : mockBalance;
+        const stillShort = amountNum - checkBal;
+        if (stillShort <= 0) {
+          setShowTopUpBanner(false);
+          setShortfall(0);
+          if (balancePollRef.current) clearInterval(balancePollRef.current);
+        } else {
+          setShortfall(stillShort);
+        }
+      }, 1000);
     } else {
       setShowTopUpBanner(false);
       setShortfall(0);
@@ -473,6 +498,11 @@ function NewStreamWizard() {
   // Collateral requirement
   const [collateralBps, setCollateralBps] = useState<number | null>(null);
   const [isNewSender, setIsNewSender] = useState(false);
+
+  // Deposit cap validation (#526)
+  const [depositCapStroops, setDepositCapStroops] = useState<number | null>(null);
+  const [capLoading, setCapLoading] = useState(false);
+  const [capError, setCapError] = useState("");
 
   // Fetch collateral config and new-sender status once when reaching review step
   useEffect(() => {
@@ -491,6 +521,28 @@ function NewStreamWizard() {
     void fetchCollateral();
     return () => { cancelled = true; };
   }, [step, address]);
+
+  // Fetch contract deposit cap once when the user reaches the amount step (#526).
+  // The cap is validated again in goNext() before allowing the user to advance.
+  useEffect(() => {
+    if (step !== "amount") return;
+    let cancelled = false;
+    setCapLoading(true);
+    setCapError("");
+    getStreamCapConfig()
+      .then(({ maxDepositStroops }) => {
+        if (!cancelled) setDepositCapStroops(maxDepositStroops);
+      })
+      .catch(() => {
+        // If the cap cannot be fetched, allow the user to proceed but clear
+        // any stale error so they aren't permanently blocked.
+        if (!cancelled) setDepositCapStroops(null);
+      })
+      .finally(() => {
+        if (!cancelled) setCapLoading(false);
+      });
+    return () => { cancelled = true; };
+  }, [step]);
 
   function handleTemplateSelect(seconds: number, suggestedAmount?: string, recipientOverride?: string, tokenOverride?: string, cliffDateOverride?: string) {
     setDuration(seconds);
@@ -552,6 +604,20 @@ function NewStreamWizard() {
         setErrors({ ...errors, amount: aErr, duration: dErr, endDate: eErr, cliffDate: cErr, scheduledStart: sErr });
         return;
       }
+      // Validate against the contract's maximum deposit cap (#526).
+      // Convert the user-entered amount to stroops (1 unit = 10_000_000 stroops)
+      // and compare against the fetched cap. Only block when the cap is known.
+      if (depositCapStroops !== null && depositCapStroops > 0) {
+        const amountStroops = Math.round(parseFloat(amount) * 10_000_000);
+        if (amountStroops > depositCapStroops) {
+          const capFormatted = (depositCapStroops / 10_000_000).toLocaleString();
+          const capErr = `Amount exceeds the contract's maximum deposit cap of ${capFormatted} ${selectedToken}. Please enter a lower amount.`;
+          setCapError(capErr);
+          setErrors((prev) => ({ ...prev, amount: capErr }));
+          return;
+        }
+      }
+      setCapError("");
       setStep("preview");
     }
   }
@@ -675,6 +741,7 @@ function NewStreamWizard() {
       setAutoRenewDuration(0);
       setShowAdvanced(false);
       setMetadataUri("");
+      setMemo("");
       setMetadataUriError("");
       setGasFee(null);
       setFeeBumpEnabled(false);
@@ -683,7 +750,13 @@ function NewStreamWizard() {
       setScheduledStart("");
       setTouched({ recipient: false, amount: false });
       setDurationPickerKey((k) => k + 1);
+      setConfirmAmountInput("");
+      setStep("recipient");
       setTxStage(null);
+
+      // Trigger stream list refresh so the new stream appears on the dashboard
+      triggerStreamRefresh();
+
       router.push(`/stream/${result.streamId}?new=true`);
     } catch (err) {
       console.error("Failed to create stream:", err);
@@ -925,16 +998,28 @@ function NewStreamWizard() {
             </div>
 
             <div>
-              <label htmlFor="amount" className="text-gray-200 text-sm font-medium block mb-2">
-                {t("amount_label")}
-              </label>
+              <div className="flex items-center justify-between mb-2">
+                <label htmlFor="amount" className="text-gray-200 text-sm font-medium">
+                  {t("amount_label")}
+                </label>
+                {depositCapStroops !== null && depositCapStroops > 0 && (
+                  <span className="text-gray-400 text-xs">
+                    Max: {(depositCapStroops / 10_000_000).toLocaleString()} {selectedToken === CUSTOM_TOKEN_VALUE ? "tokens" : selectedToken}
+                  </span>
+                )}
+                {capLoading && (
+                  <span className="text-gray-500 text-xs">Checking limit…</span>
+                )}
+              </div>
               <input
                 id="amount"
                 type="text"
                 inputMode="decimal"
                 value={amount}
                 onChange={(e) => {
-                  const val = e.target.value;
+                  let val = e.target.value;
+                  // Prevent negative numbers by removing any minus signs
+                  val = val.replace(/^-/, "");
                   setAmount(val);
                   if (touched.amount) {
                     setErrors((prev) => ({ ...prev, amount: validateAmount(val) }));
@@ -944,14 +1029,16 @@ function NewStreamWizard() {
                   persist({ amount: val });
                 }}
                 onPaste={(e) => {
-                  const pasted = e.clipboardData.getData("text");
+                  let pasted = e.clipboardData.getData("text");
+                  // Remove minus signs from pasted content
+                  pasted = pasted.replace(/-/g, "");
                   // Strip non-numeric characters, keeping digits and at most one decimal point
                   let cleaned = pasted.replace(/[^0-9.]/g, "");
                   const dotIndex = cleaned.indexOf(".");
                   if (dotIndex !== -1) {
                     cleaned = cleaned.slice(0, dotIndex + 1) + cleaned.slice(dotIndex + 1).replace(/\./g, "");
                   }
-                  if (cleaned !== pasted) {
+                  if (cleaned !== pasted && cleaned !== e.target.value) {
                     e.preventDefault();
                     setAmount(cleaned);
                     if (touched.amount) {
@@ -1014,6 +1101,14 @@ function NewStreamWizard() {
                 error={errors.duration || undefined}
               />
             </div>
+
+            {/* Stream Rate Calculator (#472) */}
+            {amount && duration > 0 && (
+              <StreamRateCalculator
+                amount={amount}
+                duration={duration}
+              />
+            )}
 
             {/* Scheduling toggle */}
             <SchedulingToggle
@@ -1433,6 +1528,7 @@ function NewStreamWizard() {
             {showTopUpBanner && (
               <div
                 role="alert"
+                data-testid="top-up-banner"
                 className="bg-orange-900/30 border border-orange-700/60 rounded-xl p-4 space-y-2"
               >
                 <div className="flex items-center gap-2">
@@ -1441,7 +1537,7 @@ function NewStreamWizard() {
                 </div>
                 <p className="text-gray-300 text-sm">
                   Your wallet balance is too low for this stream. You need{" "}
-                  <span className="font-mono font-semibold text-orange-300">
+                  <span className="font-mono font-semibold text-orange-300" data-testid="shortfall-amount">
                     {shortfall.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 7 })}{" "}
                     {selectedToken === CUSTOM_TOKEN_VALUE ? "tokens" : selectedToken}
                   </span>{" "}
@@ -1780,9 +1876,9 @@ function NewStreamWizard() {
             <button
               type="button"
               onClick={handleCreateStream}
-              disabled={loading || !confirmAmountMatches}
+              disabled={loading || !confirmAmountMatches || showTopUpBanner}
               aria-label="Confirm and sign transaction"
-              aria-disabled={loading || !confirmAmountMatches}
+              aria-disabled={loading || !confirmAmountMatches || showTopUpBanner}
               data-testid="confirm-sign-button"
               className="flex-1 bg-green-700 text-white py-3 rounded-lg font-medium hover:bg-green-800 disabled:opacity-50 disabled:cursor-not-allowed transition-colors inline-flex items-center justify-center gap-2"
             >

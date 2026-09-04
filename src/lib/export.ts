@@ -1,3 +1,5 @@
+import type { StreamData } from "./sorostream";
+
 export interface StreamHistoryEntry {
   timestamp: string;
   type: "withdrawal" | "top-up" | "creation" | "cancellation";
@@ -25,7 +27,9 @@ export function toJSON(entries: StreamHistoryEntry[]): string {
   return JSON.stringify(entries, null, 2);
 }
 
-export type ExportFormat = "csv" | "json";
+export type ExportFormat = "csv" | "json" | "pdf";
+
+const STROOPS_PER_UNIT = 10_000_000;
 
 /** Filters that can be applied to a transaction-history export (#194). */
 export interface ExportFilters {
@@ -117,6 +121,26 @@ export async function exportTransactions(
     return { filename, mimeType: "application/json" };
   }
 
+  if (format === "pdf") {
+    onProgress?.(0.5);
+    const { exportStreamsPdf } = await import("./pdfExport");
+    const streamItems = filtered.map((e, idx) => ({
+      id: String(idx + 1),
+      sender: account || "GA7QYNF7SOWQ3GLR2BGMZEHXAVIRZA4KVWLTJJFC7MGXUA74P7UJVSGZ",
+      recipient: "GB7B2XS7YYUWVLXUYG6EWBEYHV4WTUY5VWFDOXWOITVNHAJBMMRV7ZGO",
+      deposit: Number(e.amount),
+      token: "USDC",
+      startTime: e.timestamp,
+      endTime: e.timestamp,
+      status: (e.type === "cancellation" ? "Cancelled" : "Ended") as StreamData["status"],
+      flowRate: 1000,
+      lastWithdrawTime: e.timestamp,
+    }));
+    const res = exportStreamsPdf(streamItems, account, filters);
+    onProgress?.(1);
+    return res;
+  }
+
   // CSV — build header + rows in chunks, yielding to the event loop between
   // chunks so the progress indicator can paint on large datasets.
   const CHUNK_SIZE = 200;
@@ -150,6 +174,108 @@ export function downloadBlob(content: string, filename: string, mimeType: string
   a.click();
   document.body.removeChild(a);
   URL.revokeObjectURL(url);
+}
+
+function formatStroops(stroops: number): string {
+  return (stroops / STROOPS_PER_UNIT).toLocaleString(undefined, {
+    minimumFractionDigits: 7,
+    maximumFractionDigits: 7,
+  });
+}
+
+function escapeCsvCell(value: string): string {
+  return `"${value.replace(/"/g, '""')}"`;
+}
+
+function sanitiseLabel(label: string | null | undefined): string {
+  return (label || "streams").replace(/[^A-Za-z0-9]/g, "").slice(0, 8) || "streams";
+}
+
+/**
+ * Calculate the amount streamed so far for a stream, capped to the fixed
+ * deposit and frozen at pause/cancel/ended boundaries when available.
+ */
+export function calculateStreamedStroops(stream: Pick<
+  StreamData,
+  "startTime" | "endTime" | "deposit" | "flowRate" | "status" | "pausedAt" | "cancelledAt"
+>, now = Date.now()): number {
+  const startMs = new Date(stream.startTime).getTime();
+  const deposit = Number(stream.deposit);
+  const rate = Number(stream.flowRate);
+  if (!Number.isFinite(startMs) || !Number.isFinite(deposit) || deposit <= 0) return 0;
+  if (!Number.isFinite(rate) || rate <= 0) return 0;
+
+  let stopMs = now;
+  if (stream.status === "Ended") {
+    const endMs = new Date(stream.endTime).getTime();
+    if (Number.isFinite(endMs)) stopMs = Math.min(stopMs, endMs);
+  }
+  if (stream.status === "Paused" && stream.pausedAt) {
+    const pausedMs = new Date(stream.pausedAt).getTime();
+    if (Number.isFinite(pausedMs)) stopMs = Math.min(stopMs, pausedMs);
+  }
+  if (stream.status === "Cancelled" && stream.cancelledAt) {
+    stopMs = Math.min(stopMs, stream.cancelledAt * 1000);
+  }
+
+  const elapsedSeconds = Math.max(0, (stopMs - startMs) / 1000);
+  return Math.min(deposit, Math.floor(rate * elapsedSeconds));
+}
+
+/**
+ * Build a wallet-level stream export CSV with the columns required by the
+ * stream history page export.
+ */
+export function buildWalletStreamsCsv(
+  streams: StreamData[],
+  walletAddress?: string | null,
+  now = Date.now(),
+): { filename: string; csv: string; rowCount: number } {
+  const prefix = walletAddress?.slice(0, 5) ?? "";
+  const relevant = prefix
+    ? streams.filter((stream) => stream.sender.includes(prefix) || stream.recipient.includes(prefix))
+    : streams;
+  const header = [
+    "stream_id",
+    "sender",
+    "recipient",
+    "rate",
+    "start_time",
+    "end_time",
+    "total_streamed",
+    "status",
+  ];
+
+  const rows = relevant.map((stream) => {
+    const totalStreamed = calculateStreamedStroops(stream, now);
+    return [
+      escapeCsvCell(stream.id),
+      escapeCsvCell(stream.sender),
+      escapeCsvCell(stream.recipient),
+      escapeCsvCell(`${formatStroops(stream.flowRate)} ${stream.token}/sec`),
+      escapeCsvCell(new Date(stream.startTime).toISOString()),
+      escapeCsvCell(new Date(stream.endTime).toISOString()),
+      escapeCsvCell(`${formatStroops(totalStreamed)} ${stream.token}`),
+      escapeCsvCell(stream.status),
+    ].join(",");
+  });
+
+  const filename = `wallet-streams-${sanitiseLabel(walletAddress)}-${new Date(now).toISOString().slice(0, 10)}.csv`;
+  return {
+    filename,
+    csv: [header.join(","), ...rows].join("\n"),
+    rowCount: relevant.length,
+  };
+}
+
+export function downloadWalletStreamsCsv(
+  streams: StreamData[],
+  walletAddress?: string | null,
+  now = Date.now(),
+) {
+  const { filename, csv, rowCount } = buildWalletStreamsCsv(streams, walletAddress, now);
+  downloadBlob(csv, filename, "text/csv");
+  return { filename, rowCount };
 }
 
 export function downloadCSVStreaming(entries: StreamHistoryEntry[], streamId: string) {

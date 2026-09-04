@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { useToast } from "@/src/lib/toast";
 
 interface StreamCompletedBannerProps {
   /** Stream ID — used in the notification message. */
@@ -36,6 +37,7 @@ export default function StreamCompletedBanner({
 }: StreamCompletedBannerProps) {
   const [showAnim, setShowAnim] = useState(false);
   const notifiedRef = useRef(false);
+  const { addToast } = useToast();
 
   // Trigger the completion animation when claimed flips to true.
   useEffect(() => {
@@ -50,6 +52,8 @@ export default function StreamCompletedBanner({
   useEffect(() => {
     if (notifiedRef.current) return;
     notifiedRef.current = true;
+
+    addToast(`Stream #${streamId} completed. Final funds are ready to claim.`, "success");
 
     if (
       typeof window !== "undefined" &&

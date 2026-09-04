@@ -40,9 +40,6 @@ function getSystemTheme(): Theme {
 
 function applyTheme(theme: Theme) {
   const root = document.documentElement;
-  root.classList.toggle("dark", theme === "dark");
-  root.classList.remove("light");
-  root.style.colorScheme = theme;
   root.classList.toggle("light", theme === "light");
   root.classList.toggle("dark", theme === "dark" || theme === "high-contrast");
   root.classList.toggle("high-contrast", theme === "high-contrast");
@@ -74,8 +71,11 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     if (!mounted) return;
     applyTheme(theme);
     try {
-      if (override) window.localStorage.setItem(STORAGE_KEY, override);
-      else window.localStorage.removeItem(STORAGE_KEY);
+      if (override) {
+        window.localStorage.setItem(STORAGE_KEY, override);
+      } else {
+        window.localStorage.removeItem(STORAGE_KEY);
+      }
     } catch {
       // ignore storage errors
     }
@@ -114,11 +114,9 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     setThemeState(next);
   };
 
-  /** Cycle: dark → light → high-contrast → dark */
+  /** Toggle the header control between dark and light modes. */
   const toggle = () => {
-    const order: Theme[] = ["dark", "light", "high-contrast"];
-    const idx = order.indexOf(theme);
-    setTheme(order[(idx + 1) % order.length]);
+    setTheme(theme === "light" ? "dark" : "light");
   };
 
   const useSystemTheme = () => {

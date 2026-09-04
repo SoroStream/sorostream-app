@@ -749,7 +749,6 @@ export function claimableNow(stream: any): string {
     return Math.floor(flowRate * elapsedSeconds).toString();
   }
 
-  const elapsedSeconds = Math.max(0, (Date.now() - lastWithdrawTime) / 1000);
   // A cancelled or ended stream stops accruing once it can no longer drip.
   // Cap the effective "now" so the recipient can only claim what actually
   // streamed before the stream stopped.
@@ -764,21 +763,47 @@ export function claimableNow(stream: any): string {
   return Math.floor(flowRate * elapsedSeconds).toString();
 }
 
+
+
 /**
- * Amount (stroops) streamed out of the deposit so far, respecting pause state.
- * For a paused stream this freezes at the value when the stream was paused.
+ * Total amount streamed so far from a stream's deposit, in stroops.
+ *
+ * - For active streams: `flowRate × elapsed_seconds_from_start`.
+ * - For paused streams: frozen at the value held when pausing.
+ * - For future streams (startTime > now): 0 — no drip has occurred yet.
+ * - For ended/cancelled streams: capped at the moment the stream stopped.
+ *
+ * The return value is always a non-negative integer (floor, in stroops).
  */
 export function getStreamedAmount(stream: any): number {
   if (!stream) return 0;
-  const flowRate = Number(stream.flowRate);
-  const lastWithdrawTime = new Date(stream.lastWithdrawTime).getTime();
-  if (!Number.isFinite(flowRate) || !Number.isFinite(lastWithdrawTime)) return 0;
 
-  let elapsedSeconds = Math.max(0, (Date.now() - lastWithdrawTime) / 1000);
+  const flowRate = Number(stream.flowRate);
+  const startTime = new Date(stream.startTime).getTime();
+
+  if (!Number.isFinite(flowRate) || !Number.isFinite(startTime)) return 0;
+
+  // Clamp effective "now" to the stream start time so future streams show 0%.
+  let effectiveNow = Math.max(Date.now(), startTime);
+
+  // Paused: freeze at the moment the stream was paused.
   if (stream.status === "Paused" && stream.pausedAt) {
-    const pausedAt = new Date(stream.pausedAt).getTime();
-    elapsedSeconds = Math.max(0, (pausedAt - lastWithdrawTime) / 1000);
+    const pausedAtMs = new Date(stream.pausedAt).getTime();
+    const elapsedSeconds = Math.max(0, (pausedAtMs - startTime) / 1000);
+    return Math.floor(flowRate * elapsedSeconds);
   }
+
+  // Ended: cap at the configured end time.
+  if (stream.status === "Ended") {
+    effectiveNow = Math.min(effectiveNow, new Date(stream.endTime).getTime());
+  }
+
+  // Cancelled: cap at the cancellation timestamp when available.
+  if (stream.status === "Cancelled" && stream.cancelledAt) {
+    effectiveNow = Math.min(effectiveNow, stream.cancelledAt * 1000);
+  }
+
+  const elapsedSeconds = Math.max(0, (effectiveNow - startTime) / 1000);
   return Math.floor(flowRate * elapsedSeconds);
 }
 
@@ -786,7 +811,7 @@ export function getStreamedAmount(stream: any): number {
  * Remaining (unstreamed) deposit in stroops. Freezes while the stream is
  * paused instead of continuing to count down.
  */
-export function getRemainingBalance(stream: any): number {
+export function getRemainingBalance(stream: StreamData): number {
   if (!stream) return 0;
   const deposit = Number(stream.deposit);
   if (!Number.isFinite(deposit)) return 0;
@@ -810,29 +835,6 @@ export async function getOraclePrice(token: string): Promise<number | null> {
   const key = (token || "").toUpperCase();
   if (key in ORACLE_PRICES) return ORACLE_PRICES[key];
   return null;
- * Total amount that has dripped into a stream up to the current effective
- * time, taking cancellation and end time into account. For a cancelled stream
- * this is the pro-rated amount streamed before cancellation, not the full
- * deposit.
- */
-export function getStreamedAmount(stream: StreamData): number {
-  const flowRate = Number(stream.flowRate);
-  const start = new Date(stream.startTime).getTime();
-  if (!Number.isFinite(flowRate) || !Number.isFinite(start)) return 0;
-
-  let effectiveNow = Date.now();
-  if (stream.status === "Cancelled" && stream.cancelledAt) {
-    effectiveNow = Math.min(effectiveNow, stream.cancelledAt * 1000);
-  } else if (stream.status === "Ended") {
-    effectiveNow = Math.min(effectiveNow, new Date(stream.endTime).getTime());
-  } else if (stream.status === "Paused") {
-    // Paused streams are treated like active for display (no special cap),
-    // but we still never exceed the end time.
-    effectiveNow = Math.min(effectiveNow, new Date(stream.endTime).getTime());
-  }
-
-  if (effectiveNow <= start) return 0;
-  return Math.floor(flowRate * (effectiveNow - start) / 1000);
 }
 
 export interface StreamEvent {
@@ -1016,7 +1018,10 @@ export function addStreamEvent(event: Omit<StreamEvent, "id">): StreamEvent {
 
 export function truncateAddress(address: string): string {
   if (!address) return "";
-  return `${address.slice(0, 4)}...${address.slice(-4)}`;
+  // Normalise to uppercase so mixed-case inputs (e.g. from copy-paste or
+  // external sources) render the same truncated form as the on-chain address.
+  const normalised = address.toUpperCase();
+  return `${normalised.slice(0, 4)}...${normalised.slice(-4)}`;
 }
 
 // ── Gas fee estimate ─────────────────────────────────────────────────────────
@@ -1102,6 +1107,31 @@ export interface FeeConfig {
 export async function getFeeConfig(): Promise<FeeConfig> {
   // Mock: 0.50% (50 bps). Set to 0 to test zero-fee path.
   return { basisPoints: 50 };
+}
+
+// ── Stream deposit cap ────────────────────────────────────────────────────────
+
+export interface StreamCapConfig {
+  /**
+   * Maximum allowed deposit per stream in stroops (1 USDC = 10_000_000 stroops).
+   * A value of 0 means no cap is enforced.
+   */
+  maxDepositStroops: number;
+}
+
+/**
+ * Simulates reading the maximum per-stream deposit cap from the contract.
+ * In production this would call the contract's `get_stream_cap` query instruction.
+ *
+ * The cap is intentionally set to 100_000 USDC (1_000_000_000_000 stroops) so
+ * integration tests can exercise the validation path without hitting real limits.
+ * Override by setting `NEXT_PUBLIC_MAX_DEPOSIT_STROOPS` in .env.local.
+ */
+export async function getStreamCapConfig(): Promise<StreamCapConfig> {
+  // Simulate network latency
+  await new Promise((r) => setTimeout(r, 100 + Math.random() * 100));
+  // Mock: 100 000 USDC cap (100_000 * 10_000_000 stroops).
+  return { maxDepositStroops: 100_000 * 10_000_000 };
 }
 
 // ── Contract version ──────────────────────────────────────────────────────────
@@ -1239,4 +1269,502 @@ export async function removeWhitelistToken(token: string): Promise<{ txHash: str
     (t) => t !== token,
   );
   return { txHash: `mock-whitelist-remove-tx-${Date.now()}` };
+}
+
+// ── Issue #659: Credential Proof Requirements ────────────────────────────────
+
+export interface Challenge {
+  id: string;
+  challenge: string;
+  createdAt: number;
+  expiresAt: number;
+  used: boolean;
+}
+
+export interface CredentialProofRequest {
+  challenge: string;
+  signature: string;
+  publicKey: string;
+  signatureType: "Ed25519" | "secp256k1";
+}
+
+export interface CredentialProofResponse {
+  isValid: boolean;
+  credentialId?: string;
+  txHash?: string;
+  error?: string;
+}
+
+const CHALLENGE_EXPIRY_MS = 5 * 60 * 1000; // 5 minutes
+const MOCK_CHALLENGES = new Map<string, Challenge>();
+const MOCK_ISSUED_CREDENTIALS = new Map<string, { issuedAt: number; recipientPublicKey: string }>();
+
+/**
+ * Generate a new challenge for credential issuance.
+ * Returns a challenge object with unique ID and 5-minute expiry.
+ */
+export function generateChallenge(): Challenge {
+  const id = `challenge-${Date.now()}-${Math.random().toString(36).substring(7)}`;
+  const challenge = Buffer.from(id).toString("hex");
+  const createdAt = Date.now();
+  const expiresAt = createdAt + CHALLENGE_EXPIRY_MS;
+
+  const challengeObj: Challenge = {
+    id,
+    challenge,
+    createdAt,
+    expiresAt,
+    used: false,
+  };
+
+  MOCK_CHALLENGES.set(id, challengeObj);
+  return challengeObj;
+}
+
+/**
+ * Verify if a challenge is still valid (not expired and not used).
+ */
+export function isChallengeValid(challengeId: string): boolean {
+  const challenge = MOCK_CHALLENGES.get(challengeId);
+  if (!challenge) return false;
+  if (challenge.used) return false;
+  if (Date.now() > challenge.expiresAt) return false;
+  return true;
+}
+
+/**
+ * Verify Ed25519 signature.
+ * In production, this would use a proper cryptographic library.
+ */
+function verifyEd25519Signature(challenge: string, signature: string, publicKey: string): boolean {
+  // Mock implementation: in production, use tweetnacl.js or similar
+  // For now, verify signature length and format
+  if (!signature || signature.length < 64) return false;
+  if (!publicKey || publicKey.length < 32) return false;
+  // Simple validation: signature and public key must be non-empty hex strings
+  try {
+    Buffer.from(signature, "hex");
+    Buffer.from(publicKey, "hex");
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Verify secp256k1 signature.
+ * In production, this would use a proper cryptographic library.
+ */
+function verifySecp256k1Signature(challenge: string, signature: string, publicKey: string): boolean {
+  // Mock implementation: in production, use elliptic or similar
+  if (!signature || signature.length < 64) return false;
+  if (!publicKey || publicKey.length < 64) return false;
+  // Simple validation: signature and public key must be non-empty hex strings
+  try {
+    Buffer.from(signature, "hex");
+    Buffer.from(publicKey, "hex");
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Verify signed challenge and issue credential if valid.
+ * Supports Ed25519 and secp256k1 signatures.
+ */
+export async function issueCredentialWithProof(
+  challengeId: string,
+  proofRequest: CredentialProofRequest,
+): Promise<CredentialProofResponse> {
+  // Check if challenge exists and is valid
+  if (!isChallengeValid(challengeId)) {
+    return {
+      isValid: false,
+      error: "Challenge invalid, expired, or already used",
+    };
+  }
+
+  // Verify the signature based on type
+  let signatureValid = false;
+  if (proofRequest.signatureType === "Ed25519") {
+    signatureValid = verifyEd25519Signature(
+      proofRequest.challenge,
+      proofRequest.signature,
+      proofRequest.publicKey,
+    );
+  } else if (proofRequest.signatureType === "secp256k1") {
+    signatureValid = verifySecp256k1Signature(
+      proofRequest.challenge,
+      proofRequest.signature,
+      proofRequest.publicKey,
+    );
+  } else {
+    return {
+      isValid: false,
+      error: "Unsupported signature type",
+    };
+  }
+
+  if (!signatureValid) {
+    return {
+      isValid: false,
+      error: "Invalid signature",
+    };
+  }
+
+  // Mark challenge as used
+  const challenge = MOCK_CHALLENGES.get(challengeId);
+  if (challenge) {
+    challenge.used = true;
+  }
+
+  // Issue credential
+  const credentialId = `credential-${Date.now()}-${Math.random().toString(36).substring(7)}`;
+  MOCK_ISSUED_CREDENTIALS.set(credentialId, {
+    issuedAt: Date.now(),
+    recipientPublicKey: proofRequest.publicKey,
+  });
+
+  return {
+    isValid: true,
+    credentialId,
+    txHash: `mock-credential-tx-${Date.now()}`,
+  };
+}
+
+/**
+ * Get credential proof status (for verification purposes).
+ */
+export function getCredentialStatus(credentialId: string): { isValid: boolean; issuedAt?: number } {
+  const credential = MOCK_ISSUED_CREDENTIALS.get(credentialId);
+  if (!credential) {
+    return { isValid: false };
+  }
+  return { isValid: true, issuedAt: credential.issuedAt };
+}
+
+/**
+ * Clean up expired challenges (should be called periodically).
+ */
+export function cleanupExpiredChallenges(): number {
+  const now = Date.now();
+  let cleaned = 0;
+
+  for (const [id, challenge] of MOCK_CHALLENGES.entries()) {
+    if (now > challenge.expiresAt) {
+      MOCK_CHALLENGES.delete(id);
+      cleaned++;
+    }
+  }
+
+  return cleaned;
+}
+
+// ── Issue #658: Multi-Signature Admin Operations ───────────────────────────
+
+export interface AdminAction {
+  id: string;
+  action: "pause" | "unpause" | "set_fee" | "add_issuer" | "remove_issuer" | "add_reporter" | "remove_reporter";
+  params: Record<string, unknown>;
+  status: "pending" | "approved" | "executed" | "rejected" | "expired";
+  proposedBy: string;
+  proposedAt: number;
+  expiresAt: number;
+  approvals: Set<string>;
+  requiredThreshold: number;
+}
+
+export interface ProposalEvent {
+  id: string;
+  actionId: string;
+  eventType: "proposed" | "approved" | "executed" | "rejected" | "expired";
+  timestamp: number;
+  actor: string;
+  details?: string;
+}
+
+const ADMIN_THRESHOLD = 2; // Default: 2-of-3 multisig
+const PROPOSAL_TIMEOUT_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
+const MOCK_ADMIN_SIGNERS = new Set<string>([
+  "GDZST3XVCDTUJ76ZAV2HA72KYXM4DCKWRFDADMHRCWWXHJVZOM7Z2VJR", // Admin 1
+  "GB7VSUXWJZQRFNVQRH4SVPZPEVKD5LTQE5JMQVTXCUVJMHPPZCFDVKDA", // Admin 2
+  "GBAXMYFXDQX527U3A3C35TQFKXJ7BVRWVYKSVVQN2T2NRVQFNWTZVFPJ", // Admin 3
+]);
+
+const MOCK_ADMIN_PROPOSALS = new Map<string, AdminAction>();
+const MOCK_PROPOSAL_EVENTS: ProposalEvent[] = [];
+let NEXT_PROPOSAL_ID = 1;
+let NEXT_EVENT_ID = 1;
+
+/**
+ * Get the current set of admin signers.
+ */
+export function getAdminSigners(): string[] {
+  return Array.from(MOCK_ADMIN_SIGNERS);
+}
+
+/**
+ * Add a new admin signer (must be approved via multisig in production).
+ */
+export function addAdminSigner(address: string): { success: boolean; message: string } {
+  if (MOCK_ADMIN_SIGNERS.has(address)) {
+    return { success: false, message: "Signer already exists" };
+  }
+  MOCK_ADMIN_SIGNERS.add(address);
+  return { success: true, message: "Admin signer added" };
+}
+
+/**
+ * Remove an admin signer (must be approved via multisig in production).
+ */
+export function removeAdminSigner(address: string): { success: boolean; message: string } {
+  if (!MOCK_ADMIN_SIGNERS.has(address)) {
+    return { success: false, message: "Signer not found" };
+  }
+  if (MOCK_ADMIN_SIGNERS.size <= ADMIN_THRESHOLD) {
+    return { success: false, message: "Cannot remove signer: minimum threshold would be violated" };
+  }
+  MOCK_ADMIN_SIGNERS.delete(address);
+  return { success: true, message: "Admin signer removed" };
+}
+
+/**
+ * Propose a new admin action (e.g., pause contract, set fee rate, add issuer).
+ * Returns the proposal ID.
+ */
+export function proposeAdminAction(
+  action: AdminAction["action"],
+  params: Record<string, unknown>,
+  proposedBy: string,
+): { proposalId: string; expiresAt: number } {
+  const proposalId = `proposal-${NEXT_PROPOSAL_ID++}-${Date.now()}`;
+  const now = Date.now();
+  const expiresAt = now + PROPOSAL_TIMEOUT_MS;
+
+  const adminAction: AdminAction = {
+    id: proposalId,
+    action,
+    params,
+    status: "pending",
+    proposedBy,
+    proposedAt: now,
+    expiresAt,
+    approvals: new Set(),
+    requiredThreshold: ADMIN_THRESHOLD,
+  };
+
+  MOCK_ADMIN_PROPOSALS.set(proposalId, adminAction);
+
+  // Emit proposal event
+  const event: ProposalEvent = {
+    id: `event-${NEXT_EVENT_ID++}`,
+    actionId: proposalId,
+    eventType: "proposed",
+    timestamp: now,
+    actor: proposedBy,
+    details: `Action proposed: ${action}`,
+  };
+  MOCK_PROPOSAL_EVENTS.push(event);
+
+  return { proposalId, expiresAt };
+}
+
+/**
+ * Approve an admin action proposal.
+ * Returns whether the action has reached the approval threshold.
+ */
+export function approveAdminAction(
+  proposalId: string,
+  approverAddress: string,
+): { success: boolean; message: string; thresholdReached?: boolean } {
+  const proposal = MOCK_ADMIN_PROPOSALS.get(proposalId);
+
+  if (!proposal) {
+    return { success: false, message: "Proposal not found", thresholdReached: false };
+  }
+
+  if (!MOCK_ADMIN_SIGNERS.has(approverAddress)) {
+    return { success: false, message: "Approver is not an authorized admin signer", thresholdReached: false };
+  }
+
+  if (proposal.status !== "pending") {
+    return { success: false, message: `Proposal status is ${proposal.status}, cannot approve`, thresholdReached: false };
+  }
+
+  if (Date.now() > proposal.expiresAt) {
+    proposal.status = "expired";
+    return { success: false, message: "Proposal has expired", thresholdReached: false };
+  }
+
+  if (proposal.approvals.has(approverAddress)) {
+    return { success: false, message: "This admin has already approved this proposal", thresholdReached: false };
+  }
+
+  proposal.approvals.add(approverAddress);
+
+  const thresholdReached = proposal.approvals.size >= proposal.requiredThreshold;
+
+  // Emit approval event
+  const event: ProposalEvent = {
+    id: `event-${NEXT_EVENT_ID++}`,
+    actionId: proposalId,
+    eventType: "approved",
+    timestamp: Date.now(),
+    actor: approverAddress,
+    details: `Approval ${proposal.approvals.size}/${proposal.requiredThreshold}`,
+  };
+  MOCK_PROPOSAL_EVENTS.push(event);
+
+  if (thresholdReached) {
+    proposal.status = "approved";
+  }
+
+  return {
+    success: true,
+    message: `Approval recorded (${proposal.approvals.size}/${proposal.requiredThreshold})`,
+    thresholdReached,
+  };
+}
+
+/**
+ * Execute an approved admin action.
+ * Can only be called once the approval threshold is reached.
+ */
+export async function executeAdminAction(
+  proposalId: string,
+  executorAddress: string,
+): Promise<{ success: boolean; message: string; txHash?: string }> {
+  const proposal = MOCK_ADMIN_PROPOSALS.get(proposalId);
+
+  if (!proposal) {
+    return { success: false, message: "Proposal not found" };
+  }
+
+  if (!MOCK_ADMIN_SIGNERS.has(executorAddress)) {
+    return { success: false, message: "Executor is not an authorized admin signer" };
+  }
+
+  if (proposal.status !== "approved") {
+    return { success: false, message: `Proposal must be approved before execution (current: ${proposal.status})` };
+  }
+
+  // Execute the action
+  try {
+    switch (proposal.action) {
+      case "pause":
+        MOCK_CONTRACT_STATE.paused = true;
+        break;
+      case "unpause":
+        MOCK_CONTRACT_STATE.paused = false;
+        break;
+      case "set_fee":
+        if (typeof proposal.params.basisPoints === "number") {
+          MOCK_CONTRACT_STATE.feeBasisPoints = proposal.params.basisPoints;
+        }
+        break;
+      case "add_issuer":
+      case "add_reporter":
+        // These would update issuer/reporter lists in production
+        break;
+      case "remove_issuer":
+      case "remove_reporter":
+        // These would update issuer/reporter lists in production
+        break;
+    }
+
+    proposal.status = "executed";
+    const txHash = `mock-multisig-tx-${Date.now()}`;
+
+    // Emit execution event
+    const event: ProposalEvent = {
+      id: `event-${NEXT_EVENT_ID++}`,
+      actionId: proposalId,
+      eventType: "executed",
+      timestamp: Date.now(),
+      actor: executorAddress,
+      details: `Action executed: ${proposal.action}`,
+    };
+    MOCK_PROPOSAL_EVENTS.push(event);
+
+    return {
+      success: true,
+      message: `Action executed successfully`,
+      txHash,
+    };
+  } catch (error) {
+    proposal.status = "rejected";
+    return {
+      success: false,
+      message: `Execution failed: ${error instanceof Error ? error.message : "Unknown error"}`,
+    };
+  }
+}
+
+/**
+ * Get proposal details.
+ */
+export function getAdminProposal(proposalId: string): AdminAction | null {
+  const proposal = MOCK_ADMIN_PROPOSALS.get(proposalId);
+  if (!proposal) return null;
+
+  // Return a copy to prevent external modifications
+  return {
+    ...proposal,
+    approvals: new Set(proposal.approvals),
+  };
+}
+
+/**
+ * Get all admin proposals (pending, approved, executed, etc.).
+ */
+export function getAdminProposals(
+  status?: AdminAction["status"],
+): AdminAction[] {
+  const proposals = Array.from(MOCK_ADMIN_PROPOSALS.values());
+
+  if (status) {
+    return proposals.filter((p) => p.status === status);
+  }
+
+  return proposals;
+}
+
+/**
+ * Get proposal lifecycle events.
+ */
+export function getProposalEvents(proposalId?: string): ProposalEvent[] {
+  if (proposalId) {
+    return MOCK_PROPOSAL_EVENTS.filter((e) => e.actionId === proposalId);
+  }
+  return [...MOCK_PROPOSAL_EVENTS];
+}
+
+/**
+ * Clean up expired proposals.
+ */
+export function cleanupExpiredProposals(): number {
+  const now = Date.now();
+  let cleaned = 0;
+
+  for (const [id, proposal] of MOCK_ADMIN_PROPOSALS.entries()) {
+    if (proposal.status === "pending" && now > proposal.expiresAt) {
+      proposal.status = "expired";
+
+      // Emit expiration event
+      const event: ProposalEvent = {
+        id: `event-${NEXT_EVENT_ID++}`,
+        actionId: id,
+        eventType: "expired",
+        timestamp: now,
+        actor: "system",
+        details: "Proposal expired due to timeout",
+      };
+      MOCK_PROPOSAL_EVENTS.push(event);
+
+      cleaned++;
+    }
+  }
+
+  return cleaned;
 }

@@ -67,6 +67,29 @@ export async function getActiveAddress(): Promise<string> {
 /** Default timeout (ms) for a Freighter signature request. */
 export const SIGN_TRANSACTION_TIMEOUT_MS = 60_000;
 
+export class SessionExpiredWalletError extends Error {
+  constructor(message = FRIENDLY_SESSION_EXPIRED_MESSAGE) {
+    super(message);
+    this.name = "SessionExpiredWalletError";
+  }
+}
+
+export const FRIENDLY_SESSION_EXPIRED_MESSAGE =
+  "Your wallet session has expired. Please reconnect to continue.";
+
+export function isSessionExpiredError(err: unknown): boolean {
+  if (err instanceof SessionExpiredWalletError) return true;
+  const message =
+    typeof err === "string"
+      ? err
+      : err instanceof Error
+        ? err.message
+        : "";
+  return /session expired|wallet session has expired|expired session|failed to parse xdr|parse xdr|not connected to freighter|request timed out|timeout/i.test(
+    message,
+  );
+}
+
 /**
  * Error surfaced to the user when Freighter never returns a signature
  * (e.g. the wallet popup was dismissed, the extension hung, or the user
@@ -145,3 +168,25 @@ export async function isFreighterInstalled(): Promise<boolean> {
   if (typeof window === "undefined") return false;
   return !!(window as { freighter?: unknown }).freighter;
 }
+
+export class SessionExpiredWalletError extends Error {
+  constructor(message = "Wallet session has expired. Please reconnect your wallet.") {
+    super(message);
+    this.name = "SessionExpiredWalletError";
+  }
+}
+
+export function isSessionExpiredError(error: unknown): boolean {
+  if (error instanceof SessionExpiredWalletError) return true;
+  if (!error) return false;
+  const msg = (error instanceof Error ? error.message : String(error)).toLowerCase();
+  return (
+    msg.includes("xdr") ||
+    msg.includes("session") ||
+    msg.includes("freighter") ||
+    msg.includes("timed out")
+  );
+}
+
+export const FRIENDLY_SESSION_EXPIRED_MESSAGE =
+  "Your wallet session has expired or timed out. Please reconnect your wallet to continue.";

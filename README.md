@@ -43,12 +43,19 @@ npm run dev
 Each variable is documented with its purpose, valid values, and whether a
 rebuild is required directly in [`.env.example`](./.env.example).
 
-| Variable | Required | Description |
-|----------|----------|-------------|
-| `NEXT_PUBLIC_STELLAR_NETWORK` | Yes | `testnet` or `mainnet` |
-| `NEXT_PUBLIC_CONTRACT_ID` | Yes | Deployed StreamContract address |
-| `NEXT_PUBLIC_RPC_URL` | No | Custom Soroban RPC (defaults to testnet) |
-| `NEXT_PUBLIC_VITALS_ENDPOINT` | No | URL to receive Web Vitals POST payloads |
+| Variable | Required | Rebuild? | Description |
+|----------|----------|----------|-------------|
+| `NEXT_PUBLIC_STELLAR_NETWORK` | **Yes** | Yes | `testnet` or `mainnet` |
+| `NEXT_PUBLIC_CONTRACT_ID` | **Yes** | Yes | Deployed StreamContract address |
+| `NEXT_PUBLIC_RPC_URL` | No | Yes | Custom Soroban RPC endpoint (defaults to testnet public RPC) |
+| `NEXT_PUBLIC_VITALS_ENDPOINT` | No | No | URL to receive Web Vitals POST payloads |
+| `NEXT_PUBLIC_FEE_SPONSOR_ADDRESS` | No | Yes | Stellar public key of fee sponsor for fee-bump transactions |
+| `NEXT_PUBLIC_ADMIN_ADDRESS` | No | Yes | Comma-separated Stellar public key(s) for the `/admin` page |
+| `NEXT_PUBLIC_ADMIN_WALLET` | No | Yes | Deprecated alias for `NEXT_PUBLIC_ADMIN_ADDRESS` |
+| `NEXT_PUBLIC_APP_URL` | No | Yes | Base URL for Open Graph / Twitter Card metadata |
+| `NEXT_PUBLIC_RPC_DEGRADED_MS` | No | Yes | RPC latency (ms) threshold for degraded indicator (default: `2000`) |
+| `NEXT_PUBLIC_RPC_UNREACHABLE_BANNER_S` | No | Yes | Seconds unreachable before full-width banner appears (default: `60`) |
+| `NEXT_PUBLIC_CONTRACT_VERSION` | No | Yes | Expected deployed contract version; mismatch shows a refresh banner |
 
 ## Web Vitals
 

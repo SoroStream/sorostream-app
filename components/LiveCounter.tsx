@@ -94,12 +94,12 @@ export default function LiveCounter({
   // Initialize to -(throttle interval) so the first update is always immediate.
   const lastAnnounceTimeRef = useRef(-ANNOUNCE_THROTTLE_MS);
   const [ariaLabel, setAriaLabel] = useState(() =>
-    formatUSDCFixed(getEstimatedClaimable(flowRate, lastWithdrawTime))
+    formatUSDCFixed(estimateClaimable(flowRate, lastWithdrawTime))
   );
   // Reset baseline when props change (e.g. after a withdrawal).
   useEffect(() => {
     const next = {
-      amount: getEstimatedClaimable(flowRate, lastWithdrawTime),
+      amount: estimateClaimable(flowRate, lastWithdrawTime),
       timestamp: Date.now(),
     };
     setBaseline(next);
@@ -174,10 +174,6 @@ export default function LiveCounter({
 
     const now = Date.now();
     const timeSinceLast = now - lastAnnounceTimeRef.current;
-    if (
-      timeSinceLast >= ANNOUNCE_THROTTLE_MS ||
-      lastAnnounceTimeRef.current === 0
-    ) {
     if (timeSinceLast >= ANNOUNCE_THROTTLE_MS) {
       lastAnnounceTimeRef.current = now;
       setAriaLabel(safeFormatUSDCFixed(displayValue));
@@ -189,7 +185,6 @@ export default function LiveCounter({
       setAriaLabel(safeFormatUSDCFixed(displayValue));
     }, remaining);
     return () => clearTimeout(timer);
-    }
   }, [displayValue, safeFormatUSDCFixed]);
 
   return (

@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import NetworkSelector from "@/components/NetworkSelector";
@@ -8,13 +8,14 @@ import ThemeToggle from "@/components/ThemeToggle";
 import ChangelogModal, { useChangelogUnread } from "@/components/ChangelogModal";
 import NotificationBadge from "@/components/NotificationBadge";
 import GlobalSearch from "@/components/GlobalSearch";
+import WalletBalanceDisplay from "@/components/WalletBalanceDisplay";
 import { useNotifications } from "@/src/context/NotificationContext";
 import { useSettings } from "@/src/context/SettingsContext";
 import { useWallet } from "@/src/context/WalletContext";
-import { APP_NETWORK } from "@/src/lib/freighter";
 import { useTranslations } from "@/src/lib/i18n";
 import { useGlobalShortcuts } from "@/components/GlobalShortcuts";
 import RpcHealthIndicator from "@/components/RpcHealthIndicator";
+import { useNetwork } from "@/src/lib/network";
 
 const NAV_LINKS = [
   { href: "/", key: "home" },
@@ -27,21 +28,16 @@ const NAV_LINKS = [
   { href: "/settings", key: "settings" },
 ] as const;
 
-const HORIZON_URL =
-  APP_NETWORK === "public" || APP_NETWORK === "mainnet"
-    ? "https://horizon.stellar.org"
-    : APP_NETWORK === "futurenet"
-    ? "https://horizon-futurenet.stellar.org"
-    : "https://horizon-testnet.stellar.org";
-
 export default function NavHeader() {
   const t = useTranslations("nav");
   const pathname = usePathname();
   const [scrolled, setScrolled] = useState(false);
   const { countFor, clearSection } = useNotifications();
-  const { showUsd, toggleShowUsd, language } = useSettings();
+  const { showUsd, toggleShowUsd } = useSettings();
   const { address, balanceRefreshTrigger } = useWallet();
+  const { network } = useNetwork();
   const [xlmBalance, setXlmBalance] = useState<string | null>(null);
+  const [usdcBalance, setUsdcBalance] = useState<string | null>(null);
   const [balanceLoading, setBalanceLoading] = useState(false);
   const [balanceUpdated, setBalanceUpdated] = useState(false);
   const [changelogOpen, setChangelogOpen] = useState(false);
@@ -67,11 +63,14 @@ export default function NavHeader() {
     try {
       const res = await fetch(`${HORIZON_URL}/accounts/${addr}`);
       if (!res.ok) throw new Error(`Horizon ${res.status}`);
-      const data = await res.json() as { balances?: { asset_type: string; balance: string }[] };
+      const data = await res.json() as { balances?: { asset_type: string; asset_code?: string; balance: string }[] };
       const native = data.balances?.find((b) => b.asset_type === "native");
+      const usdc = data.balances?.find((b) => b.asset_code === "USDC");
       setXlmBalance(native ? parseFloat(native.balance).toFixed(2) : null);
+      setUsdcBalance(usdc ? parseFloat(usdc.balance).toFixed(2) : null);
     } catch {
       setXlmBalance(null);
+      setUsdcBalance(null);
     } finally {
       setBalanceLoading(false);
     }
@@ -80,6 +79,7 @@ export default function NavHeader() {
   useEffect(() => {
     if (!address) {
       setXlmBalance(null);
+      setUsdcBalance(null);
       return;
     }
     void fetchBalance(address);
@@ -91,14 +91,18 @@ export default function NavHeader() {
 
   // Brief "Balance updated" indicator when balance changes
   const prevBalanceRef = useRef<string | null>(null);
+  const prevUsdcRef = useRef<string | null>(null);
   useEffect(() => {
-    if (xlmBalance !== null && prevBalanceRef.current !== null && prevBalanceRef.current !== xlmBalance) {
+    const xlmChanged = xlmBalance !== null && prevBalanceRef.current !== null && prevBalanceRef.current !== xlmBalance;
+    const usdcChanged = usdcBalance !== null && prevUsdcRef.current !== null && prevUsdcRef.current !== usdcBalance;
+    if (xlmChanged || usdcChanged) {
       setBalanceUpdated(true);
       const timer = setTimeout(() => setBalanceUpdated(false), 2000);
       return () => clearTimeout(timer);
     }
     prevBalanceRef.current = xlmBalance;
-  }, [xlmBalance]);
+    prevUsdcRef.current = usdcBalance;
+  }, [xlmBalance, usdcBalance]);
 
   return (
     <>
@@ -143,11 +147,19 @@ export default function NavHeader() {
               className="text-xs text-gray-600 dark:text-gray-300 font-mono hidden md:inline-block"
               aria-label={t("wallet_balance")}
             >
-              {balanceLoading && xlmBalance === null ? (
-                <span className="inline-block w-16 h-3 bg-gray-200 dark:bg-gray-700 rounded animate-pulse" aria-hidden="true" />
-              ) : xlmBalance !== null ? (
-                <span className="inline-flex items-center gap-1.5">
-                  {`${parseFloat(xlmBalance).toLocaleString(language, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} XLM`}
+              {balanceLoading && xlmBalance === null && usdcBalance === null ? (
+                <span className="inline-block w-24 h-3 bg-gray-200 dark:bg-gray-700 rounded animate-pulse" aria-hidden="true" />
+              ) : (xlmBalance !== null || usdcBalance !== null) ? (
+                <span className="inline-flex items-center gap-2 border border-gray-200 dark:border-gray-700 rounded-md px-2 py-1 bg-gray-50 dark:bg-gray-800">
+                  {xlmBalance !== null && (
+                    <span>{parseFloat(xlmBalance).toLocaleString(language, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} XLM</span>
+                  )}
+                  {usdcBalance !== null && (
+                    <span className="text-gray-400 dark:text-gray-500">|</span>
+                  )}
+                  {usdcBalance !== null && (
+                    <span className="text-blue-600 dark:text-blue-400">{parseFloat(usdcBalance).toLocaleString(language, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} USDC</span>
+                  )}
                   {balanceUpdated && (
                     <span className="text-[10px] text-green-400 font-normal" aria-live="polite">
                       updated
@@ -197,6 +209,32 @@ export default function NavHeader() {
         </div>
       </div>
     </header>
+    {network === "testnet" && (
+      <div className="bg-yellow-50 dark:bg-yellow-900/20 border-b border-yellow-200 dark:border-yellow-700 px-4 sm:px-6 py-3">
+        <div className="max-w-6xl mx-auto flex items-center gap-3">
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            width="18"
+            height="18"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            className="text-yellow-700 dark:text-yellow-400 flex-shrink-0"
+            aria-hidden="true"
+          >
+            <circle cx="12" cy="12" r="10" />
+            <line x1="12" y1="8" x2="12" y2="12" />
+            <line x1="12" y1="16" x2="12.01" y2="16" />
+          </svg>
+          <span className="text-sm font-medium text-yellow-800 dark:text-yellow-200">
+            Testnet mode: Connected to Stellar Testnet. For development and testing only.
+          </span>
+        </div>
+      </div>
+    )}
     <ChangelogModal open={changelogOpen} onClose={() => setChangelogOpen(false)} />
     </>
   );

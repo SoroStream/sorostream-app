@@ -15,9 +15,12 @@ import { getMockStreamHistory } from "@/src/lib/sorostream";
 import type { StreamHistoryEntry } from "@/src/lib/export";
 import { generateMockBalanceHistory } from "@/src/test/balanceHistoryTestHelpers";
 
-// Stub the minimal sorostream exports needed by the StreamHistory component.
-// The real getMockStreamHistory is imported directly above (before the mock is
-// registered) so the unit tests below still exercise the real implementation.
+vi.mock("@/src/lib/network", () => ({
+  useNetwork: () => ({ network: "testnet", isTestnet: true, isMainnet: false, networkUrl: "https://testnet.stellar.org" }),
+}));
+vi.mock("@/src/context/SettingsContext", () => ({
+  useSettings: () => ({ language: "en", timeDisplayMode: "local" }),
+}));
 vi.mock("@/src/lib/sorostream", async (importOriginal) => {
   const original = await importOriginal<typeof import("@/src/lib/sorostream")>();
   return {

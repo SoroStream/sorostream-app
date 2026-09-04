@@ -259,6 +259,69 @@ export function WalletProvider({ children }: { children: ReactNode }) {
     return () => stopWatcher();
   }, [startWatcher, stopWatcher]);
 
+  /**
+   * Re-establish the wallet session using the wallet type persisted in
+   * localStorage. This runs without any route change, so the user keeps their
+   * current navigation context. Returns true when the session was restored.
+   */
+  const attemptAutoReconnect = useCallback(async (): Promise<boolean> => {
+    if (typeof window === "undefined") return false;
+    const storedType = localStorage.getItem("sorostream_wallet_type");
+    if (!storedType) return false;
+
+    try {
+      if (storedType === "freighter") {
+        const publicKey = await getActiveAddress();
+        if (publicKey) {
+          setAddress(publicKey);
+          setConnectedWalletType("freighter");
+          startSessionTracking();
+          return true;
+        }
+        return false;
+      }
+
+      if (storedType === "server-keypair") {
+        const secret = localStorage.getItem("sorostream_wallet_secret") || "";
+        const adapter = new ServerKeypairAdapter(secret);
+        const available = await adapter.isAvailable();
+        if (!available) return false;
+        const key = await adapter.getPublicKey();
+        if (key) {
+          setAddress(key);
+          setConnectedWalletType("server-keypair");
+          startSessionTracking();
+          return true;
+        }
+        return false;
+      }
+
+      // Ledger requires manual transport interaction — cannot auto-reconnect.
+      return false;
+    } catch {
+      return false;
+    }
+  }, [startSessionTracking]);
+
+  /**
+   * Classify a wallet/signing error. Expired-session errors set the
+   * `sessionExpired` flag and trigger an auto-reconnect attempt instead of
+   * surfacing a raw XDR / SDK error to the user. Returns the error so the
+   * caller can still present a friendly message.
+   */
+  const handleWalletError = useCallback(
+    (err: unknown): unknown => {
+      if (isSessionExpiredError(err)) {
+        setSessionExpired(true);
+        void attemptAutoReconnect().then((ok) => {
+          if (ok) setSessionExpired(false);
+        });
+      }
+      return err;
+    },
+    [attemptAutoReconnect],
+  );
+
   const connect = useCallback(async () => {
     setIsConnecting(true);
     setError(null);
@@ -315,8 +378,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
     } finally {
       setIsConnecting(false);
     }
-  }, [verifyNetwork, startWatcher, startSessionTracking, triggerStreamRefresh]);
-  }, [verifyNetwork, startWatcher, startSessionTracking, handleWalletError]);
+  }, [verifyNetwork, startWatcher, startSessionTracking, triggerStreamRefresh, handleWalletError]);
 
   // Cleanup on unmount
   useEffect(() => {
@@ -328,50 +390,6 @@ export function WalletProvider({ children }: { children: ReactNode }) {
   const clearSessionExpired = useCallback(() => {
     setSessionExpired(false);
   }, []);
-
-  /**
-   * Re-establish the wallet session using the wallet type persisted in
-   * localStorage. This runs without any route change, so the user keeps their
-   * current navigation context. Returns true when the session was restored.
-   */
-  const attemptAutoReconnect = useCallback(async (): Promise<boolean> => {
-    if (typeof window === "undefined") return false;
-    const storedType = localStorage.getItem("sorostream_wallet_type");
-    if (!storedType) return false;
-
-    try {
-      if (storedType === "freighter") {
-        const publicKey = await getActiveAddress();
-        if (publicKey) {
-          setAddress(publicKey);
-          setConnectedWalletType("freighter");
-          startSessionTracking();
-          return true;
-        }
-        return false;
-      }
-
-      if (storedType === "server-keypair") {
-        const secret = localStorage.getItem("sorostream_wallet_secret") || "";
-        const adapter = new ServerKeypairAdapter(secret);
-        const available = await adapter.isAvailable();
-        if (!available) return false;
-        const key = await adapter.getPublicKey();
-        if (key) {
-          setAddress(key);
-          setConnectedWalletType("server-keypair");
-          startSessionTracking();
-          return true;
-        }
-        return false;
-      }
-
-      // Ledger requires manual transport interaction — cannot auto-reconnect.
-      return false;
-    } catch {
-      return false;
-    }
-  }, [startSessionTracking]);
 
   /** Public reconnect entry point used by the re-auth prompt. */
   const reconnect = useCallback(async (): Promise<boolean> => {
@@ -397,19 +415,6 @@ export function WalletProvider({ children }: { children: ReactNode }) {
    * surfacing a raw XDR / SDK error to the user. Returns the error so the
    * caller can still present a friendly message.
    */
-  const handleWalletError = useCallback(
-    (err: unknown): unknown => {
-      if (isSessionExpiredError(err)) {
-        setSessionExpired(true);
-        void attemptAutoReconnect().then((ok) => {
-          if (ok) setSessionExpired(false);
-        });
-      }
-      return err;
-    },
-    [attemptAutoReconnect],
-  );
-
   // When the session is flagged as expired, attempt an automatic reconnect so
   // the user is re-authenticated in place without losing navigation context.
   useEffect(() => {
