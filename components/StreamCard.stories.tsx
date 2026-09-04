@@ -62,6 +62,15 @@ const meta: Meta<typeof StreamCard> = {
       control: { type: "number", min: 0 },
       description: "Total deposit in stroops.",
     },
+    optimisticPending: {
+      control: "boolean",
+      description: "Show a 'Confirming…' badge while a transaction is in-flight.",
+    },
+    optimisticStatus: {
+      control: "select",
+      options: [undefined, "Active", "Paused", "Cancelled"],
+      description: "Overrides the status badge while an optimistic update is pending.",
+    },
   },
   args: {
     id: "stream-001",
@@ -321,6 +330,27 @@ export const LightBackground: Story = {
   ],
   args: {
     status: "Active",
+    startTime: oneDayAgo,
+    endTime: inThirtyDays,
+  },
+};
+
+// ── Optimistic / pending transaction state ────────────────────────────────
+
+/**
+ * Card showing the "Confirming…" badge after an action (withdraw, top-up,
+ * cancel) has been submitted on-chain but not yet confirmed.
+ *
+ * The `optimisticStatus` prop overrides the displayed status badge while the
+ * transaction is in-flight, so the UI reflects the expected end-state
+ * immediately rather than waiting for an RPC round-trip.
+ */
+export const OptimisticPending: Story = {
+  name: "Optimistic — confirming",
+  args: {
+    status: "Active",
+    optimisticPending: true,
+    optimisticStatus: "Paused",
     startTime: oneDayAgo,
     endTime: inThirtyDays,
   },
