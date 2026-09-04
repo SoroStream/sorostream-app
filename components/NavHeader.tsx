@@ -138,13 +138,13 @@ export default function NavHeader() {
             })}
           </nav>
         </div>
-        <div className="flex items-center gap-3 min-w-0 overflow-hidden">
+        <div className="flex items-center gap-2 min-w-0 overflow-hidden">
           <GlobalSearch />
           <NetworkSelector />
           <RpcHealthIndicator />
           {address && (
             <span
-              className="text-xs text-gray-600 dark:text-gray-300 font-mono hidden sm:inline-block"
+              className="text-xs text-gray-600 dark:text-gray-300 font-mono hidden md:inline-block"
               aria-label={t("wallet_balance")}
             >
               {balanceLoading && xlmBalance === null && usdcBalance === null ? (
@@ -172,7 +172,7 @@ export default function NavHeader() {
           <WalletConnect compact />
           <button
             onClick={toggleShowUsd}
-            className={`text-xs px-2 py-1 rounded border transition-colors ${
+            className={`hidden sm:block text-xs px-2 py-1 rounded border transition-colors ${
               showUsd
                 ? "border-green-600 text-green-600 dark:text-green-400 hover:bg-green-50 dark:hover:bg-green-900/30"
                 : "border-gray-300 dark:border-gray-600 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700"
@@ -199,12 +199,11 @@ export default function NavHeader() {
           </button>
           <button
             onClick={openHelp}
-            className="text-xs px-2 py-1 rounded border border-gray-300 dark:border-gray-600 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-500"
+            className="hidden sm:block text-xs px-2 py-1 rounded border border-gray-300 dark:border-gray-600 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-500"
             title={t("keyboard_shortcuts")}
             aria-label={t("open_keyboard_shortcuts")}
           >
-            <span className="hidden sm:inline">{t("shortcuts")}</span>
-            <span className="sm:hidden">?</span>
+            <span>{t("shortcuts")}</span>
           </button>
           <ThemeToggle />
         </div>
