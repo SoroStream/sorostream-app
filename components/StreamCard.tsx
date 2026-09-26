@@ -12,6 +12,7 @@ import StreamHealthBadge, {
 } from "@/components/StreamHealthBadge";
 import { getMockStreamHistory } from "@/src/lib/sorostream";
 import { formatDateWithTimezone } from "@/src/lib/timezone";
+import { formatTimeRemaining, formatEndedAgo } from "@/src/lib/timeRemaining";
 import StreamTagChips from "@/components/StreamTagChips";
 import { formatDateUtc } from "@/src/lib/timezone";
 
@@ -377,17 +378,25 @@ function statusBadgeClass(status: string): string {
           </span>
         </p>
 
-        {/* Time remaining until stream end (#461) */}
-        {status === "Active" && endTime && (
-          <p className="text-gray-600 dark:text-gray-400">
-            Time remaining:{" "}
-            <span
-              className="text-gray-900 dark:text-white font-medium"
-              title={`Scheduled end time: ${formatDateWithTimezone(new Date(endTime))}`}
-            >
-              <span className="text-blue-600 dark:text-blue-400">
-                {formatTimeUntil(new Date(endTime))}
+        {/* Time remaining until stream end (#461, #558) */}
+        {effectiveStatus === "Active" && endTime && (() => {
+          const remaining = formatTimeRemaining(endTime);
+          return (
+            <p className="text-gray-600 dark:text-gray-400" data-testid="time-remaining">
+              <span
+                className="text-blue-600 dark:text-blue-400 font-medium"
+                title={`Scheduled end time: ${formatDateWithTimezone(new Date(endTime))}`}
+              >
+                {remaining ?? formatEndedAgo(endTime)}
               </span>
+            </p>
+          );
+        })()}
+
+        {effectiveStatus === "Ended" && endTime && (
+          <p className="text-gray-600 dark:text-gray-400" data-testid="time-ended">
+            <span title={`Ended at ${formatDateWithTimezone(new Date(endTime))}`}>
+              {formatEndedAgo(endTime)}
             </span>
           </p>
         )}
