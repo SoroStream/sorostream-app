@@ -3,6 +3,7 @@
 import { useState, useCallback, useRef, useEffect } from "react";
 import LiveCounter from "@/components/LiveCounter";
 import WithdrawFeeBreakdownModal from "@/components/WithdrawFeeBreakdownModal";
+import StreamCloneModal from "@/components/StreamCloneModal";
 import { sorostream, claimableNow, getMockStream, truncateAddress } from "@/src/lib/sorostream";
 import { useToast } from "@/src/lib/toast";
 import { useSettings } from "@/src/context/SettingsContext";
@@ -54,6 +55,9 @@ export default function StreamActions({
   const [cancelPending, setCancelPending] = useState(false);
   const [confirmAmount, setConfirmAmount] = useState<number | null>(null);
   const [showCancelConfirm, setShowCancelConfirm] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [showCloneModal, setShowCloneModal] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
   const { addToast, upsertPersistentToast, removeToast } = useToast();
   const { withdrawThreshold } = useSettings();
   const { refetchBalance } = useWallet();
@@ -77,6 +81,30 @@ export default function StreamActions({
       if (countdownIntervalRef.current) clearInterval(countdownIntervalRef.current);
       if (submitTimeoutRef.current) clearTimeout(submitTimeoutRef.current);
     };
+  }, []);
+
+  // Close the "More actions" dropdown on outside click or Escape.
+  useEffect(() => {
+    if (!menuOpen) return;
+    function handlePointerDown(e: MouseEvent) {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        setMenuOpen(false);
+      }
+    }
+    function handleKey(e: KeyboardEvent) {
+      if (e.key === "Escape") setMenuOpen(false);
+    }
+    document.addEventListener("mousedown", handlePointerDown);
+    document.addEventListener("keydown", handleKey);
+    return () => {
+      document.removeEventListener("mousedown", handlePointerDown);
+      document.removeEventListener("keydown", handleKey);
+    };
+  }, [menuOpen]);
+
+  const handleDuplicate = useCallback(() => {
+    setMenuOpen(false);
+    setShowCloneModal(true);
   }, []);
 
   const executeWithdraw = useCallback(async () => {
@@ -318,6 +346,40 @@ export default function StreamActions({
             "Cancel"
           )}
         </button>
+
+        <div className="relative" ref={menuRef}>
+          <button
+            type="button"
+            onClick={() => setMenuOpen((o) => !o)}
+            aria-haspopup="menu"
+            aria-expanded={menuOpen}
+            aria-label="More stream actions"
+            className="h-full px-3 rounded-lg border border-gray-600 text-gray-300 hover:bg-gray-700 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-500 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-900"
+          >
+            <span aria-hidden="true">⋯</span>
+          </button>
+          {menuOpen && (
+            <div
+              role="menu"
+              aria-label="Stream actions"
+              className="absolute right-0 top-full mt-2 w-44 rounded-lg border border-gray-700 bg-gray-800 py-1 shadow-xl z-40"
+            >
+              <button
+                type="button"
+                role="menuitem"
+                onClick={handleDuplicate}
+                disabled={!getMockStream(streamId)}
+                className="flex w-full items-center gap-2 px-4 py-2 text-left text-sm text-gray-200 hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:bg-gray-700"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                  <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
+                  <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+                </svg>
+                Duplicate
+              </button>
+            </div>
+          )}
+        </div>
       </div>
 
       {confirmAmount !== null && (
@@ -328,6 +390,13 @@ export default function StreamActions({
           onCancel={() => setConfirmAmount(null)}
         />
       )}
+
+      {showCloneModal && (() => {
+        const stream = getMockStream(streamId);
+        return stream ? (
+          <StreamCloneModal stream={stream} onClose={() => setShowCloneModal(false)} />
+        ) : null;
+      })()}
     </>
   );
 }
