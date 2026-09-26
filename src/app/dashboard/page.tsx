@@ -127,14 +127,22 @@ function DashboardContent() {
   const [showFilterBar, setShowFilterBar] = useState(true);
   // Index of the currently keyboard-focused stream card (-1 = none)
   const [focusedStreamIndex, setFocusedStreamIndex] = useState(-1);
+  // Last wallet address seen by the load effect (undefined until first run).
+  const prevAddressRef = useRef<string | null | undefined>(undefined);
 
   useEffect(() => {
     let cancelled = false;
 
     // Flush cached data and reset search query immediately on disconnect/address change
     // so streams from a previous wallet session are never returned or mixed in.
+    // The search query is only reset when moving away from a previously
+    // connected wallet, so a ?search= URL param survives page load and the
+    // initial wallet reconnect (#554).
     setStreams([]);
-    setSearch("");
+    if (prevAddressRef.current && prevAddressRef.current !== address) {
+      setSearch("");
+    }
+    prevAddressRef.current = address;
     setSelectedIds(new Set());
     if (!address) {
       setLoading(false);
@@ -874,7 +882,7 @@ function DashboardContent() {
                   type="search"
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
-                  placeholder="Search by recipient, sender, or ID…"
+                  placeholder="Search by recipient address, sender, or ID…"
                   className="flex-1 min-w-0 w-full sm:min-w-[200px] bg-gray-800 border border-gray-700 rounded-lg px-4 py-2 text-sm text-white placeholder-gray-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-500 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-900"
                   aria-label="Search streams"
                 />
@@ -1145,6 +1153,7 @@ function DashboardContent() {
                                 selected={multiSelectMode ? selectedIds.has(s.id) : false}
                                 onToggle={multiSelectMode ? toggleSelect : undefined}
                                 onClone={handleClone}
+                                highlightQuery={search}
                                 scheduledStartTime={s.scheduledStartTime}
                                 startTime={s.startTime}
                                 endTime={s.endTime}
@@ -1212,6 +1221,7 @@ function DashboardContent() {
                                     selected={multiSelectMode ? selectedIds.has(s.id) : false}
                                     onToggle={multiSelectMode ? toggleSelect : undefined}
                                     onClone={handleClone}
+                                    highlightQuery={search}
                                     scheduledStartTime={s.scheduledStartTime}
                                     startTime={s.startTime}
                                     endTime={s.endTime}
@@ -1233,6 +1243,7 @@ function DashboardContent() {
                   selectedIds={multiSelectMode ? selectedIds : undefined}
                   onToggleSelect={multiSelectMode ? toggleSelect : undefined}
                   onClone={handleClone}
+                  highlightQuery={search}
                   focusedStreamId={focusedStreamIndex >= 0 && focusedStreamIndex < sortedFiltered.length ? sortedFiltered[focusedStreamIndex].id : undefined}
                   optimisticOps={optimisticOps}
                 />
