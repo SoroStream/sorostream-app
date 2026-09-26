@@ -31,6 +31,12 @@ interface WalletContextValue {
   /** The expected network name derived from NEXT_PUBLIC_STELLAR_NETWORK. */
   expectedNetwork: string;
   connect: () => Promise<string | null>;
+  /**
+   * Mark a wallet as connected using an address obtained from a non-Freighter
+   * adapter (e.g. Ledger over USB). Freighter account-change events are
+   * ignored while such a wallet is connected.
+   */
+  connectWithAddress: (address: string, walletType: string) => void;
   disconnect: () => void;
   /**
    * Bumps a counter that signals consumers (e.g. NavHeader balance display)
@@ -114,6 +120,11 @@ export function WalletProvider({ children }: { children: ReactNode }) {
   const [sessionExpired, setSessionExpired] = useState(false);
   /** The wallet type currently connected, used to scope session-validity checks. */
   const [connectedWalletType, setConnectedWalletType] = useState<string | null>(null);
+  /** Mirror of connectedWalletType readable from the long-lived watcher callback. */
+  const connectedWalletTypeRef = useRef<string | null>(null);
+  useEffect(() => {
+    connectedWalletTypeRef.current = connectedWalletType;
+  }, [connectedWalletType]);
   const [activeStreamCount, setActiveStreamCount] = useState(0);
   const sessionValidityPollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const watcherRef = useRef<ReturnType<typeof createWatchWalletChanges> | null>(
@@ -158,6 +169,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
     setNetworkMismatch(false);
     setSessionExpiresAt(null);
     setConnectedWalletType(null);
+    connectedWalletTypeRef.current = null;
     setActiveStreamCount(0);
     clearSessionWarnings();
     // Don't stop the watcher on disconnect — keep polling so we notice when
@@ -231,8 +243,11 @@ export function WalletProvider({ children }: { children: ReactNode }) {
     watcherRef.current = watcher;
     watcher.watch(({ address: watchAddress, network }) => {
       // --- account change detection ---
-      // Only update when address is explicitly provided; network-only ticks leave address unchanged
-      if (watchAddress !== undefined) {
+      // Only update when address is explicitly provided; network-only ticks leave address unchanged.
+      // Freighter events must not override an address from another wallet (e.g. Ledger).
+      const externalWallet =
+        connectedWalletTypeRef.current !== null && connectedWalletTypeRef.current !== "freighter";
+      if (watchAddress !== undefined && !externalWallet) {
         setAddress((prev) => {
           if (prev !== null && prev !== watchAddress) {
             setError(null);
@@ -380,6 +395,18 @@ export function WalletProvider({ children }: { children: ReactNode }) {
     }
   }, [verifyNetwork, startWatcher, startSessionTracking, triggerStreamRefresh, handleWalletError]);
 
+  const connectWithAddress = useCallback(
+    (externalAddress: string, walletType: string) => {
+      setError(null);
+      connectedWalletTypeRef.current = walletType;
+      setConnectedWalletType(walletType);
+      setAddress(externalAddress);
+      startSessionTracking();
+      triggerStreamRefresh();
+    },
+    [startSessionTracking, triggerStreamRefresh],
+  );
+
   // Cleanup on unmount
   useEffect(() => {
     return () => {
@@ -515,6 +542,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
       networkMismatch,
       expectedNetwork: APP_NETWORK,
       connect,
+      connectWithAddress,
       disconnect,
       balanceRefreshTrigger,
       refetchBalance,
@@ -535,6 +563,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
     [
       address,
       connect,
+      connectWithAddress,
       disconnect,
       error,
       isConnecting,

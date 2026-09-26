@@ -88,6 +88,8 @@
     "error_freighter": "Freighter extension not found. Please install it.",
     "error_lobstr": "LOBSTR extension not found. Please install it.",
     "error_ledger": "No USB device found. Connect your Ledger.",
+    "connect_usb": "Connect via USB",
+    "ledger_webusb_unsupported": "WebUSB isn't supported in this browser. Use Chrome or Edge to connect a Ledger.",
     "error_server_keypair": "Please enter a valid secret key."
   },
   "settings": {

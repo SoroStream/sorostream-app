@@ -7,6 +7,7 @@ import {
   WALLET_LABELS,
   freighterAdapter,
   ledgerAdapter,
+  isWebUsbSupported,
   ServerKeypairAdapter,
 } from "@/src/lib/wallets";
 import { useTranslations } from "@/src/lib/i18n";
@@ -34,7 +35,13 @@ const WALLET_TYPES: WalletType[] = ["freighter", "ledger", "server-keypair"];
  */
 export default function WalletConnect({ onConnect, compact = false }: WalletConnectProps) {
   const t = useTranslations("wallet");
-  const { address: contextAddress, connect: contextConnect, disconnect: contextDisconnect, activeStreamCount } = useWallet();
+  const {
+    address: contextAddress,
+    connect: contextConnect,
+    connectWithAddress: contextConnectWithAddress,
+    disconnect: contextDisconnect,
+    activeStreamCount,
+  } = useWallet();
 
   const [walletType, setWalletType] = useState<WalletType>("freighter");
   const [secretInput, setSecretInput] = useState("");
@@ -45,6 +52,11 @@ export default function WalletConnect({ onConnect, compact = false }: WalletConn
   const dropdownRef = useRef<HTMLDivElement>(null);
   /** When true, shows a warning before disconnecting while streams are active. */
   const [showDisconnectConfirm, setShowDisconnectConfirm] = useState(false);
+  /** Whether the browser exposes WebUSB (required for Ledger). Checked after mount to stay SSR-safe. */
+  const [usbSupported, setUsbSupported] = useState(false);
+  useEffect(() => {
+    setUsbSupported(isWebUsbSupported());
+  }, []);
 
   // ── Freighter extension detection ──────────────────────────────────────
   // Start as `null` (unknown) so we don't flash the install prompt during SSR
@@ -147,7 +159,9 @@ export default function WalletConnect({ onConnect, compact = false }: WalletConn
         if (storedType === "freighter") {
           selected = freighterAdapter;
         } else if (storedType === "ledger") {
-          selected = ledgerAdapter;
+          // Ledger needs a user gesture to open the USB transport — the user
+          // reconnects manually via "Connect via USB".
+          return;
         } else if (storedType === "server-keypair") {
           const secret = localStorage.getItem("sorostream_wallet_secret") || "";
           selected = new ServerKeypairAdapter(secret);
@@ -205,8 +219,15 @@ export default function WalletConnect({ onConnect, compact = false }: WalletConn
 
       setAdapter(selected);
 
-      // Delegate the actual address retrieval + context update to WalletContext
-      const key = await contextConnect();
+      let key: string | null;
+      if (walletType === "ledger") {
+        // Read the Stellar public key from the device over WebUSB.
+        key = await selected.getPublicKey();
+        if (key) contextConnectWithAddress(key, "ledger");
+      } else {
+        // Delegate the actual address retrieval + context update to WalletContext
+        key = await contextConnect();
+      }
 
       if (key) {
         localStorage.setItem("sorostream_wallet_connected", "true");
@@ -229,6 +250,18 @@ export default function WalletConnect({ onConnect, compact = false }: WalletConn
 
   // Derive displayed key from context (stays current after account switches)
   const publicKey = contextAddress;
+
+  const connectLabel =
+    walletType === "ledger" && usbSupported
+      ? t("connect_usb")
+      : t("connect", { wallet: WALLET_LABELS[walletType] });
+
+  const ledgerUnsupportedHint =
+    walletType === "ledger" && !usbSupported ? (
+      <p className="text-xs text-amber-500" role="note">
+        {t("ledger_webusb_unsupported")}
+      </p>
+    ) : null;
 
   // Compact mode: disconnected state renders as a dropdown button for use in the nav header
   if (compact && !publicKey) {
@@ -281,13 +314,14 @@ export default function WalletConnect({ onConnect, compact = false }: WalletConn
                   aria-label="Server keypair secret key"
                 />
               )}
+              {ledgerUnsupportedHint}
               <button
                 onClick={async () => { await handleConnect(); setDropdownOpen(false); }}
-                disabled={loading}
+                disabled={loading || (walletType === "ledger" && !usbSupported)}
                 className="w-full rounded-lg bg-sky-600 dark:bg-sky-700 px-4 py-2 text-sm font-medium text-white hover:bg-sky-700 dark:hover:bg-sky-800 disabled:opacity-50 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-500"
-                aria-label={`Connect ${WALLET_LABELS[walletType]} wallet`}
+                aria-label={walletType === "ledger" ? "Connect Ledger wallet via USB" : `Connect ${WALLET_LABELS[walletType]} wallet`}
               >
-                {loading ? t("connecting") : t("connect", { wallet: WALLET_LABELS[walletType] })}
+                {loading ? t("connecting") : connectLabel}
               </button>
               {error && (
                 <p className="text-xs text-red-400" role="alert">{error}</p>
@@ -415,13 +449,15 @@ export default function WalletConnect({ onConnect, compact = false }: WalletConn
         />
       )}
 
+      {ledgerUnsupportedHint}
+
       <button
         onClick={handleConnect}
-        disabled={loading}
+        disabled={loading || (walletType === "ledger" && !usbSupported)}
         className="rounded-lg bg-sky-700 px-4 py-2 text-sm font-medium text-white hover:bg-sky-800 disabled:opacity-50 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-500 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-900"
-        aria-label={`Connect ${WALLET_LABELS[walletType]} wallet`}
+        aria-label={walletType === "ledger" ? "Connect Ledger wallet via USB" : `Connect ${WALLET_LABELS[walletType]} wallet`}
       >
-        {loading ? t("connecting") : t("connect", { wallet: WALLET_LABELS[walletType] })}
+        {loading ? t("connecting") : connectLabel}
       </button>
 
       {error && (
