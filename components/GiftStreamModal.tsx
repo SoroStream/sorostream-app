@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect, type FormEvent } from "react";
 import { useFocusTrap } from "@/src/lib/useFocusTrap";
 import { sorostream } from "@/src/lib/sorostream";
+import { copyToClipboard } from "@/src/lib/clipboard";
 import { useWallet } from "@/src/context/WalletContext";
 import { useToast } from "@/src/lib/toast";
 
@@ -137,12 +138,14 @@ export default function GiftStreamModal({ onClose }: GiftStreamModalProps) {
     }
   }
 
-  function handleCopyLink() {
+  async function handleCopyLink() {
     if (!result) return;
-    navigator.clipboard.writeText(result.shareUrl).then(
-      () => { setCopied(true); setTimeout(() => setCopied(false), 2500); },
-      () => { addToast("Could not copy — please copy the URL manually.", "error"); },
-    );
+    if (await copyToClipboard(result.shareUrl)) {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2500);
+    } else {
+      addToast("Could not copy — please copy the URL manually.", "error");
+    }
   }
 
   return (

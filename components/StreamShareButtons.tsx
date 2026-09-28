@@ -2,6 +2,7 @@
 
 import { useCallback } from "react";
 import { useToast } from "@/src/lib/toast";
+import { copyToClipboard } from "@/src/lib/clipboard";
 
 interface StreamShareButtonsProps {
   /** Stream ID used to construct the deep-link URL. */
@@ -41,37 +42,10 @@ export default function StreamShareButtons({
   const handleCopyLink = useCallback(async () => {
     const url = getStreamUrl();
 
-    // Modern Clipboard API
-    if (
-      typeof navigator !== "undefined" &&
-      navigator.clipboard &&
-      typeof navigator.clipboard.writeText === "function"
-    ) {
-      try {
-        await navigator.clipboard.writeText(url);
-        addToast("Link copied to clipboard!", "success");
-        return;
-      } catch {
-        // Fall through to execCommand fallback
-      }
-    }
-
-    // Legacy execCommand fallback
-    try {
-      const textarea = document.createElement("textarea");
-      textarea.value = url;
-      textarea.style.cssText = "position:fixed;top:-9999px;left:-9999px;opacity:0;";
-      document.body.appendChild(textarea);
-      textarea.focus();
-      textarea.select();
-      const ok = document.execCommand("copy");
-      document.body.removeChild(textarea);
-      if (ok) {
-        addToast("Link copied to clipboard!", "success");
-      } else {
-        addToast("Could not copy — please copy the URL manually.", "error");
-      }
-    } catch {
+    const ok = await copyToClipboard(url);
+    if (ok) {
+      addToast("Link copied to clipboard!", "success");
+    } else {
       addToast("Could not copy — please copy the URL manually.", "error");
     }
   }, [getStreamUrl, addToast]);
