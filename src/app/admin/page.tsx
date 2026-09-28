@@ -47,6 +47,7 @@ import {
 } from "@/src/lib/sorostream";
 import { useXlmPrice } from "@/src/lib/useXlmPrice";
 import { useWallet } from "@/src/context/WalletContext";
+import { formatCurrency } from "@/src/lib/formatCurrency";
 import { useToast } from "@/src/lib/toast";
 
 // ── Env-configurable admin wallet address(es) ───────────────────────────────
@@ -99,10 +100,10 @@ function toUsd(
   xlmPrice: number | null,
 ): string | null {
   const amount = stroops / 10_000_000;
-  if (token === "USDC") return `$${amount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  if (token === "USDC") return formatCurrency(amount);
   if (token === "XLM" && xlmPrice !== null) {
     const usd = amount * xlmPrice;
-    return `$${usd.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+    return formatCurrency(usd);
   }
   return null;
 }

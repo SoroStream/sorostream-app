@@ -18,6 +18,7 @@
 import { useSharedXlmPrice } from "@/src/context/XlmPriceContext";
 import { useSettings } from "@/src/context/SettingsContext";
 import { useTranslations } from "@/src/lib/i18n";
+import { formatCurrency } from "@/src/lib/formatCurrency";
 
 interface FiatDisplayProps {
   /** Amount expressed in XLM (not stroops). */
@@ -34,16 +35,13 @@ export default function FiatDisplay({ xlmAmount, usdcAmount }: FiatDisplayProps)
   if (!showUsd) return null;
 
   if (usdcAmount !== undefined) {
-    const formatted = usdcAmount.toLocaleString(language, {
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
-    });
+    const formatted = formatCurrency(usdcAmount, "USD", language);
     return (
       <span
         className="text-gray-500 dark:text-gray-400 text-xs ml-1"
         aria-label={t("approximately_usd", { formatted })}
       >
-        (~${formatted} USD)
+        (~{formatted} USD)
       </span>
     );
   }
@@ -60,17 +58,14 @@ export default function FiatDisplay({ xlmAmount, usdcAmount }: FiatDisplayProps)
     }
 
     const usd = xlmAmount * price;
-    const formatted = usd.toLocaleString(language, {
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
-    });
+    const formatted = formatCurrency(usd, "USD", language);
 
     return (
       <span
         className="text-gray-500 dark:text-gray-400 text-xs ml-1"
         aria-label={t("approximately_usd", { formatted })}
       >
-        (~${formatted} USD)
+        (~{formatted} USD)
       </span>
     );
   }
