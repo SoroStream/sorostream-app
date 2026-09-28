@@ -683,6 +683,28 @@ export function getStreamsForWallet(address: string | null): StreamData[] {
   return relevant.length > 0 ? relevant : MOCK_STREAMS;
 }
 
+export interface StreamPage {
+  streams: StreamData[];
+  /** Total number of streams available for the wallet across all pages. */
+  total: number;
+}
+
+/**
+ * Paginated variant of {@link getStreamsForWallet}. Returns streams ordered
+ * newest-first (the dashboard's default sort) so the first page is correct
+ * without fetching everything up front.
+ */
+export function getStreamsPageForWallet(
+  address: string | null,
+  { offset = 0, limit }: { offset?: number; limit: number },
+): StreamPage {
+  const all = [...getStreamsForWallet(address)].sort(
+    (a, b) => new Date(b.startTime).getTime() - new Date(a.startTime).getTime(),
+  );
+  const start = Math.max(0, offset);
+  return { streams: all.slice(start, start + Math.max(0, limit)), total: all.length };
+}
+
 /**
  * Returns synthesised (non-on-chain) history entries for development and
  * demo purposes. Every entry is tagged `isMock: true` so callers can

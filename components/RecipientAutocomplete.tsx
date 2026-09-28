@@ -208,6 +208,9 @@ export default function RecipientAutocomplete({
           aria-controls="recipient-listbox"
           role="combobox"
           autoComplete="off"
+          autoCorrect="off"
+          autoCapitalize="off"
+          spellCheck={false}
           data-testid="recipient-input"
         />
         <button

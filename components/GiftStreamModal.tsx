@@ -189,6 +189,10 @@ export default function GiftStreamModal({ onClose }: GiftStreamModalProps) {
                 onChange={(e) => { setRecipient(e.target.value); setErrors((p) => ({ ...p, recipient: "" })); }}
                 onBlur={() => setErrors((p) => ({ ...p, recipient: validateStellarAddress(recipient) }))}
                 placeholder="G… (56-character Stellar address)"
+                autoComplete="off"
+                autoCorrect="off"
+                autoCapitalize="off"
+                spellCheck={false}
                 className={`w-full bg-gray-700 border rounded-lg px-4 py-2.5 text-white text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-500 placeholder-gray-500 ${
                   errors.recipient ? "border-red-500" : "border-gray-600"
                 }`}
