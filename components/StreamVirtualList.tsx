@@ -125,6 +125,57 @@ export default function StreamVirtualList({ streams, selectedIds, onToggleSelect
     [containerHeight],
   );
 
+  // Roving-focus refs for each visible stream card (#616): lets ArrowUp/Down/
+  // Left/Right move real DOM focus between cards, on top of the native Tab
+  // order that already works because each card is rendered as an <a>.
+  const itemRefs = useRef<Map<string, HTMLAnchorElement>>(new Map());
+
+  const registerItemRef = useCallback(
+    (id: string) => (el: HTMLAnchorElement | null) => {
+      if (el) itemRefs.current.set(id, el);
+      else itemRefs.current.delete(id);
+    },
+    [],
+  );
+
+  const focusStreamAt = useCallback(
+    (index: number) => {
+      if (index < 0 || index >= streams.length) return;
+      const el = itemRefs.current.get(streams[index].id);
+      el?.focus();
+    },
+    [streams],
+  );
+
+  /** Arrow-key navigation between stream cards (2-column grid). */
+  const handleItemKeyDown = useCallback(
+    (e: React.KeyboardEvent<HTMLAnchorElement>, streamId: string) => {
+      const currentIndex = streams.findIndex((s) => s.id === streamId);
+      if (currentIndex < 0) return;
+
+      switch (e.key) {
+        case "ArrowDown":
+          e.preventDefault();
+          focusStreamAt(currentIndex + 2 < streams.length ? currentIndex + 2 : currentIndex);
+          break;
+        case "ArrowUp":
+          e.preventDefault();
+          focusStreamAt(currentIndex - 2 >= 0 ? currentIndex - 2 : currentIndex);
+          break;
+        case "ArrowRight":
+          e.preventDefault();
+          focusStreamAt(Math.min(currentIndex + 1, streams.length - 1));
+          break;
+        case "ArrowLeft":
+          e.preventDefault();
+          focusStreamAt(Math.max(currentIndex - 1, 0));
+          break;
+        // Enter/Space activate the link natively; no handler needed.
+      }
+    },
+    [streams, focusStreamAt],
+  );
+
   const rowCount = useMemo(() => Math.ceil(streams.length / 2), [streams.length]);
   const totalHeight = rowCount * BASE_ROW_HEIGHT;
 
@@ -172,7 +223,12 @@ export default function StreamVirtualList({ streams, selectedIds, onToggleSelect
                 role="listitem"
               >
                 <div className="relative">
-                  <Link href={`/stream/${stream.id}`} className="block">
+                  <Link
+                    href={`/stream/${stream.id}`}
+                    className="block focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-500 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-900 rounded-xl"
+                    ref={registerItemRef(stream.id)}
+                    onKeyDown={(e) => handleItemKeyDown(e, stream.id)}
+                  >
                     <StreamCard
                       id={stream.id}
                       sender={stream.sender}

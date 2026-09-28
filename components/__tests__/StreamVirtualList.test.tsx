@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { render, screen, fireEvent } from "@testing-library/react";
 import { describe, it, expect, vi } from "vitest";
 import StreamVirtualList from "@/components/StreamVirtualList";
 import { SettingsProvider } from "@/src/context/SettingsContext";
@@ -41,5 +41,30 @@ describe("StreamVirtualList", () => {
     expect(items.length).toBeLessThan(streams.length);
 
     expect(screen.getByText(/^Stream #1$/i)).toBeInTheDocument();
+  });
+
+  it("moves DOM focus between stream cards with arrow keys (#616)", async () => {
+    const streams = Array.from({ length: 6 }, (_, index) => createStream(index + 1));
+
+    render(
+      <SettingsProvider>
+        <StreamVirtualList streams={streams} />
+      </SettingsProvider>,
+    );
+
+    const links = await screen.findAllByRole("link");
+    expect(links.length).toBeGreaterThan(1);
+
+    links[0].focus();
+    expect(document.activeElement).toBe(links[0]);
+
+    fireEvent.keyDown(links[0], { key: "ArrowRight" });
+    expect(document.activeElement).toBe(links[1]);
+
+    fireEvent.keyDown(links[1], { key: "ArrowLeft" });
+    expect(document.activeElement).toBe(links[0]);
+
+    fireEvent.keyDown(links[0], { key: "ArrowDown" });
+    expect(document.activeElement).toBe(links[2]);
   });
 });
