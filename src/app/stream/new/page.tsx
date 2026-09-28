@@ -19,6 +19,7 @@ import StreamDryRunPreview from "@/components/StreamDryRunPreview";
 import AddressVerificationBadge from "@/components/AddressVerificationBadge";
 import AddressVerificationWarning from "@/components/AddressVerificationWarning";
 import { SkeletonForm } from "@/components/Skeleton";
+import { formatLocaleDate } from "@/src/lib/dateFormat";
 import { useTranslations } from "@/src/lib/i18n";
 import { trackEvent } from "@/src/lib/analytics";
 import { verifyAddress, canCreateStream, type AddressVerification } from "@/src/lib/addressVerification";
@@ -1621,13 +1622,13 @@ function NewStreamWizard() {
                     <div className="flex justify-between items-center">
                       <span className="text-gray-400 text-sm">Start date</span>
                       <span className="text-white font-mono text-sm">
-                        {startDate.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })}
+                        {formatLocaleDate(startDate, undefined, { month: "short", day: "numeric", year: "numeric" })}
                       </span>
                     </div>
                     <div className="flex justify-between items-center">
                       <span className="text-gray-400 text-sm">End date</span>
                       <span className="text-white font-mono text-sm">
-                        {endDate.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })}
+                        {formatLocaleDate(endDate, undefined, { month: "short", day: "numeric", year: "numeric" })}
                       </span>
                     </div>
                   </>

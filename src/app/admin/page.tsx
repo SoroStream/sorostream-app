@@ -31,6 +31,7 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { useLocaleDateFormat } from "@/src/lib/dateFormat";
 import {
   getTreasuryBalances,
   sweepTreasuryFees,
@@ -78,15 +79,6 @@ function StatusBadge({ status }: { status: StreamData["status"] }) {
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
-function formatDate(iso: string | null): string {
-  if (!iso) return "—";
-  return new Date(iso).toLocaleDateString(undefined, {
-    year: "numeric",
-    month: "short",
-    day: "numeric",
-  });
-}
-
 /**
  * Compute the approximate USD value of a treasury balance.
  * - USDC is treated as 1:1 with USD.
@@ -133,8 +125,10 @@ interface TreasuryRowProps {
 }
 
 function TreasuryRow({ entry, isAdmin, xlmPrice, onSweep, sweeping }: TreasuryRowProps) {
+  const { formatDate } = useLocaleDateFormat();
   const hasBalance = entry.balanceStroops > 0;
   const usdValue = hasBalance ? toUsd(entry.token, entry.balanceStroops, xlmPrice) : null;
+  const lastSweepLabel = entry.lastSweepAt ? formatDate(entry.lastSweepAt) : "—";
 
   return (
     <div className="bg-gray-800 rounded-xl border border-gray-700 p-5 flex flex-col gap-3">
@@ -173,7 +167,7 @@ function TreasuryRow({ entry, isAdmin, xlmPrice, onSweep, sweeping }: TreasuryRo
       <div className="text-xs text-gray-400 space-y-0.5 border-t border-gray-700 pt-3">
         <div className="flex justify-between">
           <span>Last sweep</span>
-          <span className="text-gray-300">{formatDate(entry.lastSweepAt)}</span>
+          <span className="text-gray-300">{lastSweepLabel}</span>
         </div>
         {entry.lastSweepAmountStroops !== null && (
           <div className="flex justify-between">
