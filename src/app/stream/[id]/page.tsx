@@ -387,13 +387,37 @@ export default function StreamDetail({ params }: { params: { id: string } }) {
   // When the wallet disconnects (address becomes null), immediately flush the
   // stream state so stale data from the previous session is never shown to a
   // different user who subsequently connects.
+  //
+  // ── Re-sync balance on mid-session wallet switch (#630) ───────────────────
+  // Freighter (and other wallet adapters) let the user switch accounts
+  // without disconnecting first, so `address` can go straight from one
+  // non-null value to another. Without this, the previously-fetched stream
+  // balance/deposit and any in-flight optimistic overrides kept showing the
+  // old wallet's numbers until the next unrelated refetch. Track the last
+  // seen address and, whenever it actually changes (not just on the initial
+  // mount render), clear optimistic overrides and force a fresh fetch.
+  const prevAddressRef = useRef<string | null | undefined>(undefined);
   useEffect(() => {
+    const prevAddress = prevAddressRef.current;
+    prevAddressRef.current = address;
+
+    if (prevAddress === undefined) return; // initial mount — nothing to invalidate yet
+    if (prevAddress === address) return;
+
     if (address === null) {
       setStream(null);
       setHistoryEntries([]);
       setError(null);
       setAllStreams([]);
+      return;
     }
+
+    // Switched to a different connected account: drop stale optimistic
+    // balance state and re-fetch the stream so its deposit/claimable
+    // figures reflect the newly-active wallet.
+    setOptimisticClaimable(null);
+    setOptimisticDeposit(null);
+    setFetchKey((k) => k + 1);
   }, [address]);
 
   // ── Load stream on mount ───────────────────────────────────────────────────
