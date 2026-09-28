@@ -1,5 +1,6 @@
 "use client";
 
+import { primePickerToNow } from "@/src/lib/datePickerDefault";
 import { useState, useEffect, useMemo, useRef, useCallback, Suspense } from "react";
 import Link from "next/link";
 import { useSearchParams, useRouter } from "next/navigation";
@@ -776,6 +777,7 @@ function DashboardContent() {
                   <input
                     id="filter-date-from"
                     type="date"
+                    onFocus={primePickerToNow}
                     value={dateFrom}
                     onChange={(e) => setDateFrom(e.target.value)}
                     max={dateTo || undefined}
@@ -788,6 +790,7 @@ function DashboardContent() {
                   <input
                     id="filter-date-to"
                     type="date"
+                    onFocus={primePickerToNow}
                     value={dateTo}
                     onChange={(e) => setDateTo(e.target.value)}
                     min={dateFrom || undefined}

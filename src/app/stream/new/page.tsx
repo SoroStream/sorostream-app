@@ -1,4 +1,5 @@
 "use client";
+import { primePickerToNow } from "@/src/lib/datePickerDefault";
 import { useState, useEffect, useRef, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import DurationPicker from "@/components/DurationPicker";
@@ -1163,6 +1164,7 @@ function NewStreamWizard() {
               <input
                 id="cliff-date"
                 type="datetime-local"
+                onFocus={primePickerToNow}
                 value={cliffDate}
                 onChange={(e) => {
                   setCliffDate(e.target.value);

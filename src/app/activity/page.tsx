@@ -7,6 +7,7 @@
  * type/asset/date filters, cursor-based "load more" pagination, and
  * real-time prepending of new events as they arrive.
  */
+import { primePickerToNow } from "@/src/lib/datePickerDefault";
 import { useState, useEffect, useCallback, useRef } from "react";
 import Link from "next/link";
 import {
@@ -244,6 +245,7 @@ export default function ActivityPage() {
               <input
                 id="activity-from"
                 type="date"
+                onFocus={primePickerToNow}
                 value={fromDate}
                 onChange={(e) => setFromDate(e.target.value)}
                 max={toDate || undefined}
@@ -257,6 +259,7 @@ export default function ActivityPage() {
               <input
                 id="activity-to"
                 type="date"
+                onFocus={primePickerToNow}
                 value={toDate}
                 onChange={(e) => setToDate(e.target.value)}
                 min={fromDate || undefined}
