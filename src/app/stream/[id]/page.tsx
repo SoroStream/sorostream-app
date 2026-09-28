@@ -786,6 +786,8 @@ export default function StreamDetail({ params }: { params: { id: string } }) {
   // ── Stream completion ─────────────────────────────────────────────────────
   /** True when the current wall-clock time has passed the stream's end time. */
   const [isCompleted, setIsCompleted] = useState(false);
+  /** Header badge reads "Completed" once the end time passes, not just on-chain "Ended". */
+  const headerCompleted = isCompleted && displayStatus !== "Cancelled";
 
   useEffect(() => {
     if (!stream || stream.status === "Cancelled") {
@@ -1001,7 +1003,9 @@ export default function StreamDetail({ params }: { params: { id: string } }) {
           <span className="hidden sm:inline" aria-hidden="true">|</span>
           <span
             className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
-              displayStatus === "Active"
+              headerCompleted
+                ? "bg-amber-900 text-amber-300"
+                : displayStatus === "Active"
                 ? "bg-green-900 text-green-400"
                 : displayStatus === "Paused"
                 ? "bg-yellow-900 text-yellow-400"
@@ -1009,10 +1013,10 @@ export default function StreamDetail({ params }: { params: { id: string } }) {
                 ? "bg-red-900 text-red-400"
                 : "bg-gray-700 text-gray-400"
             }`}
-            aria-label={`Status: ${displayStatus}`}
+            aria-label={`Status: ${headerCompleted ? "Completed" : displayStatus}`}
             data-testid="stream-status"
           >
-            {displayStatus}
+            {headerCompleted ? "✅ Completed" : displayStatus}
           </span>
         </div>
 
