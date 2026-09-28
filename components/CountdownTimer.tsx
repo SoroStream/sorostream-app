@@ -4,6 +4,8 @@ import { useEffect, useRef, useState } from "react";
 
 interface CountdownTimerProps {
   endTime: Date | string;
+  /** Label rendered once the countdown reaches zero. */
+  expiredLabel?: string;
 }
 
 function computeRemaining(endTime: Date | string) {
@@ -19,44 +21,50 @@ function computeRemaining(endTime: Date | string) {
   };
 }
 
-export default function CountdownTimer({ endTime }: CountdownTimerProps) {
+export default function CountdownTimer({ endTime, expiredLabel = "Ended" }: CountdownTimerProps) {
   const [remaining, setRemaining] = useState(() => computeRemaining(endTime));
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   useEffect(() => {
+    function stopInterval() {
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+        intervalRef.current = null;
+      }
+    }
+
     function recalculate() {
-      setRemaining(computeRemaining(endTime));
+      const next = computeRemaining(endTime);
+      setRemaining(next);
+      // Stop ticking as soon as the countdown reaches zero.
+      if (next.expired) stopInterval();
+      return next;
     }
 
     function startInterval() {
-      if (intervalRef.current) clearInterval(intervalRef.current);
+      stopInterval();
       intervalRef.current = setInterval(recalculate, 1000);
     }
 
     // Recalculate immediately then start ticking.
-    recalculate();
-    startInterval();
+    if (!recalculate().expired) startInterval();
 
     // When the tab becomes visible again after being backgrounded, the browser
     // may have throttled the interval — recalculate elapsed time immediately
     // using Date.now() rather than relying on accumulated ticks.
     function handleVisibilityChange() {
       if (document.visibilityState === "visible") {
-        recalculate();
-        startInterval();
+        if (!recalculate().expired) startInterval();
       } else {
         // Stop ticking while the tab is hidden to prevent drift accumulation.
-        if (intervalRef.current) {
-          clearInterval(intervalRef.current);
-          intervalRef.current = null;
-        }
+        stopInterval();
       }
     }
 
     document.addEventListener("visibilitychange", handleVisibilityChange);
 
     return () => {
-      if (intervalRef.current) clearInterval(intervalRef.current);
+      stopInterval();
       document.removeEventListener("visibilitychange", handleVisibilityChange);
     };
   }, [endTime]);
@@ -65,7 +73,7 @@ export default function CountdownTimer({ endTime }: CountdownTimerProps) {
     return (
       <div className="text-center">
         <p className="text-gray-400 text-sm mb-1">Time Remaining</p>
-        <p className="text-red-400 font-mono text-lg font-semibold">Stream ended</p>
+        <p className="text-red-400 font-mono text-lg font-semibold">{expiredLabel}</p>
       </div>
     );
   }

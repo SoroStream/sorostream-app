@@ -131,6 +131,11 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   );
 }
 
+/**
+ * Access the current colour theme.
+ *
+ * @returns {ThemeContextValue} Active theme, whether it follows the OS, and `toggle`/`setTheme` actions.
+ */
 export function useTheme() {
   return useContext(ThemeContext);
 }

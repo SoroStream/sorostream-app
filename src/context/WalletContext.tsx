@@ -562,6 +562,12 @@ export function WalletProvider({ children }: { children: ReactNode }) {
   );
 }
 
+/**
+ * Access the connected Stellar wallet.
+ *
+ * @returns {WalletContextValue} Wallet address/public key, connection and network state, and wallet actions.
+ * @throws {Error} When called outside a `WalletProvider`.
+ */
 export function useWallet() {
   const context = useContext(WalletContext);
 
