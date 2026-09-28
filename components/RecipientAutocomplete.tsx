@@ -199,9 +199,9 @@ export default function RecipientAutocomplete({
           placeholder={placeholder}
           className="w-full bg-gray-800 border border-gray-600 rounded-lg pl-4 pr-10 py-3 text-white font-mono focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-500 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-900"
           aria-required="true"
-          aria-invalid={!!(touched && error)}
+          aria-invalid={!!error}
           aria-describedby={
-            touched && error ? "recipient-error" : federationResolution.status !== "idle" ? "federation-status" : undefined
+            error ? "recipient-error" : federationResolution.status !== "idle" ? "federation-status" : undefined
           }
           aria-expanded={showDropdown}
           aria-autocomplete="list"

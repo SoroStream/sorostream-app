@@ -657,7 +657,37 @@ function NewStreamWizard() {
     return SUPPORTED_TOKENS.find((t) => t.symbol === selectedToken)?.address ?? SUPPORTED_TOKENS[0].address;
   }
 
+  // Undo window before broadcasting (#650): the user can cancel an accidental
+  // submit within UNDO_WINDOW_SECONDS without losing any entered data.
+  const UNDO_WINDOW_SECONDS = 5;
+  const [undoCountdown, setUndoCountdown] = useState<number | null>(null);
+  const undoResolveRef = useRef<((proceed: boolean) => void) | null>(null);
+
+  function waitForUndoWindow(): Promise<boolean> {
+    return new Promise((resolve) => {
+      let remaining = UNDO_WINDOW_SECONDS;
+      setUndoCountdown(remaining);
+      const interval = setInterval(() => {
+        remaining -= 1;
+        if (remaining <= 0) finish(true);
+        else setUndoCountdown(remaining);
+      }, 1000);
+      function finish(proceed: boolean) {
+        clearInterval(interval);
+        undoResolveRef.current = null;
+        setUndoCountdown(null);
+        resolve(proceed);
+      }
+      undoResolveRef.current = finish;
+    });
+  }
+
+  function handleUndoSubmit() {
+    undoResolveRef.current?.(false);
+  }
+
   async function handleCreateStream() {
+    if (undoCountdown !== null) return;
     const rErr = validateRecipient(recipient);
     const aErr = validateAmount(amount);
     const dErr = validateDuration(duration);
@@ -688,6 +718,9 @@ function NewStreamWizard() {
       schedulingEnabled && scheduledStart
         ? Math.floor(new Date(scheduledStart).getTime() / 1000)
         : undefined;
+
+    const proceed = await waitForUndoWindow();
+    if (!proceed) return;
 
     setLoading(true);
     setTxStage(TxStage.Building);
@@ -809,6 +842,24 @@ function NewStreamWizard() {
   return (
     <main id="main-content" tabIndex={-1} className="min-h-screen bg-gray-900 text-white p-4 sm:p-8 pb-24 md:pb-8">
       <div className="max-w-lg mx-auto">
+        {undoCountdown !== null && (
+          <div
+            role="status"
+            aria-live="polite"
+            data-testid="undo-submit-banner"
+            className="mb-6 flex items-center justify-between gap-3 rounded-lg border border-yellow-600 bg-yellow-900/30 px-4 py-3 text-sm text-yellow-100"
+          >
+            <span>Submitting stream in {undoCountdown}s…</span>
+            <button
+              type="button"
+              onClick={handleUndoSubmit}
+              data-testid="undo-submit-button"
+              className="rounded-md bg-yellow-600 px-3 py-1 font-medium text-gray-900 hover:bg-yellow-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-yellow-400"
+            >
+              Undo
+            </button>
+          </div>
+        )}
         {/* Tab switcher */}
         <div className="flex rounded-xl bg-gray-800 p-1 mb-8" role="tablist" aria-label="Create stream mode">
           <button
@@ -897,7 +948,7 @@ function NewStreamWizard() {
                 senderAddress={senderKey}
               />
               {errors.recipient && (
-                <p id="recipient-error" className="text-red-400 text-sm mt-1">
+                <p id="recipient-error" role="alert" className="text-red-400 text-sm mt-1">
                   {errors.recipient}
                 </p>
               )}
@@ -1050,13 +1101,11 @@ function NewStreamWizard() {
                 placeholder={t("amount_placeholder")}
                 className="w-full bg-gray-800 border border-gray-600 rounded-lg px-4 py-3 text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-500 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-900"
                 aria-required="true"
-                aria-invalid={!!(touched.amount && errors.amount)}
-                aria-describedby={
-                  touched.amount && errors.amount ? "amount-error" : undefined
-                }
+                aria-invalid={!!errors.amount}
+                aria-describedby={errors.amount ? "amount-error" : undefined}
               />
               {errors.amount && (
-                <p id="amount-error" className="text-red-400 text-sm mt-1">
+                <p id="amount-error" role="alert" className="text-red-400 text-sm mt-1">
                   {errors.amount}
                 </p>
               )}
@@ -1876,9 +1925,9 @@ function NewStreamWizard() {
             <button
               type="button"
               onClick={handleCreateStream}
-              disabled={loading || !confirmAmountMatches || showTopUpBanner}
+              disabled={loading || undoCountdown !== null || !confirmAmountMatches || showTopUpBanner}
               aria-label="Confirm and sign transaction"
-              aria-disabled={loading || !confirmAmountMatches || showTopUpBanner}
+              aria-disabled={loading || undoCountdown !== null || !confirmAmountMatches || showTopUpBanner}
               data-testid="confirm-sign-button"
               className="flex-1 bg-green-700 text-white py-3 rounded-lg font-medium hover:bg-green-800 disabled:opacity-50 disabled:cursor-not-allowed transition-colors inline-flex items-center justify-center gap-2"
             >

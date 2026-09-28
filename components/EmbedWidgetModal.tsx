@@ -20,7 +20,7 @@ export default function EmbedWidgetModal({ streamId, onClose }: EmbedWidgetModal
   const [show, setShow] = useState<ShowMode>("both");
   const [copied, setCopied] = useState(false);
   const modalRef = useRef<HTMLDivElement>(null);
-  useFocusTrap(modalRef, true);
+  useFocusTrap(modalRef, true, onClose);
 
   // Build the embed URL
   const origin =

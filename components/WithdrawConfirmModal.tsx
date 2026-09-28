@@ -23,7 +23,7 @@ export default function WithdrawConfirmModal({
   const inputRef = useRef<HTMLInputElement>(null);
   const dialogRef = useRef<HTMLDivElement>(null);
 
-  useFocusTrap(dialogRef, true);
+  useFocusTrap(dialogRef, true, onCancel);
 
   // Close on Escape
   useEffect(() => {

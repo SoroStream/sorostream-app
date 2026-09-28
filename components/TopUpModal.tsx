@@ -23,7 +23,7 @@ export default function TopUpModal({
   const modalRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  useFocusTrap(modalRef, open);
+  useFocusTrap(modalRef, open, onClose);
 
   // Focus input when modal opens
   useEffect(() => {

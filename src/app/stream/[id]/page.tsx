@@ -160,7 +160,7 @@ export default function StreamDetail({ params }: { params: { id: string } }) {
   const [cancelPending, setCancelPending] = useState(false);
   const [showCancelModal, setShowCancelModal] = useState(false);
   const cancelModalRef = useRef<HTMLDivElement>(null);
-  useFocusTrap(cancelModalRef, showCancelModal);
+  useFocusTrap(cancelModalRef, showCancelModal, () => setShowCancelModal(false));
   const [showQrModal, setShowQrModal] = useState(false);
   const [showShortcutsHelp, setShowShortcutsHelp] = useState(false);
   const [showEmbedModal, setShowEmbedModal] = useState(false);
@@ -172,22 +172,22 @@ export default function StreamDetail({ params }: { params: { id: string } }) {
   const [optimisticStatus, setOptimisticStatus] = useState<string | null>(null);
   const [showPauseModal, setShowPauseModal] = useState(false);
   const pauseModalRef = useRef<HTMLDivElement>(null);
-  useFocusTrap(pauseModalRef, showPauseModal);
+  useFocusTrap(pauseModalRef, showPauseModal, () => setShowPauseModal(false));
   const [showResumeModal, setShowResumeModal] = useState(false);
   const resumeModalRef = useRef<HTMLDivElement>(null);
-  useFocusTrap(resumeModalRef, showResumeModal);
+  useFocusTrap(resumeModalRef, showResumeModal, () => setShowResumeModal(false));
 
   // ── Schedule pause (future auto-pause) states ───────────────────────────────
   const [showSchedulePauseModal, setShowSchedulePauseModal] = useState(false);
   const [pauseAtInput, setPauseAtInput] = useState("");
   const [schedulePauseLoading, setSchedulePauseLoading] = useState(false);
   const schedulePauseModalRef = useRef<HTMLDivElement>(null);
-  useFocusTrap(schedulePauseModalRef, showSchedulePauseModal);
+  useFocusTrap(schedulePauseModalRef, showSchedulePauseModal, () => setShowSchedulePauseModal(false));
 
   // ── Transfer recipient states ──────────────────────────────────────────────
   const [showTransferModal, setShowTransferModal] = useState(false);
   const transferModalRef = useRef<HTMLDivElement>(null);
-  useFocusTrap(transferModalRef, showTransferModal);
+  useFocusTrap(transferModalRef, showTransferModal, () => setShowTransferModal(false));
   const [transferRecipientAddress, setTransferRecipientAddress] = useState("");
   const [transferLoading, setTransferLoading] = useState(false);
   const [transferError, setTransferError] = useState("");

@@ -45,7 +45,7 @@ export default function ChangelogModal({ open, onClose }: Props) {
   const [changelog, setChangelog] = useState<Changelog | null>(null);
   const dialogRef = useRef<HTMLDivElement>(null);
 
-  useFocusTrap(dialogRef, open);
+  useFocusTrap(dialogRef, open, onClose);
 
   useEffect(() => {
     if (!open) return;
