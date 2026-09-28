@@ -135,4 +135,11 @@ describe('StreamHistory', () => {
     render(<StreamHistory entries={makeManyEntries(5)} />);
     expect(screen.getByText(/reached the end/i)).toBeInTheDocument();
   });
+
+  it('wraps entries in a horizontally scrollable region (#611)', () => {
+    render(<StreamHistory entries={[makeEntry({})]} streamId="1" />);
+    const region = screen.getByTestId('history-scroll');
+    expect(region.className).toContain('overflow-x-auto');
+    expect(region).toHaveAttribute('tabindex', '0');
+  });
 });

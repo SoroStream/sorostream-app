@@ -246,6 +246,15 @@ export default function StreamHistory({ entries, loading, streamId = "stream" }:
         </button>
       </div>
 
+      {/* Horizontal scroll with a visible scrollbar so wide rows are never cut off (#611) */}
+      <div
+        role="region"
+        aria-label="Transaction history"
+        tabIndex={0}
+        data-testid="history-scroll"
+        className="history-scroll overflow-x-auto pb-2"
+      >
+      <div className="min-w-[32rem] space-y-3">
       {visibleEntries.map((entry, idx) => {
         const config = typeConfig[entry.type] ?? typeConfig.creation;
         return (
@@ -287,6 +296,8 @@ export default function StreamHistory({ entries, loading, streamId = "stream" }:
           </div>
         );
       })}
+      </div>
+      </div>
 
       {visibleCount < entries.length && (
         /* Sentinel element: IntersectionObserver triggers the next page load
