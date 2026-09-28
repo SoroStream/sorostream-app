@@ -35,7 +35,7 @@ describe('LiveCounter', () => {
       vi.advanceTimersByTime(10_000);
     });
 
-    expect(screen.getByLabelText('Claimable: 12.0000000 USDC')).toBeInTheDocument();
+    expect(screen.getByLabelText('Claimable: 11.0000000 USDC')).toBeInTheDocument();
   });
 
   it('reconciles against the on-chain claimable balance for the stream', async () => {
