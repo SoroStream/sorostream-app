@@ -19,6 +19,7 @@ import {
   type StreamEvent,
   type ActivityQuery,
 } from "@/src/lib/sorostream";
+import { useLocaleDateFormat } from "@/src/lib/dateFormat";
 
 const PAGE_SIZE = 10;
 /** How often we check for newly-arrived events to prepend (ms). */
@@ -40,17 +41,8 @@ const typeConfig: Record<StreamEvent["type"], { label: string; icon: string; col
   alert: { label: "Alert", icon: "⚠", colorClass: "text-yellow-400 bg-yellow-900/30" },
 };
 
-function formatDateTime(iso: string): string {
-  return new Date(iso).toLocaleString(undefined, {
-    year: "numeric",
-    month: "short",
-    day: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
-}
-
 export default function ActivityPage() {
+  const { formatDateTime } = useLocaleDateFormat();
   const [events, setEvents] = useState<StreamEvent[]>([]);
   const [cursor, setCursor] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);

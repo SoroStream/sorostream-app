@@ -19,7 +19,7 @@ import StreamDryRunPreview from "@/components/StreamDryRunPreview";
 import AddressVerificationBadge from "@/components/AddressVerificationBadge";
 import AddressVerificationWarning from "@/components/AddressVerificationWarning";
 import { SkeletonForm } from "@/components/Skeleton";
-import { formatLocaleDate } from "@/src/lib/dateFormat";
+import { formatLocaleDate, formatLocaleDateTime } from "@/src/lib/dateFormat";
 import { useTranslations } from "@/src/lib/i18n";
 import { trackEvent } from "@/src/lib/analytics";
 import { verifyAddress, canCreateStream, type AddressVerification } from "@/src/lib/addressVerification";
@@ -1477,7 +1477,7 @@ function NewStreamWizard() {
               <div className="border-t border-gray-700 pt-4">
                 <span className="text-gray-400 text-sm">Stream ends</span>
                 <div className="text-lg font-semibold text-white mt-1">
-                  {calculateEndDate(duration).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric", hour: "2-digit", minute: "2-digit" })}
+                  {formatLocaleDateTime(calculateEndDate(duration), undefined, { month: "short", day: "numeric", year: "numeric", hour: "2-digit", minute: "2-digit" })}
                 </div>
               </div>
 
@@ -1682,7 +1682,7 @@ function NewStreamWizard() {
                 <div className="flex justify-between items-center">
                   <span className="text-gray-400 text-sm">Scheduled Start</span>
                   <span className="text-blue-300 font-mono text-sm">
-                    {new Date(scheduledStart).toLocaleString()}
+                    {formatLocaleDateTime(new Date(scheduledStart))}
                   </span>
                 </div>
               )}

@@ -49,6 +49,7 @@ import { getGiftMessage } from "@/components/GiftStreamModal";
 import { useSettings } from "@/src/context/SettingsContext";
 import { formatStellarAmount } from "@/src/lib/sorostream";
 import { useTranslations } from "@/src/lib/i18n";
+import { useLocaleDateFormat } from "@/src/lib/dateFormat";
 import { useKeyboardShortcuts, type ShortcutGroup } from "@/src/lib/useKeyboardShortcuts";
 import { useBookmarks } from "@/src/context/BookmarksContext";
 import { useWallet } from "@/src/context/WalletContext";
@@ -140,6 +141,7 @@ export default function StreamDetail({ params }: { params: { id: string } }) {
   const { address, refetchBalance, triggerStreamRefresh } = useWallet();
   const { isBookmarked, toggleBookmark } = useBookmarks();
   const t = useTranslations("stream_detail");
+  const { formatDateTime } = useLocaleDateFormat();
   const [withdrawConfirmAmount, setWithdrawConfirmAmount] = useState<string | null>(null);
 
   // ── Stream data ────────────────────────────────────────────────────────────
@@ -1458,7 +1460,7 @@ export default function StreamDetail({ params }: { params: { id: string } }) {
 
           {stream.pauseAt && stream.pauseAt > Math.floor(Date.now() / 1000) && (
             <p className="text-xs text-indigo-400/80 text-center">
-              {t("scheduled_pause_badge")}: {new Date(stream.pauseAt * 1000).toLocaleString()}
+              {t("scheduled_pause_badge")}: {formatDateTime(new Date(stream.pauseAt * 1000))}
             </p>
           )}
 

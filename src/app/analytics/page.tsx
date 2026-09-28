@@ -19,6 +19,7 @@ import {
 } from "recharts";
 import { getStreamAnalytics, type StreamAnalytics } from "@/src/lib/sorostream";
 import { truncateAddress } from "@/src/lib/sorostream";
+import { useLocaleDateFormat } from "@/src/lib/dateFormat";
 
 const POLL_INTERVAL_MS = 30_000;
 
@@ -50,6 +51,7 @@ function ChartCard({
 }
 
 export default function AnalyticsPage() {
+  const { formatTime } = useLocaleDateFormat();
   const [data, setData] = useState<StreamAnalytics | null>(null);
   const [loading, setLoading] = useState(true);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
@@ -102,7 +104,7 @@ export default function AnalyticsPage() {
           </div>
           {lastUpdated && (
             <p className="text-xs text-gray-500 tabular-nums">
-              Updated {lastUpdated.toLocaleTimeString()}
+              Updated {formatTime(lastUpdated)}
             </p>
           )}
         </div>

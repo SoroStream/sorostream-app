@@ -9,7 +9,7 @@ import {
   getMockStream,
   type StreamData,
 } from "@/src/lib/sorostream";
-import { formatLocaleDate } from "@/src/lib/dateFormat";
+import { formatLocaleDate, formatLocaleDateTime } from "@/src/lib/dateFormat";
 
 /** Auto-refresh interval in ms. */
 const REFRESH_INTERVAL_MS = 30_000;
@@ -142,7 +142,7 @@ function EmbedWidget({ stream, theme, show }: EmbedWidgetProps) {
 
       {stream.pauseAt && stream.pauseAt > Math.floor(Date.now() / 1000) && (
         <p className={`text-[10px] ${textSecondary} text-center`}>
-          Pause scheduled: {new Date(stream.pauseAt * 1000).toLocaleString()}
+          Pause scheduled: {formatLocaleDateTime(new Date(stream.pauseAt * 1000))}
         </p>
       )}
     </div>
