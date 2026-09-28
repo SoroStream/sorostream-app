@@ -58,21 +58,32 @@ describe('ToastProvider — addToast', () => {
     expect(screen.getByRole('alert')).toHaveClass('bg-green-600');
   });
 
-  it('auto-dismisses after 4 seconds', () => {
+  it('auto-dismisses after 10 seconds (#621 — long enough for screen readers to announce it)', () => {
     renderToasts();
     act(() => { controls.add('bye', 'info'); });
     expect(screen.getByText('bye')).toBeInTheDocument();
 
+    // Still present well past the old 4s duration.
     act(() => { vi.advanceTimersByTime(4000); });
+    expect(screen.getByText('bye')).toBeInTheDocument();
+
+    act(() => { vi.advanceTimersByTime(6000); });
     expect(screen.queryByText('bye')).not.toBeInTheDocument();
   });
 
-  it('can be manually dismissed before 4 seconds', () => {
+  it('can be manually dismissed before the 10 second auto-dismiss', () => {
     renderToasts();
     act(() => { controls.add('dismiss me', 'info'); });
 
     fireEvent.click(screen.getByRole('button', { name: /dismiss notification/i }));
     expect(screen.queryByText('dismiss me')).not.toBeInTheDocument();
+  });
+
+  it('renders toasts with role="alert" so they are announced immediately by assistive tech (#621)', () => {
+    renderToasts();
+    act(() => { controls.add('announce me', 'info'); });
+
+    expect(screen.getByRole('alert')).toHaveTextContent('announce me');
   });
 });
 

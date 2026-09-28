@@ -40,6 +40,17 @@ interface ToastContextType {
 
 const ToastContext = createContext<ToastContextType | null>(null);
 
+/**
+ * How long a non-persistent toast stays visible before auto-dismissing.
+ *
+ * Screen readers need time to reach and announce a newly inserted
+ * `role="alert"` node — a short auto-dismiss can remove the toast from the
+ * DOM before that announcement finishes. 10s gives assistive tech enough
+ * room without leaving toasts on screen indefinitely (#621; see WCAG 2.2.1
+ * Timing Adjustable / 2.2.3 No Timing).
+ */
+const TOAST_AUTO_DISMISS_MS = 10_000;
+
 export function useToast() {
   const ctx = useContext(ToastContext);
   if (!ctx) throw new Error("useToast must be used within ToastProvider");
@@ -65,7 +76,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
     (message: string, type: ToastType = "info") => {
       const id = Date.now() + Math.random();
       setToasts((prev) => [...prev, { id, message, type }]);
-      setTimeout(() => removeToast(id), 4000);
+      setTimeout(() => removeToast(id), TOAST_AUTO_DISMISS_MS);
     },
     [removeToast],
   );
