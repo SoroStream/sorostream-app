@@ -50,6 +50,11 @@ import { useSettings } from "@/src/context/SettingsContext";
 import { formatStellarAmount } from "@/src/lib/sorostream";
 import { useTranslations } from "@/src/lib/i18n";
 import { useLocaleDateFormat } from "@/src/lib/dateFormat";
+import {
+  readPersistedStreamError,
+  writePersistedStreamError,
+  clearPersistedStreamError,
+} from "@/src/lib/errorPersist";
 import { useKeyboardShortcuts, type ShortcutGroup } from "@/src/lib/useKeyboardShortcuts";
 import { useBookmarks } from "@/src/context/BookmarksContext";
 import { useWallet } from "@/src/context/WalletContext";
@@ -150,7 +155,10 @@ export default function StreamDetail({ params }: { params: { id: string } }) {
   streamRef.current = stream;
   const [historyEntries, setHistoryEntries] = useState<StreamHistoryEntry[]>([]);
   const [pageLoading, setPageLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  // Seed from sessionStorage so a remount (e.g. browser back/forward, or
+  // navigating away and back) shows the last known error immediately
+  // instead of silently losing it while the retry fetch is in flight (#618).
+  const [error, setError] = useState<string | null>(() => readPersistedStreamError(params.id));
   const [isNetworkError, setIsNetworkError] = useState(false);
   const [routeError, setRouteError] = useState<Error | null>(null);
   const [fetchKey, setFetchKey] = useState(0);
@@ -394,6 +402,7 @@ export default function StreamDetail({ params }: { params: { id: string } }) {
       setStream(null);
       setHistoryEntries([]);
       setError(null);
+      clearPersistedStreamError(params.id);
       setAllStreams([]);
     }
   }, [address]);
@@ -404,14 +413,19 @@ export default function StreamDetail({ params }: { params: { id: string } }) {
 
     async function loadStream() {
       setPageLoading(true);
-      setError(null);
+      // Deliberately don't clear `error` here: a previously persisted error
+      // (#618) stays visible while this retry is in flight rather than
+      // flashing to a bare loading state, and is cleared below once the
+      // fetch actually succeeds or replaced with a fresh message on failure.
       setIsNetworkError(false);
 
       // Validate ID format client-side before making any network call.
       // This prevents an infinite loading spinner for clearly invalid IDs
       // (e.g. path traversal characters, excessively long strings).
       if (!isValidStreamId(params.id)) {
-        setError(`"${params.id}" is not a valid stream ID.`);
+        const invalidIdMessage = `"${params.id}" is not a valid stream ID.`;
+        setError(invalidIdMessage);
+        writePersistedStreamError(params.id, invalidIdMessage);
         setIsNetworkError(false);
         setPageLoading(false);
         return;
@@ -428,9 +442,12 @@ export default function StreamDetail({ params }: { params: { id: string } }) {
         if (cancelled) return;
         if (!data) {
           setError("Stream not found.");
+          writePersistedStreamError(params.id, "Stream not found.");
           return;
         }
         setStream(data);
+        setError(null);
+        clearPersistedStreamError(params.id);
         // Populate history with mock data only as a fallback while the
         // contract doesn't emit indexable events. The isMock flag lets
         // downstream components suppress display and export.
@@ -444,6 +461,7 @@ export default function StreamDetail({ params }: { params: { id: string } }) {
         if (!cancelled) {
           const message = err instanceof Error ? err.message : "Failed to load stream data.";
           setError(message);
+          writePersistedStreamError(params.id, message);
           setIsNetworkError(true);
           const nextError = err instanceof Error ? err : new Error("Failed to load stream data.");
           setRouteError(nextError);
