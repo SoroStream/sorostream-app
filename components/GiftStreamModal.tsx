@@ -221,7 +221,8 @@ export default function GiftStreamModal({ onClose }: GiftStreamModalProps) {
               </label>
               <input
                 id="gift-amount"
-                type="number"
+                type="tel"
+                inputMode="decimal"
                 min="0"
                 step="0.01"
                 value={amount}
