@@ -17,6 +17,7 @@ import { useKeyboardShortcuts, type ShortcutGroup } from "@/src/lib/useKeyboardS
 import { useBookmarks } from "@/src/context/BookmarksContext";
 import { useWallet } from "@/src/context/WalletContext";
 import ArchiveBanner from "@/components/ArchiveBanner";
+import RateLimitBanner from "@/components/RateLimitBanner";
 import { getAllTags, getTagMap } from "@/src/lib/streamTags";
 import PortfolioChart from "@/components/PortfolioChart";
 import StreamExpiryAlerts from "@/components/StreamExpiryAlerts";
@@ -587,6 +588,7 @@ function DashboardContent() {
   return (
     <main id="main-content" tabIndex={-1} className="min-h-screen bg-gray-900 text-white p-4 sm:p-6">
       <div className="max-w-6xl mx-auto">
+        <RateLimitBanner />
         <div className="flex flex-wrap justify-between items-center gap-3 mb-6">
           <h1 className="text-2xl font-bold">Dashboard</h1>
           <div className="flex flex-wrap items-center gap-2">

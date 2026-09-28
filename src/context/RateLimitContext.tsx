@@ -31,7 +31,8 @@ export function RateLimitProvider({ children }: { children: ReactNode }) {
     if (typeof window === "undefined") return;
     return onRateLimit((info: RateLimitInfo) => {
       setState({
-        active: info.active,
+        // Auto-dismiss once the retry window has elapsed.
+        active: info.active && info.secondsLeft > 0,
         secondsLeft: info.secondsLeft,
         attempt: info.attempt,
       });

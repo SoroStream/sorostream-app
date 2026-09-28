@@ -3,6 +3,19 @@
 @tailwind utilities;
 
 /*
+ * Colorblind-safe links (#633): inline text links must not rely on colour
+ * alone. Underline unstyled links and any link styled as a coloured text link.
+ */
+@layer base {
+  a:not([class]),
+  a[class*="hover:underline"],
+  a[class*="text-blue-"] {
+    text-decoration-line: underline;
+    text-underline-offset: 2px;
+  }
+}
+
+/*
  * Theme tokens (#192). The app's components are authored against Tailwind's
  * dark gray palette, so the dark theme is the default token set on :root. The
  * `.light` class (set on <html> by ThemeProvider) remaps those tokens, and the
@@ -238,4 +251,16 @@ body {
     animation: none;
     opacity: 1;
   }
+}
+
+/* Mobile nav drawer slide-in (#551) */
+@keyframes nav-drawer-in {
+  from { transform: translateX(-100%); }
+  to { transform: translateX(0); }
+}
+.animate-nav-drawer-in {
+  animation: nav-drawer-in 0.2s ease-out;
+}
+@media (prefers-reduced-motion: reduce) {
+  .animate-nav-drawer-in { animation: none; }
 }

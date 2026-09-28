@@ -16,6 +16,7 @@ import { useTranslations } from "@/src/lib/i18n";
 import { useGlobalShortcuts } from "@/components/GlobalShortcuts";
 import RpcHealthIndicator from "@/components/RpcHealthIndicator";
 import { useNetwork } from "@/src/lib/network";
+import { useFocusTrap } from "@/src/lib/useFocusTrap";
 
 const HORIZON_URL = process.env.NEXT_PUBLIC_RPC_URL
   ? process.env.NEXT_PUBLIC_RPC_URL.replace("/rpc/v1", "")
@@ -32,6 +33,10 @@ const NAV_LINKS = [
   { href: "/settings", key: "settings" },
 ] as const;
 
+// Routes already reachable from BottomNav on mobile; omitted from the drawer.
+const BOTTOM_NAV_HREFS = ["/dashboard", "/stream/new", "/address-book", "/settings"];
+const DRAWER_LINKS = NAV_LINKS.filter((l) => !BOTTOM_NAV_HREFS.includes(l.href));
+
 export default function NavHeader() {
   const t = useTranslations("nav");
   const pathname = usePathname();
@@ -47,6 +52,21 @@ export default function NavHeader() {
   const [changelogOpen, setChangelogOpen] = useState(false);
   const changelogUnread = useChangelogUnread();
   const { openHelp } = useGlobalShortcuts();
+  const [menuOpen, setMenuOpen] = useState(false);
+  const drawerRef = useRef<HTMLDivElement>(null);
+  useFocusTrap(drawerRef, menuOpen);
+
+  useEffect(() => {
+    if (!menuOpen) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setMenuOpen(false);
+    };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [menuOpen]);
+
+  // Close the drawer on navigation.
+  useEffect(() => setMenuOpen(false), [pathname]);
 
   useEffect(() => {
     const handleScroll = () => setScrolled(window.scrollY > 10);
@@ -117,10 +137,24 @@ export default function NavHeader() {
       >
       <div className="max-w-6xl mx-auto px-4 sm:px-6 h-14 flex items-center justify-between min-w-0">
         <div className="flex items-center gap-6 min-w-0 shrink">
+          <button
+            type="button"
+            onClick={() => setMenuOpen(true)}
+            className="md:hidden -mr-4 p-1 text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-500"
+            aria-label="Open menu"
+            aria-expanded={menuOpen}
+            aria-controls="mobile-nav-drawer"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <line x1="3" y1="6" x2="21" y2="6" />
+              <line x1="3" y1="12" x2="21" y2="12" />
+              <line x1="3" y1="18" x2="21" y2="18" />
+            </svg>
+          </button>
           <Link href="/" className="text-lg font-bold text-green-400 rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-500 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-900">
             SoroStream
           </Link>
-          <nav className="hidden sm:flex items-center gap-4" aria-label={t("main_navigation")}>
+          <nav className="hidden md:flex items-center gap-4" aria-label={t("main_navigation")}>
             {NAV_LINKS.map((link) => {
               const isActive = pathname === link.href || (link.href !== "/" && pathname.startsWith(link.href));
               const unread = countFor(link.href);
@@ -236,6 +270,55 @@ export default function NavHeader() {
           <span className="text-sm font-medium text-yellow-800 dark:text-yellow-200">
             Testnet mode: Connected to Stellar Testnet. For development and testing only.
           </span>
+        </div>
+      </div>
+    )}
+    {menuOpen && (
+      <div className="fixed inset-0 z-[60] md:hidden">
+        <div className="absolute inset-0 bg-black/50" onClick={() => setMenuOpen(false)} aria-hidden="true" />
+        <div
+          ref={drawerRef}
+          id="mobile-nav-drawer"
+          role="dialog"
+          aria-modal="true"
+          aria-label={t("main_navigation")}
+          className="absolute inset-y-0 left-0 w-full bg-white dark:bg-gray-900 p-4 shadow-xl animate-nav-drawer-in"
+        >
+          <div className="flex items-center justify-between mb-4">
+            <span className="text-lg font-bold text-green-400">SoroStream</span>
+            <button
+              type="button"
+              onClick={() => setMenuOpen(false)}
+              className="p-1 text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-500"
+              aria-label="Close menu"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <line x1="18" y1="6" x2="6" y2="18" />
+                <line x1="6" y1="6" x2="18" y2="18" />
+              </svg>
+            </button>
+          </div>
+          <nav aria-label={t("main_navigation")}>
+            <ul className="flex flex-col gap-1">
+              {DRAWER_LINKS.map((link) => {
+                const isActive = pathname === link.href || (link.href !== "/" && pathname.startsWith(link.href));
+                return (
+                  <li key={link.href}>
+                    <Link
+                      href={link.href}
+                      onClick={() => setMenuOpen(false)}
+                      aria-current={isActive ? "page" : undefined}
+                      className={`block rounded-md px-3 py-2 text-base focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-500 ${
+                        isActive ? "bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-white font-medium" : "text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800"
+                      }`}
+                    >
+                      {t(link.key)}
+                    </Link>
+                  </li>
+                );
+              })}
+            </ul>
+          </nav>
         </div>
       </div>
     )}

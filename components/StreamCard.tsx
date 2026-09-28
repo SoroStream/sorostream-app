@@ -194,7 +194,7 @@ function statusBadgeClass(status: string): string {
 
   return (
     <div
-      className={`bg-white dark:bg-gray-800 rounded-lg p-4 space-y-3 border ${
+      className={`group bg-white dark:bg-gray-800 rounded-lg p-4 space-y-3 border ${
         selected ? "border-green-500" : "border-gray-200 dark:border-gray-700"
       }`}
       role="article"
@@ -215,6 +215,13 @@ function statusBadgeClass(status: string): string {
           )}
           <span className="text-gray-500 dark:text-gray-400 text-xs">Stream #{id}</span>
           <CopyButton value={id} label="Copy stream ID" />
+          <span className="opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity">
+            <CopyButton
+              value={typeof window !== "undefined" ? `${window.location.origin}/stream/${id}/public` : `/stream/${id}/public`}
+              label="Copy stream link"
+              showTooltip
+            />
+          </span>
         </span>
         <div className="flex items-center gap-2">
           {onClone && (
