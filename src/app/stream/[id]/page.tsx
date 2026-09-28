@@ -29,7 +29,6 @@ import { type StreamHistoryEntry } from "@/src/lib/export";
 import {
   sorostream,
   type StreamData,
-  getMockStreamHistory,
   claimableNow,
   getMockStream,
   toStroops,
@@ -420,11 +419,13 @@ export default function StreamDetail({ params }: { params: { id: string } }) {
         const timeoutPromise = new Promise<never>((_, reject) =>
           setTimeout(() => reject(new Error("Network timeout: stream data could not be loaded within 10 seconds.")), STREAM_FETCH_TIMEOUT_MS),
         );
-        const data = await Promise.race([
-          sorostream.getStream(params.id),
+        // One batched request for metadata + balance + history (#603).
+        const details = await Promise.race([
+          sorostream.getStreamDetails(params.id),
           timeoutPromise,
         ]);
         if (cancelled) return;
+        const data = details.stream;
         if (!data) {
           setError("Stream not found.");
           return;
@@ -434,7 +435,7 @@ export default function StreamDetail({ params }: { params: { id: string } }) {
         // contract doesn't emit indexable events. The isMock flag lets
         // downstream components suppress display and export.
         setHistoryEntries(
-          getMockStreamHistory(params.id).sort(
+          [...details.history].sort(
             (a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime(),
           ),
         );
