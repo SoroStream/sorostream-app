@@ -1089,7 +1089,10 @@ function NewStreamWizard() {
             />
 
             <div>
-              <label className="text-gray-200 text-sm font-medium block mb-2">{t("duration_label")}</label>
+              {/* Not a real form label — DurationPicker renders three separate
+                  inputs (days/hours/minutes) with their own group label, so a
+                  <label> here can't point at a single control via htmlFor. */}
+              <div className="text-gray-200 text-sm font-medium block mb-2">{t("duration_label")}</div>
               <DurationPicker
                 key={durationPickerKey}
                 initialSeconds={duration > 0 ? duration : undefined}
@@ -1306,10 +1309,11 @@ function NewStreamWizard() {
                   {/* Auto-renew duration (only when toggle is on) */}
                   {autoRenew && (
                     <div>
-                      <label className="text-sm text-gray-200 font-medium block mb-2">
+                      {/* Not a real form label — see the duration-picker note above. */}
+                      <div className="text-sm text-gray-200 font-medium block mb-2">
                         Auto-Renew Duration{" "}
                         <span className="text-gray-400 font-normal">(optional — defaults to stream duration)</span>
-                      </label>
+                      </div>
                       <DurationPicker
                         initialSeconds={autoRenewDuration > 0 ? autoRenewDuration : undefined}
                         onChange={setAutoRenewDuration}
