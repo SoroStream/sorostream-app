@@ -19,6 +19,7 @@ import { SkeletonDetail } from "@/components/Skeleton";
 import WalletConnect from "@/components/WalletConnect";
 import KeyboardShortcutsHelp from "@/components/KeyboardShortcutsHelp";
 import TransactionExportButton from "@/components/TransactionExportButton";
+import Tooltip from "@/components/ui/Tooltip";
 import StreamHealthBadge, {
   calculateHealthScore,
   getHealthTier,
@@ -1308,22 +1309,10 @@ export default function StreamDetail({ params }: { params: { id: string } }) {
               <div className="col-span-2">
                 <p className="text-gray-400 mb-1 flex items-center gap-2">
                   Metadata URI
-                  <div className="relative group">
-                    <button
-                      type="button"
-                      aria-label="What is metadata URI?"
-                      className="text-gray-500 hover:text-gray-300 text-xs border border-gray-600 rounded-full w-4 h-4 flex items-center justify-center transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-500"
-                    >
-                      ?
-                    </button>
-                    <div
-                      role="tooltip"
-                      className="hidden group-hover:block group-focus-within:block absolute left-0 bottom-6 w-64 bg-gray-700 border border-gray-600 rounded-lg p-3 text-xs text-gray-300 leading-relaxed z-10 shadow-lg"
-                    >
+                  <Tooltip label="What is metadata URI?">
                       External metadata reference that provides additional context or documentation
                       about this stream. Can point to JSON, terms of service, or other relevant data.
-                    </div>
-                  </div>
+                    </Tooltip>
                 </p>
                 <a
                   href={stream.metadataUri}
