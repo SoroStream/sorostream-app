@@ -10,6 +10,7 @@ import StreamEventFeed from "@/components/StreamEventFeed";
 import KeyboardShortcutsHelp from "@/components/KeyboardShortcutsHelp";
 import StatusLegend from "@/components/StatusLegend";
 import { StreamErrorBoundary } from "@/components/StreamErrorBoundary";
+import { mergeById } from "@/src/lib/mergeStreams";
 import { getStreamsForWallet, watchClaimable, sorostream, getMockStreamHistory, type StreamData } from "@/src/lib/sorostream";
 import { useRpcFetch } from "@/src/lib/useRpcFetch";
 import { useToast } from "@/src/lib/toast";
@@ -181,7 +182,7 @@ function DashboardContent() {
           Promise.resolve(watchClaimable(getStreamsForWallet(address))),
         );
         if (!cancelled) {
-          setStreams(data);
+          setStreams((prev) => mergeById(prev, data));
           setLastRefreshTime(Date.now());
         }
       } catch {
@@ -194,7 +195,35 @@ function DashboardContent() {
       if (pollRef.current) clearInterval(pollRef.current);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [address, streamRefreshTrigger]);
+  }, [address]);
+
+  // After a form submission / action (triggerStreamRefresh) refetch silently:
+  // keep filters, selection and scroll, skip the loading skeleton, and only
+  // replace the stream items whose data actually changed.
+  const lastRefreshTriggerRef = useRef(streamRefreshTrigger);
+  useEffect(() => {
+    if (lastRefreshTriggerRef.current === streamRefreshTrigger) return;
+    lastRefreshTriggerRef.current = streamRefreshTrigger;
+    if (!address) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const data = await rpcFetch(() =>
+          Promise.resolve(getStreamsForWallet(address)),
+        );
+        if (!cancelled) {
+          setStreams((prev) => mergeById(prev, data));
+          setLastRefreshTime(Date.now());
+        }
+      } catch {
+        // Errors are surfaced via toast by rpcFetch; keep current data.
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [streamRefreshTrigger]);
 
   // Manual refresh ("r" shortcut / refresh event) — re-fetch without resetting filters.
   const refreshStreams = useCallback(async () => {
@@ -204,7 +233,7 @@ function DashboardContent() {
       const data = await rpcFetch(() =>
         Promise.resolve(getStreamsForWallet(address)),
       );
-      setStreams(data);
+      setStreams((prev) => mergeById(prev, data));
       setLastRefreshTime(Date.now());
       addToast("Stream list refreshed.", "info");
     } catch {

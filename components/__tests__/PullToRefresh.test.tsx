@@ -31,4 +31,34 @@ describe("PullToRefresh", () => {
 
     expect(onRefresh).toHaveBeenCalled();
   });
+
+  it("does not refresh when the page is scrolled down", () => {
+    const onRefresh = vi.fn().mockResolvedValue(undefined);
+    Object.defineProperty(window, "scrollY", { value: 300, configurable: true });
+    render(
+      <PullToRefresh onRefresh={onRefresh}>
+        <div>Stream List Content</div>
+      </PullToRefresh>
+    );
+    const container = screen.getByTestId("pull-to-refresh-container");
+    fireEvent.touchStart(container, { touches: [{ clientY: 50 }] });
+    fireEvent.touchMove(container, { touches: [{ clientY: 200 }] });
+    fireEvent.touchEnd(container);
+    expect(onRefresh).not.toHaveBeenCalled();
+    Object.defineProperty(window, "scrollY", { value: 0, configurable: true });
+  });
+
+  it("does not refresh when released before the threshold", () => {
+    const onRefresh = vi.fn().mockResolvedValue(undefined);
+    render(
+      <PullToRefresh onRefresh={onRefresh}>
+        <div>Stream List Content</div>
+      </PullToRefresh>
+    );
+    const container = screen.getByTestId("pull-to-refresh-container");
+    fireEvent.touchStart(container, { touches: [{ clientY: 50 }] });
+    fireEvent.touchMove(container, { touches: [{ clientY: 80 }] });
+    fireEvent.touchEnd(container);
+    expect(onRefresh).not.toHaveBeenCalled();
+  });
 });
