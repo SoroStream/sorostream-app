@@ -115,8 +115,9 @@ function DashboardContent() {
   const [, setIsRefreshing] = useState(false);
 
   // Pagination state (#383)
-  const [visibleCount, setVisibleCount] = useState(12);
-  const PAGE_SIZE = 12;
+  const [visibleCount, setVisibleCount] = useState(20);
+  const PAGE_SIZE = 20;
+  const loadMoreRef = useRef<HTMLDivElement | null>(null);
 
   // Tab state
   const [activeTab, setActiveTab] = useState<"streams" | "watchlist">("streams");
@@ -307,6 +308,20 @@ function DashboardContent() {
     }
     setCurrentPage(1);
   }, [statusFilter, tokenFilter, search, bookmarksOnly, selectedTags, dateFrom, dateTo, minRate, maxRate]);
+
+  // Infinite scroll: load the next page when the sentinel scrolls into view (#552)
+  useEffect(() => {
+    const sentinel = loadMoreRef.current;
+    if (!sentinel || typeof IntersectionObserver === "undefined") return;
+    if (sortedFiltered.length <= visibleCount) return;
+    const observer = new IntersectionObserver((entries) => {
+      if (entries.some((e) => e.isIntersecting)) {
+        setVisibleCount((c) => c + PAGE_SIZE);
+      }
+    });
+    observer.observe(sentinel);
+    return () => observer.disconnect();
+  }, [sortedFiltered.length, visibleCount]);
 
   // Sort filtered streams, pinning bookmarks first, then by the chosen sort field.
   const sortedFiltered = useMemo(() => {
@@ -636,7 +651,9 @@ function DashboardContent() {
     <main id="main-content" tabIndex={-1} className="min-h-screen bg-gray-900 text-white p-4 sm:p-6">
       <div className="max-w-6xl mx-auto">
         <div className="flex flex-wrap justify-between items-center gap-3 mb-6">
-          <h1 className="text-2xl font-bold">Dashboard</h1>
+          <h1 className="text-2xl font-bold">
+            Dashboard <span className="text-gray-400 font-normal">({streams.length} stream{streams.length === 1 ? "" : "s"})</span>
+          </h1>
           <div className="flex flex-wrap items-center gap-2">
             <button
               type="button"
@@ -1295,7 +1312,7 @@ function DashboardContent() {
 
             {/* Pagination: Load More (#383) */}
             {sortedFiltered.length > visibleCount && (
-              <div className="mt-4 text-center">
+              <div ref={loadMoreRef} className="mt-4 text-center">
                 <button
                   onClick={() => setVisibleCount((c) => c + PAGE_SIZE)}
                   className="px-6 py-2 bg-gray-800 border border-gray-700 text-gray-300 rounded-lg text-sm hover:bg-gray-700 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-500 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-900"

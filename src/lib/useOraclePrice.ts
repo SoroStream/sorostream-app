@@ -9,6 +9,12 @@
 import { useEffect, useState } from "react";
 import { getOraclePrice } from "./sorostream";
 
+/**
+ * Fetch the on-chain oracle price for a token.
+ *
+ * @param {string} token - Token symbol or contract ID to price.
+ * @returns {{ price: number | null; loading: boolean }} Latest price (`null` if unavailable) and loading flag.
+ */
 export function useOraclePrice(token: string): { price: number | null; loading: boolean } {
   const [price, setPrice] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);

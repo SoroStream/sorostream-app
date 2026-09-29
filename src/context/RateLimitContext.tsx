@@ -45,6 +45,12 @@ export function RateLimitProvider({ children }: { children: ReactNode }) {
   );
 }
 
+/**
+ * Access the global RPC rate-limit state.
+ *
+ * @returns {RateLimitContextValue} Backoff state: whether it is active, seconds left and the retry attempt.
+ * @throws {Error} When called outside a `RateLimitProvider`.
+ */
 export function useRateLimit(): RateLimitContextValue {
   const ctx = useContext(RateLimitContext);
   if (!ctx) throw new Error("useRateLimit must be used within RateLimitProvider");
