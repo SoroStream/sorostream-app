@@ -36,7 +36,7 @@ vi.mock("@/src/lib/i18n", () => ({
 
 // xlmPrice is mocked at module level so every import in the test file and
 // in XlmPriceContext sees the same spy function.
-const mockGetXlmUsdPrice = vi.fn<[], Promise<number | null>>();
+const mockGetXlmUsdPrice = vi.fn<() => Promise<number | null>>();
 vi.mock("@/src/lib/xlmPrice", () => ({
   getXlmUsdPrice: () => mockGetXlmUsdPrice(),
 }));

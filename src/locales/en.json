@@ -16,7 +16,8 @@
     "new_stream": "+ New Stream",
     "no_streams": "No streams yet",
     "create_first": "Create your first stream →",
-    "manual_refresh": "Refresh now"
+    "manual_refresh": "Refresh now",
+    "refreshing": "Refreshing…"
   },
   "stream_new": {
     "title": "Create Stream",

@@ -118,3 +118,88 @@ describe("RecipientAutocomplete Address Book Selection", () => {
     });
   });
 });
+
+describe("RecipientAutocomplete outside click (#545)", () => {
+  beforeEach(() => {
+    localStorage.clear();
+    saveContact(CONTACT_ALICE, SENDER);
+    saveContact(CONTACT_BOB, SENDER);
+  });
+
+  it("closes the dropdown on an outside mousedown without a blur event", async () => {
+    render(
+      <RecipientAutocomplete
+        value=""
+        onChange={vi.fn()}
+        onBlur={vi.fn()}
+        senderAddress={SENDER}
+      />,
+    );
+
+    fireEvent.focus(screen.getByTestId("recipient-input"));
+    await waitFor(() => {
+      expect(screen.getByTestId("address-book-dropdown")).toBeInTheDocument();
+    });
+
+    // Safari never fires blur when the click lands on a non-focusable element,
+    // so the document-level mousedown listener is what has to close it.
+    fireEvent.mouseDown(document.body);
+
+    await waitFor(() => {
+      expect(screen.queryByTestId("address-book-dropdown")).not.toBeInTheDocument();
+    });
+  });
+
+  it("keeps the dropdown open for clicks inside the container", async () => {
+    render(
+      <RecipientAutocomplete
+        value=""
+        onChange={vi.fn()}
+        onBlur={vi.fn()}
+        senderAddress={SENDER}
+      />,
+    );
+
+    fireEvent.focus(screen.getByTestId("recipient-input"));
+    await waitFor(() => {
+      expect(screen.getByTestId("address-book-dropdown")).toBeInTheDocument();
+    });
+
+    fireEvent.mouseDown(screen.getByTestId("address-book-toggle"));
+    expect(screen.getByTestId("address-book-dropdown")).toBeInTheDocument();
+  });
+
+  it("removes the document listener on unmount", async () => {
+    const addSpy = vi.spyOn(document, "addEventListener");
+    const removeSpy = vi.spyOn(document, "removeEventListener");
+
+    const { unmount } = render(
+      <RecipientAutocomplete
+        value=""
+        onChange={vi.fn()}
+        onBlur={vi.fn()}
+        senderAddress={SENDER}
+      />,
+    );
+
+    fireEvent.focus(screen.getByTestId("recipient-input"));
+    await waitFor(() => {
+      expect(screen.getByTestId("address-book-dropdown")).toBeInTheDocument();
+    });
+
+    const added = addSpy.mock.calls.filter(
+      ([type]) => type === "mousedown" || type === "touchstart",
+    );
+    expect(added.length).toBeGreaterThan(0);
+
+    unmount();
+
+    const removed = removeSpy.mock.calls.filter(
+      ([type]) => type === "mousedown" || type === "touchstart",
+    );
+    expect(removed.length).toBe(added.length);
+
+    addSpy.mockRestore();
+    removeSpy.mockRestore();
+  });
+});

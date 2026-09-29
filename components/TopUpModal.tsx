@@ -32,17 +32,33 @@ export default function TopUpModal({
     }
   }, [open]);
 
+  // Always start from a blank field, whatever closed the modal last time. Without
+  // this a previous amount is still in `amount` when the modal is re-opened, so
+  // it looks like the top-up was never applied (#546).
+  useEffect(() => {
+    if (open) {
+      setAmount("");
+      setError("");
+    }
+  }, [open]);
+
   const handleConfirm = async () => {
     const parsedAmount = parseFloat(amount);
     if (!amount || !(parsedAmount > 0)) {
       setError("Please enter a valid amount greater than 0");
       return;
     }
+    const submitted = amount;
     setError("");
+    // Clear the field before handing off to the parent so the successful
+    // submission never leaves the old value behind (#546).
+    setAmount("");
     try {
-      await onConfirm(amount);
-      setAmount("");
+      await onConfirm(submitted);
+      onClose();
     } catch (err) {
+      // Restore the value so the user can correct and retry.
+      setAmount(submitted);
       setError(err instanceof Error ? err.message : "Failed to top-up stream");
     }
   };

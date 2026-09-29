@@ -37,6 +37,7 @@ export default function RecipientAutocomplete({
   const [highlightedIdx, setHighlightedIdx] = useState(-1);
   const inputRef = useRef<HTMLInputElement>(null);
   const listRef = useRef<HTMLUListElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
 
   // Federation lookup state
   const [federationResolution, setFederationResolution] = useState<{
@@ -146,6 +147,28 @@ export default function RecipientAutocomplete({
     if (!showDropdown) setHighlightedIdx(-1);
   }, [showDropdown]);
 
+  // Close the dropdown on outside clicks. Safari does not fire `blur` when the
+  // user clicks a non-focusable element, so relying on the input's `onBlur`
+  // alone leaves the dropdown open forever (#545). A `mousedown` listener on
+  // `document` runs before focus moves in every browser.
+  useEffect(() => {
+    if (!open) return;
+
+    function handlePointerDown(event: MouseEvent | TouchEvent) {
+      const target = event.target as Node | null;
+      if (target && containerRef.current?.contains(target)) return;
+      setOpen(false);
+      setHighlightedIdx(-1);
+    }
+
+    document.addEventListener("mousedown", handlePointerDown);
+    document.addEventListener("touchstart", handlePointerDown);
+    return () => {
+      document.removeEventListener("mousedown", handlePointerDown);
+      document.removeEventListener("touchstart", handlePointerDown);
+    };
+  }, [open]);
+
   function handleKeyDown(e: React.KeyboardEvent) {
     if (!showDropdown) {
       if (e.key === "ArrowDown" || e.key === "ArrowUp") {
@@ -180,7 +203,7 @@ export default function RecipientAutocomplete({
 
   return (
     <div className="space-y-2">
-      <div className="relative">
+      <div className="relative" ref={containerRef}>
         <input
           ref={inputRef}
           id="recipient"

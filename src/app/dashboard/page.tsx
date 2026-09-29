@@ -28,6 +28,7 @@ import WatchlistTab from "@/components/WatchlistTab";
 import StreamCard from "@/components/StreamCard";
 import ThemeToggle from "@/components/ThemeToggle";
 import PullToRefresh from "@/components/PullToRefresh";
+import PollingIndicator from "@/components/PollingIndicator";
 import WalletAnalyticsDashboard from "@/components/WalletAnalyticsDashboard";
 import EmptyStreamsIllustration from "@/components/EmptyStreamsIllustration";
 
@@ -115,8 +116,10 @@ function DashboardContent() {
   const [multiSelectMode, setMultiSelectMode] = useState(false);
   const [showBulkCancelConfirm, setShowBulkCancelConfirm] = useState(false);
   const [optimisticOps, setOptimisticOps] = useState<Record<string, { type: string; optimisticDeposit?: number; optimisticStatus?: string; optimisticClaimable?: number }>>({});
-  const [, setLastRefreshTime] = useState<number>(Date.now());
-  const [, setIsRefreshing] = useState(false);
+  // These values must be read during render — discarding them meant the polling
+  // indicator never re-rendered, so its label stayed stale after a refresh (#539).
+  const [lastRefreshTime, setLastRefreshTime] = useState<number | null>(Date.now());
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
   // Pagination state (#383)
   const [visibleCount, setVisibleCount] = useState(20);
@@ -1151,6 +1154,15 @@ function DashboardContent() {
               </button>
             </div>{/* end sort inner flex */}
             </div>{/* end sort overflow wrapper */}
+
+            {/* Polling status + manual refresh */}
+            <div className="mb-4 flex justify-end">
+              <PollingIndicator
+                lastRefreshTime={lastRefreshTime}
+                isLoading={isRefreshing}
+                onManualRefresh={refreshStreams}
+              />
+            </div>
 
             {/* Bulk actions bar */}
             {selectedIds.size > 0 && (
