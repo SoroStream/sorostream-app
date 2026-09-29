@@ -23,13 +23,22 @@ export default function PullToRefresh({
   const startYRef = useRef<number | null>(null);
   const isPullingRef = useRef(false);
   const containerRef = useRef<HTMLDivElement>(null);
+  const pullDistanceRef = useRef(0);
+
+  // The list usually scrolls with the window, so the container's own
+  // scrollTop is always 0. Require both to be at the top so a downward swipe
+  // mid-page scrolls instead of triggering a refresh.
+  const getScrollTop = () =>
+    Math.max(
+      containerRef.current?.scrollTop ?? 0,
+      typeof window !== "undefined" ? window.scrollY : 0,
+    );
 
   const handleTouchStart = useCallback(
     (e: TouchEvent) => {
       if (disabled || isRefreshing) return;
-      const el = containerRef.current;
       // Only initiate gesture if at the very top of scroll
-      const scrollTop = el ? el.scrollTop : window.scrollY;
+      const scrollTop = getScrollTop();
       if (scrollTop <= 0) {
         startYRef.current = e.touches[0].clientY;
         isPullingRef.current = false;
@@ -47,19 +56,20 @@ export default function PullToRefresh({
       const currentY = e.touches[0].clientY;
       const diff = currentY - startYRef.current;
 
-      const el = containerRef.current;
-      const scrollTop = el ? el.scrollTop : window.scrollY;
+      const scrollTop = getScrollTop();
 
       if (diff > 0 && scrollTop <= 0) {
         isPullingRef.current = true;
         // Damping factor for smooth pull feel
         const distance = Math.min(MAX_PULL, diff * 0.5);
+        pullDistanceRef.current = distance;
         setPullDistance(distance);
         if (e.cancelable) {
           e.preventDefault();
         }
       } else if (diff < 0) {
         isPullingRef.current = false;
+        pullDistanceRef.current = 0;
         setPullDistance(0);
       }
     },
@@ -68,7 +78,10 @@ export default function PullToRefresh({
 
   const handleTouchEnd = useCallback(async () => {
     if (startYRef.current === null || disabled) return;
-    const finalPull = pullDistance;
+    // Read from a ref: touchend can fire before React re-renders with the
+    // latest pullDistance state.
+    const finalPull = pullDistanceRef.current;
+    pullDistanceRef.current = 0;
     startYRef.current = null;
     isPullingRef.current = false;
 
@@ -87,7 +100,7 @@ export default function PullToRefresh({
       // Released before threshold — cancel without fetching
       setPullDistance(0);
     }
-  }, [pullDistance, isRefreshing, onRefresh, disabled]);
+  }, [isRefreshing, onRefresh, disabled]);
 
   useEffect(() => {
     const el = containerRef.current;

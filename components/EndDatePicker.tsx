@@ -1,5 +1,6 @@
 "use client";
 
+import { primePickerToNow } from "@/src/lib/datePickerDefault";
 import { useEffect, useMemo, useState } from "react";
 import {
   getUserTimezone,
@@ -118,6 +119,7 @@ export default function EndDatePicker({
         <input
           id={id}
           type="datetime-local"
+          onFocus={primePickerToNow}
           value={wallTime}
           min={nowAsDatetimeLocal()}
           onChange={(e) => resolve(e.target.value, timezone)}

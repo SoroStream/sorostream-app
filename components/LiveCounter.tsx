@@ -31,6 +31,8 @@ interface LiveCounterProps {
 
 const DEFAULT_RECONCILE_INTERVAL_MS = 30_000;
 const ANNOUNCE_THROTTLE_MS = 30_000;
+/** Visible display refresh cadence (about two ledgers) instead of every tick. */
+const DISPLAY_UPDATE_INTERVAL_MS = 10_000;
 
 /** Pause-aware estimate: freezes at the pause moment when the stream is paused. */
 function estimateClaimable(
@@ -77,6 +79,21 @@ export default function LiveCounter({
     // fallback to "en" when context is not available (e.g. in tests)
   }
   const rpcFetch = useRpcFetch();
+  const rootRef = useRef<HTMLSpanElement>(null);
+  // Off-screen instances skip updates entirely; default true so environments
+  // without IntersectionObserver keep working.
+  const [isVisible, setIsVisible] = useState(true);
+
+  useEffect(() => {
+    const el = rootRef.current;
+    if (!el || typeof IntersectionObserver === "undefined") return;
+    const observer = new IntersectionObserver((entries) => {
+      const last = entries[entries.length - 1];
+      if (last) setIsVisible(last.isIntersecting);
+    });
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
 
   const [baseline, setBaseline] = useState(() => ({
     amount: estimateClaimable(flowRate, lastWithdrawTime, status, pausedAt),
@@ -107,7 +124,9 @@ export default function LiveCounter({
   }, [flowRate, lastWithdrawTime]);
 
   // Periodically reconcile against the chain value, with rate-limit handling.
+  // Skipped while off-screen; reconciles immediately when it scrolls back in.
   useEffect(() => {
+    if (!isVisible) return;
     let cancelled = false;
 
     async function reconcileClaimable() {
@@ -134,22 +153,37 @@ export default function LiveCounter({
       cancelled = true;
       clearInterval(interval);
     };
-  }, [streamId, reconcileIntervalMs, rpcFetch]);
+  }, [streamId, reconcileIntervalMs, rpcFetch, isVisible]);
 
-  // Interpolate locally at 1-second resolution.
+  // Interpolate locally, committing at most one update per
+  // DISPLAY_UPDATE_INTERVAL_MS. The value is computed from the baseline and
+  // wall-clock time, so it stays accurate regardless of the cadence.
   useEffect(() => {
+    // Off-screen: no timers at all. Catch up once when visible again.
+    if (!isVisible) return;
     // Stop ticking while an optimistic override is active — the override value
     // is the source of truth until the transaction resolves. Also stop while
     // the stream is paused so the balance freezes at the paused value.
     if (optimisticOverride != null) return;
     if (status === "Paused") return;
 
-    const interval = setInterval(() => {
+    const update = () => {
       const elapsed = (Date.now() - baseline.timestamp) / 1000;
       setClaimable(Math.max(0, baseline.amount + flowRate * elapsed));
-    }, 1_000);
+    };
+    const interval = setInterval(update, DISPLAY_UPDATE_INTERVAL_MS);
     return () => clearInterval(interval);
-  }, [baseline, flowRate, optimisticOverride, status]);
+  }, [baseline, flowRate, optimisticOverride, status, isVisible]);
+
+  // Catch up immediately when the counter scrolls back into view.
+  const wasVisibleRef = useRef(true);
+  useEffect(() => {
+    if (isVisible && !wasVisibleRef.current && optimisticOverride == null && status !== "Paused") {
+      const elapsed = (Date.now() - baseline.timestamp) / 1000;
+      setClaimable(Math.max(0, baseline.amount + flowRate * elapsed));
+    }
+    wasVisibleRef.current = isVisible;
+  }, [isVisible, baseline, flowRate, optimisticOverride, status]);
 
   // Locale-aware display: groups thousands, always shows 7 decimal places
   const formatUSDC = (val: number) =>
@@ -189,6 +223,7 @@ export default function LiveCounter({
 
   return (
     <span
+      ref={rootRef}
       className="font-mono font-semibold tabular-nums inline-flex items-baseline gap-1.5"
       role="status"
       aria-live="polite"

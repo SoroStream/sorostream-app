@@ -13,6 +13,11 @@ import { getXlmUsdPrice } from "./xlmPrice";
 
 const REFRESH_INTERVAL_MS = 5 * 60 * 1_000;
 
+/**
+ * Fetch the XLM/USD price and refresh it every 5 minutes.
+ *
+ * @returns {{ price: number | null; loading: boolean }} Latest price (`null` if unavailable) and loading flag.
+ */
 export function useXlmPrice(): { price: number | null; loading: boolean } {
   const [price, setPrice] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);

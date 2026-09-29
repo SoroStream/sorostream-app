@@ -144,6 +144,12 @@ export function PreferencesProvider({ children }: { children: ReactNode }) {
   );
 }
 
+/**
+ * Access persisted UI preferences.
+ *
+ * @returns {PreferencesContextValue} Stream preferences plus per-field setters, `saveAll` and `clearPreferences`.
+ * @throws {Error} When called outside a `PreferencesProvider`.
+ */
 export function usePreferences() {
   const ctx = useContext(PreferencesContext);
   if (!ctx) throw new Error("usePreferences must be used within PreferencesProvider");

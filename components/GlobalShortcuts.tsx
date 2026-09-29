@@ -23,6 +23,12 @@ interface GlobalShortcutsContextValue {
 
 const GlobalShortcutsContext = createContext<GlobalShortcutsContextValue | undefined>(undefined);
 
+/**
+ * Access the global keyboard shortcut registry.
+ *
+ * @returns {GlobalShortcutsContextValue} Help-dialog state/opener and functions to register or unregister shortcut groups.
+ * @throws {Error} When called outside a `GlobalShortcutsProvider`.
+ */
 export function useGlobalShortcuts() {
   const ctx = useContext(GlobalShortcutsContext);
   if (!ctx) throw new Error("useGlobalShortcuts must be used within GlobalShortcutsProvider");
