@@ -16,7 +16,8 @@
     "new_stream": "+ Novo Fluxo",
     "no_streams": "Nenhum fluxo ainda",
     "create_first": "Crie seu primeiro fluxo →",
-    "manual_refresh": "Atualizar agora"
+    "manual_refresh": "Atualizar agora",
+    "refreshing": "Atualizando…"
   },
   "stream_new": {
     "title": "Criar Fluxo",

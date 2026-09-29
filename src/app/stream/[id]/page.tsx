@@ -571,13 +571,14 @@ export default function StreamDetail({ params }: { params: { id: string } }) {
   }, [params.id, withdrawThreshold, executeWithdraw]);
 
   // ── Top-up with optimistic update ─────────────────────────────────────────
-  const handleTopUp = useCallback(async () => {
-    const parsedAmount = parseFloat(topUpAmount);
-    if (!topUpAmount || parsedAmount <= 0) return;
+  const handleTopUp = useCallback(async (amountFromModal?: string) => {
+    const submitted = amountFromModal ?? topUpAmount;
+    const parsedAmount = parseFloat(submitted);
+    if (!submitted || parsedAmount <= 0) return;
     if (!stream) return;
 
     const prevDeposit = stream.deposit;
-    const addedStroops = Number(toStroops(topUpAmount));
+    const addedStroops = Number(toStroops(submitted));
     setOptimisticDeposit(prevDeposit + addedStroops);
     setTopUpLoading(true);
 
@@ -589,10 +590,12 @@ export default function StreamDetail({ params }: { params: { id: string } }) {
       setShowTopUp(false);
       setTopUpAmount("");
       addToast("Top-up successful!", "success");
-    } catch {
+    } catch (err) {
       setOptimisticDeposit(null);
       void prevDeposit;
       addToast("Top-up failed. Please try again.", "error");
+      // Surface the failure in the modal so the amount can be retried.
+      throw err instanceof Error ? err : new Error("Top-up failed. Please try again.");
     } finally {
       setTopUpLoading(false);
     }

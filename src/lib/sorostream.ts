@@ -730,8 +730,26 @@ export function formatStellarAmount(stroops: number): string {
   });
 }
 
+/** Number of stroops in one whole unit of a Stellar asset (7 decimals). */
+export const STROOPS_PER_UNIT = 10_000_000n;
+
+/**
+ * Convert a decimal amount string (e.g. "1234.5678901") into stroops using
+ * bigint arithmetic so no precision is lost for large stream amounts (#538).
+ * Returns `null` when the input is not a valid non-negative decimal.
+ */
+export function parseStroops(amount: string): bigint | null {
+  const trimmed = amount.trim();
+  if (!/^\d*(\.\d*)?$/.test(trimmed) || trimmed === "" || trimmed === ".") {
+    return null;
+  }
+  const [whole = "0", fraction = ""] = trimmed.split(".");
+  const padded = fraction.padEnd(7, "0").slice(0, 7);
+  return BigInt(whole || "0") * STROOPS_PER_UNIT + BigInt(padded || "0");
+}
+
 export function toStroops(usdc: string): bigint {
-  return BigInt(Math.round(parseFloat(usdc) * 10000000));
+  return parseStroops(usdc) ?? BigInt(Math.round(parseFloat(usdc) * 10000000));
 }
 
 export function calculateFlowRate(stroops: bigint, durationSeconds: number): bigint {

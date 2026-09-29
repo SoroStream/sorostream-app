@@ -172,7 +172,7 @@ describe("Credential Proof System (Issue #659)", () => {
         signature: Buffer.alloc(64).toString("hex"),
         publicKey: Buffer.alloc(32).toString("hex"),
         signatureType: "RSA", // Unsupported
-      } as CredentialProofRequest;
+      } as unknown as CredentialProofRequest;
 
       const response = await issueCredentialWithProof(challenge.id, proofRequest);
 
