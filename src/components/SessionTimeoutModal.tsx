@@ -42,12 +42,18 @@ export function SessionTimeoutModal() {
     return () => document.removeEventListener("keydown", handleKeyDown);
   }, [showSessionWarning1Min]);
 
-  if (!showSessionWarning1Min) {
-    return null;
-  }
-
+  // Kept mounted in the DOM at all times and toggled via `display: none`
+  // (Tailwind's `hidden` class) rather than conditionally rendered/unmounted.
+  // This avoids remount cost and state loss on every open, and `display: none`
+  // already removes the subtree from the tab order and the accessibility
+  // tree, so no extra focus handling is needed while closed (#615).
   return (
-    <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
+    <div
+      className={`fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4 ${
+        showSessionWarning1Min ? "" : "hidden"
+      }`}
+      aria-hidden={!showSessionWarning1Min}
+    >
       <div
         ref={modalRef}
         role="dialog"

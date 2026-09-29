@@ -77,15 +77,20 @@ export default function ChangelogModal({ open, onClose }: Props) {
     return () => document.removeEventListener("keydown", handleKey);
   }, [open, onClose]);
 
-  if (!open) return null;
-
+  // Stay mounted in the DOM at all times and toggle visibility via
+  // `display: none` (Tailwind's `hidden` class) instead of conditionally
+  // rendering/unmounting. `display: none` already removes the subtree from
+  // the tab order and the accessibility tree, so focus-trap/Escape/backdrop
+  // behavior above (all gated on `open`) continues to work correctly while
+  // the modal is closed (#615).
   return (
     <div
       ref={dialogRef}
       role="dialog"
       aria-modal="true"
       aria-label="What's new in SoroStream"
-      className="fixed inset-0 z-50 flex items-center justify-center p-4"
+      aria-hidden={!open}
+      className={`fixed inset-0 z-50 flex items-center justify-center p-4 ${open ? "" : "hidden"}`}
     >
       <div
         className="absolute inset-0 bg-black/60 backdrop-blur-sm"

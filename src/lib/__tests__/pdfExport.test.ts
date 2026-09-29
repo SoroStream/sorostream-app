@@ -71,4 +71,34 @@ describe("PDF Export Utility", () => {
     expect(res.filename).toBe("GA7QYNF7_2026-01-01_2026-02-01.pdf");
     expect(res.mimeType).toBe("application/pdf");
   });
+
+  it("returns a cached document (===) for repeat exports of unchanged data (#614)", () => {
+    const first = generatePdfDocument(SAMPLE_STREAMS, WALLET);
+    const second = generatePdfDocument(SAMPLE_STREAMS, WALLET);
+
+    // Same reference means the byte stream wasn't rebuilt/re-encoded.
+    expect(second).toBe(first);
+    // Sanity: content is still correct.
+    expect(second).toContain("%PDF-1.4");
+  });
+
+  it("regenerates the document when the underlying stream data changes (#614)", () => {
+    const first = generatePdfDocument(SAMPLE_STREAMS, WALLET);
+    const changed = SAMPLE_STREAMS.map((s) =>
+      s.id === "1" ? { ...s, status: "Cancelled" as StreamData["status"] } : s,
+    );
+    const second = generatePdfDocument(changed, WALLET);
+
+    expect(second).not.toBe(first);
+  });
+
+  it("regenerates the document when a fresh array instance carries identical data (cache hit by content)", () => {
+    const first = generatePdfDocument(SAMPLE_STREAMS, WALLET);
+    const clone = SAMPLE_STREAMS.map((s) => ({ ...s }));
+    const second = generatePdfDocument(clone, WALLET);
+
+    // Different array/object instances, same underlying data -> still a
+    // cache hit because the key is content-based, not identity-based.
+    expect(second).toBe(first);
+  });
 });
