@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { memo, useMemo } from "react";
 import { useTheme } from "@/src/lib/theme";
 import {
   LineChart,
@@ -26,7 +26,28 @@ interface ChartPoint {
   vested: number;
 }
 
-export default function VestingChart({ stream, history }: VestingChartProps) {
+/**
+ * Builds a stable, order-independent key describing the data that actually
+ * drives the chart. Two renders with different `stream`/`history` object
+ * identities but the same underlying values produce the same key, which lets
+ * us skip re-rendering (and re-triggering recharts' entry animation) when
+ * nothing the chart cares about has actually changed.
+ */
+function vestingChartKey(stream: StreamData, history: StreamHistoryEntry[]): string {
+  const historyKey = history
+    .map((e) => `${e.type}:${e.timestamp}:${e.amount}`)
+    .join("|");
+  return [
+    stream.startTime,
+    stream.endTime,
+    stream.flowRate,
+    stream.deposit,
+    stream.token,
+    historyKey,
+  ].join("::");
+}
+
+function VestingChart({ stream, history }: VestingChartProps) {
   const { theme } = useTheme();
   const isDark = theme === "dark";
 
@@ -136,3 +157,10 @@ export default function VestingChart({ stream, history }: VestingChartProps) {
     </section>
   );
 }
+
+export default memo(VestingChart, (prev, next) => {
+  if (prev.stream === next.stream && prev.history === next.history) return true;
+  return (
+    vestingChartKey(prev.stream, prev.history) === vestingChartKey(next.stream, next.history)
+  );
+});

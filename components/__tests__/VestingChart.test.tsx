@@ -165,4 +165,23 @@ describe("VestingChart", () => {
     const actualXs = lines.map((l) => l.x).sort((a, b) => (a as number) - (b as number));
     expect(actualXs).toEqual(expectedXs.sort((a, b) => a - b));
   });
+
+  it("does not re-render when props are recreated with identical underlying values", () => {
+    const { rerender } = render(<VestingChart stream={STREAM} history={[]} />);
+    const rendersBefore = chartProps("LineChart").length;
+
+    // New object identities, but every field is equal to the original stream/history.
+    rerender(<VestingChart stream={{ ...STREAM }} history={[]} />);
+
+    expect(chartProps("LineChart")).toHaveLength(rendersBefore);
+  });
+
+  it("does re-render when the underlying stream data actually changes", () => {
+    const { rerender } = render(<VestingChart stream={STREAM} history={[]} />);
+    const rendersBefore = chartProps("LineChart").length;
+
+    rerender(<VestingChart stream={{ ...STREAM, flowRate: 200 }} history={[]} />);
+
+    expect(chartProps("LineChart").length).toBeGreaterThan(rendersBefore);
+  });
 });

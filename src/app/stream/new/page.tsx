@@ -1,4 +1,5 @@
 "use client";
+import { primePickerToNow } from "@/src/lib/datePickerDefault";
 import { useState, useEffect, useRef, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import DurationPicker from "@/components/DurationPicker";
@@ -19,6 +20,7 @@ import StreamDryRunPreview from "@/components/StreamDryRunPreview";
 import AddressVerificationBadge from "@/components/AddressVerificationBadge";
 import AddressVerificationWarning from "@/components/AddressVerificationWarning";
 import { SkeletonForm } from "@/components/Skeleton";
+import Tooltip from "@/components/ui/Tooltip";
 import { useTranslations } from "@/src/lib/i18n";
 import { trackEvent } from "@/src/lib/analytics";
 import { verifyAddress, canCreateStream, type AddressVerification } from "@/src/lib/addressVerification";
@@ -27,6 +29,7 @@ import { getContacts, saveContact, isRecipientApproved, isWhitelistEnforced, typ
 import { useWallet } from "@/src/context/WalletContext";
 import { getOptionalEnvVar } from "@/src/lib/env";
 import { readDraft, useFormPersist } from "@/src/lib/useFormPersist";
+import { useUnsavedChangesWarning } from "@/src/lib/useUnsavedChangesWarning";
 import { usePreferences } from "@/src/context/PreferencesContext";
 
 type PageTab = "single" | "batch";
@@ -183,6 +186,7 @@ function NewStreamWizard() {
   );
   const [customTokenError, setCustomTokenError] = useState("");
   const [loading, setLoading] = useState(false);
+  useUnsavedChangesWarning((recipient.trim() !== "" || amount.trim() !== "") && !loading);
   const [errors, setErrors] = useState({ recipient: "", amount: "", duration: "", endDate: "", cliffDate: "", scheduledStart: "" });
   const [touched, setTouched] = useState({ recipient: false, amount: false });
   const [durationPickerKey, setDurationPickerKey] = useState(0);
@@ -1138,7 +1142,10 @@ function NewStreamWizard() {
             />
 
             <div>
-              <label className="text-gray-200 text-sm font-medium block mb-2">{t("duration_label")}</label>
+              {/* Not a real form label — DurationPicker renders three separate
+                  inputs (days/hours/minutes) with their own group label, so a
+                  <label> here can't point at a single control via htmlFor. */}
+              <div className="text-gray-200 text-sm font-medium block mb-2">{t("duration_label")}</div>
               <DurationPicker
                 key={durationPickerKey}
                 initialSeconds={duration > 0 ? duration : undefined}
@@ -1212,6 +1219,7 @@ function NewStreamWizard() {
               <input
                 id="cliff-date"
                 type="datetime-local"
+                onFocus={primePickerToNow}
                 value={cliffDate}
                 onChange={(e) => {
                   setCliffDate(e.target.value);
@@ -1311,24 +1319,12 @@ function NewStreamWizard() {
                           Auto-Renewal
                         </label>
                         {/* Tooltip */}
-                        <div className="relative group">
-                          <button
-                            type="button"
-                            aria-label="How does auto-renewal work?"
-                            className="text-gray-500 hover:text-gray-300 text-xs border border-gray-600 rounded-full w-4 h-4 flex items-center justify-center transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-500"
-                          >
-                            ?
-                          </button>
-                          <div
-                            role="tooltip"
-                            className="hidden group-hover:block group-focus-within:block absolute left-0 bottom-6 w-64 bg-gray-700 border border-gray-600 rounded-lg p-3 text-xs text-gray-300 leading-relaxed z-10 shadow-lg"
-                          >
+                        <Tooltip label="How does auto-renewal work?">
                             When enabled, the stream automatically restarts at expiry using
                             the same amount. The renewal re-locks the same deposit from your
                             balance — ensure you have sufficient funds each cycle.
                             You can cancel auto-renewal at any time before the next cycle starts.
-                          </div>
-                        </div>
+                          </Tooltip>
                       </div>
                       <p className="text-xs text-gray-500 mt-0.5">
                         Automatically restart the stream when it expires
@@ -1355,10 +1351,11 @@ function NewStreamWizard() {
                   {/* Auto-renew duration (only when toggle is on) */}
                   {autoRenew && (
                     <div>
-                      <label className="text-sm text-gray-200 font-medium block mb-2">
+                      {/* Not a real form label — see the duration-picker note above. */}
+                      <div className="text-sm text-gray-200 font-medium block mb-2">
                         Auto-Renew Duration{" "}
                         <span className="text-gray-400 font-normal">(optional — defaults to stream duration)</span>
-                      </label>
+                      </div>
                       <DurationPicker
                         initialSeconds={autoRenewDuration > 0 ? autoRenewDuration : undefined}
                         onChange={setAutoRenewDuration}
@@ -1392,22 +1389,10 @@ function NewStreamWizard() {
                         Metadata URI <span className="text-gray-400 font-normal">(optional)</span>
                       </label>
                       {/* Tooltip */}
-                      <div className="relative group">
-                        <button
-                          type="button"
-                          aria-label="What is a metadata URI?"
-                          className="text-gray-500 hover:text-gray-300 text-xs border border-gray-600 rounded-full w-4 h-4 flex items-center justify-center transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-500"
-                        >
-                          ?
-                        </button>
-                        <div
-                          role="tooltip"
-                          className="hidden group-hover:block group-focus-within:block absolute left-0 bottom-6 w-64 bg-gray-700 border border-gray-600 rounded-lg p-3 text-xs text-gray-300 leading-relaxed z-10 shadow-lg"
-                        >
+                      <Tooltip label="What is a metadata URI?">
                           A URI pointing to metadata about this stream (JSON, terms, documentation, etc.).
                           Supports ipfs://, https://, and ar:// schemes.
-                        </div>
-                      </div>
+                        </Tooltip>
                     </div>
                     <input
                       id="metadata-uri"
@@ -1441,23 +1426,11 @@ function NewStreamWizard() {
                         <label htmlFor="fee-bump-toggle" className="text-sm text-gray-200 font-medium">
                           Fee Sponsorship
                         </label>
-                        <div className="relative group">
-                          <button
-                            type="button"
-                            aria-label="What is fee sponsorship?"
-                            className="text-gray-500 hover:text-gray-300 text-xs border border-gray-600 rounded-full w-4 h-4 flex items-center justify-center transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-500"
-                          >
-                            ?
-                          </button>
-                          <div
-                            role="tooltip"
-                            className="hidden group-hover:block group-focus-within:block absolute left-0 bottom-6 w-64 bg-gray-700 border border-gray-600 rounded-lg p-3 text-xs text-gray-300 leading-relaxed z-10 shadow-lg"
-                          >
+                        <Tooltip label="What is fee sponsorship?">
                             When enabled, a third-party fee sponsor pays the transaction fee
                             instead of your wallet. Requires configuring NEXT_PUBLIC_FEE_SPONSOR_ADDRESS.
                             Falls back to user-paid fees if the sponsor is unavailable.
-                          </div>
-                        </div>
+                          </Tooltip>
                       </div>
                       <p className="text-xs text-gray-500 mt-0.5">
                         {feeSponsorAddress
@@ -1525,7 +1498,7 @@ function NewStreamWizard() {
               <div className="border-t border-gray-700 pt-4">
                 <span className="text-gray-400 text-sm">Stream ends</span>
                 <div className="text-lg font-semibold text-white mt-1">
-                  {calculateEndDate(duration).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric", hour: "2-digit", minute: "2-digit" })}
+                  {formatLocaleDateTime(calculateEndDate(duration), undefined, { month: "short", day: "numeric", year: "numeric", hour: "2-digit", minute: "2-digit" })}
                 </div>
               </div>
 
@@ -1670,13 +1643,13 @@ function NewStreamWizard() {
                     <div className="flex justify-between items-center">
                       <span className="text-gray-400 text-sm">Start date</span>
                       <span className="text-white font-mono text-sm">
-                        {startDate.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })}
+                        {formatLocaleDate(startDate, undefined, { month: "short", day: "numeric", year: "numeric" })}
                       </span>
                     </div>
                     <div className="flex justify-between items-center">
                       <span className="text-gray-400 text-sm">End date</span>
                       <span className="text-white font-mono text-sm">
-                        {endDate.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })}
+                        {formatLocaleDate(endDate, undefined, { month: "short", day: "numeric", year: "numeric" })}
                       </span>
                     </div>
                   </>
@@ -1730,7 +1703,7 @@ function NewStreamWizard() {
                 <div className="flex justify-between items-center">
                   <span className="text-gray-400 text-sm">Scheduled Start</span>
                   <span className="text-blue-300 font-mono text-sm">
-                    {new Date(scheduledStart).toLocaleString()}
+                    {formatLocaleDateTime(new Date(scheduledStart))}
                   </span>
                 </div>
               )}
@@ -1798,24 +1771,12 @@ function NewStreamWizard() {
                   <div className="flex items-center gap-2">
                     <span className="text-yellow-400 text-base" aria-hidden="true">⚠</span>
                     <p className="text-yellow-300 text-sm font-semibold">Collateral Required</p>
-                    <div className="relative group ml-auto">
-                      <button
-                        type="button"
-                        aria-label="When is collateral returned?"
-                        className="text-gray-400 hover:text-gray-200 text-xs border border-gray-600 rounded-full w-5 h-5 flex items-center justify-center transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-500"
-                      >
-                        ?
-                      </button>
-                      <div
-                        role="tooltip"
-                        className="hidden group-hover:block group-focus-within:block absolute right-0 bottom-7 w-64 bg-gray-700 border border-gray-600 rounded-lg p-3 text-xs text-gray-300 leading-relaxed z-10 shadow-lg"
-                      >
+                    <Tooltip label="When is collateral returned?" align="right" triggerClassName="text-gray-400 hover:text-gray-200 text-xs border border-gray-600 rounded-full w-5 h-5 flex items-center justify-center transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-500">
                         The protocol holds collateral from first-time senders to ensure
                         the stream can be fulfilled. Your collateral is automatically
                         returned to your wallet when the stream ends or is cancelled,
                         provided no dispute is raised.
-                      </div>
-                    </div>
+                      </Tooltip>
                   </div>
                   <p className="text-gray-400 text-xs">
                     As a new sender, the protocol requires {pct}% collateral to be locked for the duration of the stream.

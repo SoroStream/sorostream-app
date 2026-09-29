@@ -2,6 +2,7 @@
 
 import { useState, useRef, useEffect, useCallback } from "react";
 import { useFocusTrap } from "@/src/lib/useFocusTrap";
+import { copyToClipboard } from "@/src/lib/clipboard";
 
 interface EmbedWidgetModalProps {
   streamId: string;
@@ -19,6 +20,7 @@ export default function EmbedWidgetModal({ streamId, onClose }: EmbedWidgetModal
   const [theme, setTheme] = useState<Theme>("dark");
   const [show, setShow] = useState<ShowMode>("both");
   const [copied, setCopied] = useState(false);
+  const [copyFailed, setCopyFailed] = useState(false);
   const modalRef = useRef<HTMLDivElement>(null);
   useFocusTrap(modalRef, true, onClose);
 
@@ -38,26 +40,17 @@ export default function EmbedWidgetModal({ streamId, onClose }: EmbedWidgetModal
   loading="lazy"
 ></iframe>`;
 
-  const handleCopy = useCallback(() => {
-    navigator.clipboard.writeText(snippet).then(
-      () => {
-        setCopied(true);
-        setTimeout(() => setCopied(false), 2500);
-      },
-      () => {
-        // Fallback for non-secure contexts
-        const textarea = document.createElement("textarea");
-        textarea.value = snippet;
-        textarea.style.cssText = "position:fixed;top:-9999px;left:-9999px;opacity:0;";
-        document.body.appendChild(textarea);
-        textarea.focus();
-        textarea.select();
-        document.execCommand("copy");
-        document.body.removeChild(textarea);
-        setCopied(true);
-        setTimeout(() => setCopied(false), 2500);
-      },
-    );
+  const handleCopy = useCallback(async () => {
+    const ok = await copyToClipboard(snippet);
+    if (ok) {
+      setCopyFailed(false);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2500);
+    } else {
+      setCopied(false);
+      setCopyFailed(true);
+      setTimeout(() => setCopyFailed(false), 4000);
+    }
   }, [snippet]);
 
   // Close on Escape
@@ -185,7 +178,7 @@ export default function EmbedWidgetModal({ streamId, onClose }: EmbedWidgetModal
               : "bg-green-700 hover:bg-green-600 text-white focus-visible:ring-green-500"
           }`}
         >
-          {copied ? "✓ Copied to clipboard!" : "Copy Snippet"}
+          {copied ? "✓ Copied to clipboard!" : copyFailed ? "Copy failed — select the snippet and copy manually" : "Copy Snippet"}
         </button>
       </div>
     </div>

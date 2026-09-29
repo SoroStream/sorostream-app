@@ -22,6 +22,12 @@ export const NETWORK_CONFIG: Record<Network, { rpcUrl: string; label: string }> 
 
 const NetworkContext = createContext<NetworkContextType | null>(null);
 
+/**
+ * Access the selected Stellar network configuration.
+ *
+ * @returns {NetworkContextType} Active network, RPC URL and a setter to switch networks.
+ * @throws {Error} When called outside a `NetworkProvider`.
+ */
 export function useNetwork() {
   const ctx = useContext(NetworkContext);
   if (!ctx) throw new Error("useNetwork must be used within NetworkProvider");

@@ -34,7 +34,7 @@ export default function TopUpModal({
 
   const handleConfirm = async () => {
     const parsedAmount = parseFloat(amount);
-    if (!amount || parsedAmount <= 0) {
+    if (!amount || !(parsedAmount > 0)) {
       setError("Please enter a valid amount greater than 0");
       return;
     }
@@ -82,7 +82,8 @@ export default function TopUpModal({
           <input
             ref={inputRef}
             id="topup-amount"
-            type="number"
+            type="tel"
+            inputMode="decimal"
             value={amount}
             onChange={(e) => {
               setAmount(e.target.value);
@@ -114,7 +115,7 @@ export default function TopUpModal({
           </button>
           <button
             onClick={() => void handleConfirm()}
-            disabled={loading || !amount || parseFloat(amount) <= 0}
+            disabled={loading || !amount || !(parseFloat(amount) > 0)}
             className="flex-1 bg-blue-600 text-white py-2 rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-900 flex items-center justify-center gap-2"
           >
             {loading ? (

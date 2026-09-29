@@ -284,7 +284,11 @@ export default function PortfolioChart() {
 
       {loading ? (
         <div className="h-[300px] flex items-center justify-center">
-          <div className="h-8 w-8 border-2 border-green-400 border-t-transparent rounded-full animate-spin" />
+          <div
+            className="h-8 w-8 border-2 border-green-400 border-t-transparent rounded-full animate-spin"
+            role="status"
+            aria-label="Loading"
+          />
         </div>
       ) : filteredPoints.length < 2 ? (
         <div className="h-[300px] flex items-center justify-center text-gray-400 text-sm">

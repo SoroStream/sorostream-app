@@ -83,13 +83,53 @@ function escapePdfText(text: string): string {
 }
 
 /**
+ * Small memoization cache for {@link generatePdfDocument}.
+ *
+ * The PDF body is rebuilt (and its byte stream re-encoded) from scratch on
+ * every export request, even when the caller repeats the exact same export
+ * (e.g. clicking "Export PDF" again without changing filters or selection).
+ * That's wasted work for a purely deterministic function of its inputs, so
+ * we cache the last few generated documents keyed by a cheap fingerprint of
+ * the inputs and reuse the cached string instead of re-generating/re-encoding
+ * (#614).
+ */
+const PDF_DOCUMENT_CACHE_LIMIT = 5;
+const pdfDocumentCache = new Map<string, string>();
+
+function buildPdfCacheKey(
+  streams: StreamData[],
+  walletAddress: string | null | undefined,
+  filters: ExportFilters,
+): string {
+  // A structural fingerprint is enough here: stream identity + the fields
+  // that actually influence rendered output, plus the wallet/filters that
+  // change how rows are grouped and labelled.
+  const streamsFingerprint = streams
+    .map(
+      (s) =>
+        `${s.id}|${s.sender}|${s.recipient}|${s.deposit}|${s.token}|${s.startTime}|${s.endTime}|${s.status}`,
+    )
+    .join(";");
+  return JSON.stringify([streamsFingerprint, walletAddress ?? "", filters]);
+}
+
+/**
  * Generates client-side PDF binary document formatted for tax/accounting reports.
+ *
+ * Repeat calls with unchanged inputs return a cached document instead of
+ * re-building and re-encoding the PDF byte stream (#614).
  */
 export function generatePdfDocument(
   streams: StreamData[],
   walletAddress?: string | null,
   filters: ExportFilters = {},
 ): string {
+  const cacheKey = buildPdfCacheKey(streams, walletAddress, filters);
+  const cached = pdfDocumentCache.get(cacheKey);
+  if (cached !== undefined) {
+    return cached;
+  }
+
   const summary = calculatePdfSummary(streams, walletAddress, filters);
   const sanitizeAddr = (addr: string) =>
     addr.length > 12 ? `${addr.slice(0, 6)}...${addr.slice(-6)}` : addr;
@@ -208,7 +248,16 @@ export function generatePdfDocument(
   }
   xref += `trailer\n<< /Size ${pdfObjects.length} /Root 1 0 R >>\nstartxref\n${startXref}\n%%EOF`;
 
-  return pdfString + xref;
+  const document = pdfString + xref;
+
+  // Evict the oldest entry first so the cache stays small and bounded.
+  if (pdfDocumentCache.size >= PDF_DOCUMENT_CACHE_LIMIT) {
+    const oldestKey = pdfDocumentCache.keys().next().value;
+    if (oldestKey !== undefined) pdfDocumentCache.delete(oldestKey);
+  }
+  pdfDocumentCache.set(cacheKey, document);
+
+  return document;
 }
 
 /**

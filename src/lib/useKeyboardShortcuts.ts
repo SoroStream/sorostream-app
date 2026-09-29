@@ -22,6 +22,12 @@ export interface ShortcutGroup {
   shortcuts: Shortcut[];
 }
 
+/**
+ * Register document-level keyboard shortcuts for the lifetime of the component.
+ *
+ * @param {ShortcutGroup[]} groups - Grouped shortcut definitions; each shortcut's handler runs when its key combo is pressed.
+ * @returns {void}
+ */
 export function useKeyboardShortcuts(groups: ShortcutGroup[]) {
   const handleKeyDown = useCallback(
     (e: KeyboardEvent) => {
