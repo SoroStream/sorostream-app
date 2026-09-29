@@ -59,6 +59,8 @@ interface StreamCardProps {
   endTime?: string;
   /** ISO timestamp captured when the stream was paused (freezes remaining balance). */
   pausedAt?: string;
+  /** Total amount already withdrawn from the stream in stroops. */
+  withdrawnStroops?: number;
   /** Token type (XLM, USDC, etc.) for proper USD conversion display. */
   token?: string;
   /** True when an on-chain transaction is in-flight for this stream. */
@@ -109,6 +111,7 @@ function StreamCardInner({
   startTime,
   endTime,
   pausedAt,
+  withdrawnStroops,
   token = "XLM",
   optimisticPending = false,
   optimisticStatus,
@@ -196,6 +199,8 @@ function statusBadgeClass(status: string): string {
     case "Ended":
     case "Completed":
       return "bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-400";
+    case "Not Started":
+      return "bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300";
     case "Cancelled":
       return "bg-red-100 dark:bg-red-900 text-red-700 dark:text-red-400";
     default:

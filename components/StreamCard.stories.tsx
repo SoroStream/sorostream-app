@@ -38,7 +38,7 @@ const meta: Meta<typeof StreamCard> = {
   argTypes: {
     status: {
       control: "select",
-      options: ["Active", "Paused", "Completed", "Ended", "Cancelled"],
+      options: ["Active", "Paused", "Completed", "Ended", "Not Started", "Cancelled"],
       description: "Stream lifecycle status.",
     },
     loading: {
@@ -427,6 +427,36 @@ export const LightBackground: Story = {
   ],
   args: {
     status: "Active",
+    startTime: oneDayAgo,
+    endTime: inThirtyDays,
+  },
+};
+
+export const DarkBackground: Story = {
+  name: "On dark background",
+  parameters: {
+    backgrounds: { default: "dark" },
+  },
+  decorators: [
+    (Story) => (
+      <div className="bg-slate-950 p-6 rounded-lg">
+        <Story />
+      </div>
+    ),
+  ],
+  args: {
+    status: "Paused",
+    startTime: oneDayAgo,
+    endTime: inThirtyDays,
+    pausedAt: oneHourAgo,
+  },
+};
+
+export const LongRecipientAddress: Story = {
+  name: "Long recipient address (truncation)",
+  args: {
+    status: "Active",
+    recipient: "GDRXE2BQUC3AZNPVFSCEZ76NJ3WWL25FYFK6RGZGIEKWE4SOOHSUJUJ6SOMETHINGVERYLONG",
     startTime: oneDayAgo,
     endTime: inThirtyDays,
   },
