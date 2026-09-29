@@ -72,6 +72,10 @@
 
 body {
   transition: background 200ms ease-in-out, color 200ms ease-in-out;
+  /* Keep content clear of notches / rounded corners (requires viewport-fit=cover) */
+  padding-top: env(safe-area-inset-top, 0px);
+  padding-left: env(safe-area-inset-left, 0px);
+  padding-right: env(safe-area-inset-right, 0px);
 }
 
 /* Safe area bottom inset for iOS devices with home indicator */
@@ -227,6 +231,15 @@ body {
   animation: slide-up 0.3s ease-out;
 }
 
+@keyframes fade-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+.animate-fade-in {
+  animation: fade-in 0.3s ease-out;
+}
+
 @keyframes stream-success-in {
   from { opacity: 0; transform: scale(0.8); }
   to   { opacity: 1; transform: scale(1); }
@@ -246,6 +259,7 @@ body {
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .animate-fade-in,
   .animate-stream-success-in,
   .animate-stream-success-out {
     animation: none;
@@ -253,14 +267,19 @@ body {
   }
 }
 
-/* Mobile nav drawer slide-in (#551) */
-@keyframes nav-drawer-in {
-  from { transform: translateX(-100%); }
-  to { transform: translateX(0); }
+/* Always-visible horizontal scrollbar for wide tables/lists (#611). */
+.history-scroll {
+  scrollbar-width: auto;
+  scrollbar-color: #4b5563 #1f2937;
 }
-.animate-nav-drawer-in {
-  animation: nav-drawer-in 0.2s ease-out;
+.history-scroll::-webkit-scrollbar {
+  height: 10px;
 }
-@media (prefers-reduced-motion: reduce) {
-  .animate-nav-drawer-in { animation: none; }
+.history-scroll::-webkit-scrollbar-track {
+  background: #1f2937;
+  border-radius: 9999px;
+}
+.history-scroll::-webkit-scrollbar-thumb {
+  background: #4b5563;
+  border-radius: 9999px;
 }

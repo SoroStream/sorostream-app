@@ -578,6 +578,14 @@ export const sorostream = {
     return { txHash: "", newEndTime: new Date() };
   },
   getStream: async (id: string) => getMockStream(id),
+  /**
+   * Batched stream details (#603): metadata, claimable balance and history in a
+   * single call. The backend is currently mocked and has no batch endpoint, so
+   * this resolves all three from one snapshot; when a real batch RPC/indexer
+   * endpoint exists, only this function needs to change. Concurrent calls for
+   * the same id share one in-flight request.
+   */
+  getStreamDetails: (id: string) => getStreamDetails(id),
   getClaimable: async (streamId: string) => claimableNow(getMockStream(streamId)),
   getStreamsBySender: async () => { applyScheduledPauses(); return MOCK_STREAMS; },
   getStreamsByRecipient: async () => { applyScheduledPauses(); return MOCK_STREAMS; },
@@ -683,6 +691,28 @@ export function getStreamsForWallet(address: string | null): StreamData[] {
   return relevant.length > 0 ? relevant : MOCK_STREAMS;
 }
 
+export interface StreamPage {
+  streams: StreamData[];
+  /** Total number of streams available for the wallet across all pages. */
+  total: number;
+}
+
+/**
+ * Paginated variant of {@link getStreamsForWallet}. Returns streams ordered
+ * newest-first (the dashboard's default sort) so the first page is correct
+ * without fetching everything up front.
+ */
+export function getStreamsPageForWallet(
+  address: string | null,
+  { offset = 0, limit }: { offset?: number; limit: number },
+): StreamPage {
+  const all = [...getStreamsForWallet(address)].sort(
+    (a, b) => new Date(b.startTime).getTime() - new Date(a.startTime).getTime(),
+  );
+  const start = Math.max(0, offset);
+  return { streams: all.slice(start, start + Math.max(0, limit)), total: all.length };
+}
+
 /**
  * Returns synthesised (non-on-chain) history entries for development and
  * demo purposes. Every entry is tagged `isMock: true` so callers can
@@ -700,6 +730,29 @@ export function getMockStreamHistory(id: string): StreamHistoryEntry[] {
     );
   }
   return base;
+}
+
+export interface StreamDetails {
+  stream: StreamData | null;
+  claimable: string;
+  history: StreamHistoryEntry[];
+}
+
+const inflightDetails = new Map<string, Promise<StreamDetails>>();
+
+export function getStreamDetails(id: string): Promise<StreamDetails> {
+  const pending = inflightDetails.get(id);
+  if (pending) return pending;
+  const p = (async () => {
+    const stream = getMockStream(id);
+    return {
+      stream,
+      claimable: stream ? claimableNow(stream) : "0",
+      history: stream ? getMockStreamHistory(id) : [],
+    };
+  })().finally(() => inflightDetails.delete(id));
+  inflightDetails.set(id, p);
+  return p;
 }
 
 export const createClient = () => sorostream;
@@ -730,8 +783,26 @@ export function formatStellarAmount(stroops: number): string {
   });
 }
 
+/** Number of stroops in one whole unit of a Stellar asset (7 decimals). */
+export const STROOPS_PER_UNIT = 10_000_000n;
+
+/**
+ * Convert a decimal amount string (e.g. "1234.5678901") into stroops using
+ * bigint arithmetic so no precision is lost for large stream amounts (#538).
+ * Returns `null` when the input is not a valid non-negative decimal.
+ */
+export function parseStroops(amount: string): bigint | null {
+  const trimmed = amount.trim();
+  if (!/^\d*(\.\d*)?$/.test(trimmed) || trimmed === "" || trimmed === ".") {
+    return null;
+  }
+  const [whole = "0", fraction = ""] = trimmed.split(".");
+  const padded = fraction.padEnd(7, "0").slice(0, 7);
+  return BigInt(whole || "0") * STROOPS_PER_UNIT + BigInt(padded || "0");
+}
+
 export function toStroops(usdc: string): bigint {
-  return BigInt(Math.round(parseFloat(usdc) * 10000000));
+  return parseStroops(usdc) ?? BigInt(Math.round(parseFloat(usdc) * 10000000));
 }
 
 export function calculateFlowRate(stroops: bigint, durationSeconds: number): bigint {

@@ -9,6 +9,7 @@ import {
   getMockStream,
   type StreamData,
 } from "@/src/lib/sorostream";
+import { formatLocaleDate, formatLocaleDateTime } from "@/src/lib/dateFormat";
 
 /** Auto-refresh interval in ms. */
 const REFRESH_INTERVAL_MS = 30_000;
@@ -123,8 +124,8 @@ function EmbedWidget({ stream, theme, show }: EmbedWidgetProps) {
             />
           </div>
           <div className={`flex justify-between mt-1 text-[10px] ${textSecondary}`}>
-            <span>Start: {new Date(stream.startTime).toLocaleDateString()}</span>
-            <span>End: {new Date(stream.endTime).toLocaleDateString()}</span>
+            <span>Start: {formatLocaleDate(stream.startTime)}</span>
+            <span>End: {formatLocaleDate(stream.endTime)}</span>
           </div>
         </div>
       )}
@@ -141,7 +142,7 @@ function EmbedWidget({ stream, theme, show }: EmbedWidgetProps) {
 
       {stream.pauseAt && stream.pauseAt > Math.floor(Date.now() / 1000) && (
         <p className={`text-[10px] ${textSecondary} text-center`}>
-          Pause scheduled: {new Date(stream.pauseAt * 1000).toLocaleString()}
+          Pause scheduled: {formatLocaleDateTime(new Date(stream.pauseAt * 1000))}
         </p>
       )}
     </div>

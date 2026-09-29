@@ -74,3 +74,47 @@ describe("Net Received Display Feature", () => {
     });
   });
 });
+
+describe("NetReceivedDisplay bigint precision (#538)", () => {
+  it("converts the amount to stroops without precision loss", async () => {
+    const { parseStroops } = await import("@/src/lib/sorostream");
+
+    expect(parseStroops("100")).toBe(BigInt(1_000_000_000));
+    expect(parseStroops("0.0000001")).toBe(BigInt(1));
+    expect(parseStroops("1234.5678901")).toBe(BigInt(12_345_678_901));
+    expect(parseStroops("")).toBeNull();
+    expect(parseStroops("abc")).toBeNull();
+  });
+
+  it("keeps exact stroops for amounts beyond Number.MAX_SAFE_INTEGER / 10", async () => {
+    const { parseStroops, formatUSDC } = await import("@/src/lib/sorostream");
+
+    // 1,000,000,000.1234567 USDC → 10000000001234567 stroops, well above
+    // Number.MAX_SAFE_INTEGER / 10. Round-tripping through `number` corrupts it.
+    const amount = "1000000000.1234567";
+    const stroops = parseStroops(amount);
+
+    expect(stroops).not.toBeNull();
+    expect(stroops! > 900719925474099n).toBe(true);
+    expect(stroops).toBe(BigInt("10000000001234567"));
+    // The lossy `number` path is off by one stroop.
+    expect(BigInt(Math.round(parseFloat(amount) * 10_000_000))).not.toBe(stroops);
+
+    // formatUSDC accepts the bigint directly and yields a numeric string
+    // (grouping stripped so the assertion is locale independent).
+    expect(formatUSDC(stroops!).replace(/[^\d.]/g, "")).toMatch(
+      /^1000000000\.123456\d$/,
+    );
+  });
+
+  it("computes the net amount with bigint arithmetic for large amounts", async () => {
+    const { parseStroops } = await import("@/src/lib/sorostream");
+
+    const amountStroops = parseStroops("1000000000.1234567")!;
+    const fee = (amountStroops * 50n) / 10_000n; // 0.5% of 10000000001234567
+    const net = amountStroops - fee;
+
+    expect(fee).toBe(BigInt("50000000006172"));
+    expect(net).toBe(BigInt("9950000001228395"));
+  });
+});

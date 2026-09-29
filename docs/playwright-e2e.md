@@ -140,6 +140,45 @@ If you want to validate the flow against an actual Freighter installation:
 Use a wallet address that is stable across runs so test fixtures and seeded
 localStorage values remain predictable.
 
+## Visual Regression Baselines
+
+Layout-sensitive views (the create-stream form, the analytics/vesting chart,
+and the dashboard) have screenshot-based regression coverage:
+
+- `e2e/visual-regression.spec.ts` — create-stream form
+- `e2e/analytics-visual-regression.spec.ts` — vesting chart
+- `e2e/dashboard-visual-regression.spec.ts` — dashboard layout (#619)
+
+These use Playwright's built-in `toHaveScreenshot()` and follow the same
+pattern in every spec: freeze the clock with `page.clock.setFixedTime(...)`
+when the page renders relative timestamps, set `colorScheme` explicitly, and
+screenshot a stable container locator (e.g. `main#main-content`) rather than
+the full page, so unrelated chrome doesn't cause false positives.
+
+**Baseline images are intentionally not committed to the repo** —
+`.gitignore` excludes `**/__snapshots__/`. That means:
+
+- The first time you run one of these specs on a machine/CI runner, it will
+  fail with "no baseline found" and write a new one under
+  `e2e/__screenshots__/<platform>/...` (or `e2e/<spec-name>-snapshots/` per
+  Playwright's default naming).
+- Run with `--update-snapshots` to (re)generate the baseline after an
+  intentional styling change:
+
+  ```bash
+  npx playwright test e2e/dashboard-visual-regression.spec.ts --update-snapshots
+  ```
+
+- Because baselines aren't versioned, this suite is most useful run locally
+  before/after a change (compare the diff Playwright reports), or wired into
+  CI with the baseline images uploaded/downloaded as a build artifact so they
+  persist across runs. Neither of those CI wiring steps exists yet — treat
+  this suite as opt-in/local until that's set up, and don't assume a fresh CI
+  checkout has a baseline to diff against.
+- Screenshots are platform- and font-rendering-sensitive; generate baselines
+  on the same OS/browser combination CI uses (or generate a project-specific
+  baseline per platform) to avoid noisy diffs from anti-aliasing differences.
+
 ## Testnet Configuration Checklist
 
 Before running the stream creation flow locally, confirm:
@@ -169,4 +208,5 @@ and creation/signing flows may fail.
 - `e2e/stream-flow.spec.ts`
 - `e2e/wallet-reconnect.spec.ts`
 - `e2e/wallet-session.spec.ts`
+- `e2e/dashboard-visual-regression.spec.ts`
 

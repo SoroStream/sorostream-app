@@ -32,7 +32,7 @@ function truncate(addr: string) {
 export default function StreamCloneModal({ stream, onClose }: StreamCloneModalProps) {
   const router = useRouter();
   const modalRef = useRef<HTMLDivElement>(null);
-  useFocusTrap(modalRef, true);
+  useFocusTrap(modalRef, true, onClose);
 
   // Close on Escape key
   useEffect(() => {

@@ -92,11 +92,21 @@ describe("ChangelogModal", () => {
   // ── open / closed guard ───────────────────────────────────────────────────
 
   describe("open/closed guard", () => {
-    it("renders nothing when open=false", () => {
+    it("stays mounted (display:none) instead of unmounting when open=false (#615)", () => {
       const { container } = render(
         <ChangelogModal open={false} onClose={vi.fn()} />,
       );
-      expect(container.firstChild).toBeNull();
+
+      // The dialog remains in the DOM rather than being removed...
+      const dialog = screen.getByRole("dialog", {
+        name: /What's new in SoroStream/i,
+        hidden: true,
+      });
+      expect(dialog).toBeInTheDocument();
+      // ...but is hidden from layout and the accessibility tree.
+      expect(dialog).toHaveClass("hidden");
+      expect(dialog).toHaveAttribute("aria-hidden", "true");
+      expect(container.firstChild).not.toBeNull();
     });
 
     it("renders the dialog when open=true", async () => {

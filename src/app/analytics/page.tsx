@@ -19,6 +19,7 @@ import {
 } from "recharts";
 import { getStreamAnalytics, type StreamAnalytics } from "@/src/lib/sorostream";
 import { truncateAddress } from "@/src/lib/sorostream";
+import { Skeleton } from "@/components/Skeleton";
 
 const POLL_INTERVAL_MS = 30_000;
 
@@ -49,7 +50,50 @@ function ChartCard({
   );
 }
 
+// Chart heights shared by the real charts and their loading placeholders so the
+// layout doesn't shift when data arrives.
+const VOLUME_CHART_HEIGHT = 260;
+const ASSET_CHART_HEIGHT = 260;
+const RECIPIENTS_CHART_HEIGHT = 300;
+
+// The analytics page is always dark, so force the dark skeleton tone
+// regardless of the site theme.
+const SKELETON_TONE = "!bg-gray-700";
+
+function ChartCardSkeleton({ height }: { height: number }) {
+  return (
+    <div className="bg-gray-800 rounded-xl p-5 border border-gray-700">
+      <Skeleton className={`h-4 w-40 ${SKELETON_TONE}`} />
+      <Skeleton className={`h-3 w-64 max-w-full mt-2 mb-4 ${SKELETON_TONE}`} />
+      <div className="mt-2">
+        <Skeleton className={`w-full rounded-lg ${SKELETON_TONE}`} style={{ height }} />
+      </div>
+    </div>
+  );
+}
+
+function AnalyticsSkeleton() {
+  return (
+    <div
+      role="status"
+      aria-live="polite"
+      aria-busy="true"
+      aria-label="Loading analytics"
+      className="grid grid-cols-1 gap-4 lg:grid-cols-3"
+    >
+      <div className="lg:col-span-2">
+        <ChartCardSkeleton height={VOLUME_CHART_HEIGHT} />
+      </div>
+      <ChartCardSkeleton height={ASSET_CHART_HEIGHT} />
+      <div className="lg:col-span-3">
+        <ChartCardSkeleton height={RECIPIENTS_CHART_HEIGHT} />
+      </div>
+    </div>
+  );
+}
+
 export default function AnalyticsPage() {
+  const { formatTime } = useLocaleDateFormat();
   const [data, setData] = useState<StreamAnalytics | null>(null);
   const [loading, setLoading] = useState(true);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
@@ -102,28 +146,22 @@ export default function AnalyticsPage() {
           </div>
           {lastUpdated && (
             <p className="text-xs text-gray-500 tabular-nums">
-              Updated {lastUpdated.toLocaleTimeString()}
+              Updated {formatTime(lastUpdated)}
             </p>
           )}
         </div>
 
         {loading && !data ? (
-          <div className="animate-pulse space-y-6" aria-label="Loading analytics">
-            <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
-              {Array.from({ length: 3 }).map((_, i) => (
-                <div key={i} className="h-64 bg-gray-800 rounded-xl" />
-              ))}
-            </div>
-          </div>
+          <AnalyticsSkeleton />
         ) : data ? (
-          <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+          <div className="grid grid-cols-1 gap-4 lg:grid-cols-3 animate-fade-in">
             {/* Streaming volume over time */}
             <div className="lg:col-span-2">
               <ChartCard
                 title="Streaming volume over time"
                 subtitle="Total deposit value that began streaming per day (last 14 days)"
               >
-                <ResponsiveContainer width="100%" height={260}>
+                <ResponsiveContainer width="100%" height={VOLUME_CHART_HEIGHT}>
                   <AreaChart data={data.volumeOverTime} margin={{ top: 8, right: 8, left: -16, bottom: 0 }}>
                     <defs>
                       <linearGradient id="grad-usdc" x1="0" y1="0" x2="0" y2="1">
@@ -158,7 +196,7 @@ export default function AnalyticsPage() {
               title="Asset breakdown"
               subtitle="Value locked per asset"
             >
-              <ResponsiveContainer width="100%" height={260}>
+              <ResponsiveContainer width="100%" height={ASSET_CHART_HEIGHT}>
                 <PieChart>
                   <Pie
                     data={assetPieData}
@@ -187,7 +225,7 @@ export default function AnalyticsPage() {
                 title="Top recipients"
                 subtitle="Recipients ranked by total streamed value"
               >
-                <ResponsiveContainer width="100%" height={300}>
+                <ResponsiveContainer width="100%" height={RECIPIENTS_CHART_HEIGHT}>
                   <BarChart data={data.topRecipients} margin={{ top: 8, right: 8, left: -8, bottom: 0 }}>
                     <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
                     <XAxis

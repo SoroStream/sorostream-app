@@ -270,6 +270,12 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
   );
 }
 
+/**
+ * Access user settings (display, locale and formatting preferences).
+ *
+ * @returns {SettingsContextValue} Current settings plus setters for display, thresholds, language and shortcuts.
+ * @throws {Error} When called outside a `SettingsProvider`.
+ */
 export function useSettings() {
   const ctx = useContext(SettingsContext);
   if (!ctx) throw new Error("useSettings must be used within SettingsProvider");

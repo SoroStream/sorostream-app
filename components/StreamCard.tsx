@@ -1,5 +1,7 @@
 "use client";
 
+import { memo } from "react";
+
 import CopyButton from "@/components/CopyButton";
 import FiatDisplay from "@/components/FiatDisplay";
 import { truncateAddress, formatStellarAmount, estimateStreamCompletionTime, formatTimeUntil } from "@/src/lib/sorostream";
@@ -11,6 +13,7 @@ import StreamHealthBadge, {
 } from "@/components/StreamHealthBadge";
 import { getMockStreamHistory } from "@/src/lib/sorostream";
 import { formatDateWithTimezone } from "@/src/lib/timezone";
+import { formatTimeRemaining, formatEndedAgo } from "@/src/lib/timeRemaining";
 import StreamTagChips from "@/components/StreamTagChips";
 import { formatDateUtc } from "@/src/lib/timezone";
 
@@ -38,6 +41,11 @@ interface StreamCardProps {
   flowRate?: number;
   status?: string;
   deposit?: number;
+  /**
+   * Amount already withdrawn in stroops. Used by the custom memo comparator so
+   * cards only re-render when the recipient has claimed more funds.
+   */
+  withdrawnStroops?: number;
   selected?: boolean;
   onToggle?: (id: string) => void;
   /** When true, render an in-place skeleton placeholder instead of the card. */
@@ -52,6 +60,8 @@ interface StreamCardProps {
   endTime?: string;
   /** ISO timestamp captured when the stream was paused (freezes remaining balance). */
   pausedAt?: string;
+  /** Total amount already withdrawn from the stream in stroops. */
+  withdrawnStroops?: number;
   /** Token type (XLM, USDC, etc.) for proper USD conversion display. */
   token?: string;
   /** True when an on-chain transaction is in-flight for this stream. */
@@ -62,15 +72,61 @@ interface StreamCardProps {
   optimisticDeposit?: number;
   /** Optimistic claimable override while transaction is pending. */
   optimisticClaimable?: number;
+  /** Active dashboard search text. Matching cards are highlighted and the matched text is marked. */
+  highlightQuery?: string;
 }
 
-export default function StreamCard({
+/** Renders `text` with every case-insensitive occurrence of `query` wrapped in <mark>. */
+function HighlightedText({ text, query }: { text: string; query: string }) {
+  const lower = text.toLowerCase();
+  const q = query.toLowerCase();
+  const parts: ReactNode[] = [];
+  let cursor = 0;
+  let idx = lower.indexOf(q);
+  while (idx !== -1) {
+    if (idx > cursor) parts.push(text.slice(cursor, idx));
+    parts.push(
+      <mark key={idx} className="bg-yellow-300 dark:bg-yellow-500/40 text-gray-900 dark:text-yellow-100 rounded-sm">
+        {text.slice(idx, idx + q.length)}
+      </mark>,
+    );
+    cursor = idx + q.length;
+    idx = lower.indexOf(q, cursor);
+  }
+  if (cursor < text.length) parts.push(text.slice(cursor));
+  return <>{parts}</>;
+}
+
+/**
+ * Custom memo comparator — only re-render when data that is visible on the
+ * card has actually changed. Polling ticks that leave `id`, `status`, and
+ * `withdrawnStroops` unchanged will skip the render entirely.
+ */
+function arePropsEqual(
+  prev: StreamCardProps,
+  next: StreamCardProps,
+): boolean {
+  return (
+    prev.id === next.id &&
+    prev.status === next.status &&
+    prev.withdrawnStroops === next.withdrawnStroops &&
+    // Propagate optimistic overlay changes immediately
+    prev.optimisticPending === next.optimisticPending &&
+    prev.optimisticStatus === next.optimisticStatus &&
+    prev.optimisticDeposit === next.optimisticDeposit &&
+    prev.selected === next.selected &&
+    prev.loading === next.loading
+  );
+}
+
+function StreamCardInner({
   id = "",
   sender = "",
   recipient = "",
   flowRate = 0,
   status = "Active",
   deposit = 0,
+  withdrawnStroops: _withdrawnStroops = 0,
   selected = false,
   onToggle,
   loading = false,
@@ -79,11 +135,13 @@ export default function StreamCard({
   startTime,
   endTime,
   pausedAt,
+  withdrawnStroops,
   token = "XLM",
   optimisticPending = false,
   optimisticStatus,
   optimisticDeposit,
   optimisticClaimable,
+  highlightQuery,
 }: StreamCardProps) {
   const { isBookmarked, toggleBookmark } = useBookmarks();
   const bookmarked = isBookmarked(id);
@@ -166,6 +224,8 @@ function statusBadgeClass(status: string): string {
     case "Ended":
     case "Completed":
       return "bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-400";
+    case "Not Started":
+      return "bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300";
     case "Cancelled":
       return "bg-red-100 dark:bg-red-900 text-red-700 dark:text-red-400";
     default:
@@ -192,17 +252,33 @@ function statusBadgeClass(status: string): string {
     return estimateStreamCompletionTime({ startTime, flowRate, deposit });
   })();
 
+  // ── Search highlight (#554) ───────────────────────────────────────────
+  const query = highlightQuery?.trim() ?? "";
+  const matchedField: { label: string; value: string } | null = (() => {
+    if (!query) return null;
+    const q = query.toLowerCase();
+    if (recipient.toLowerCase().includes(q)) return { label: "Recipient", value: recipient };
+    if (sender.toLowerCase().includes(q)) return { label: "Sender", value: sender };
+    if (id.toLowerCase().includes(q)) return { label: "Stream ID", value: id };
+    return null;
+  })();
+
   return (
     <div
-      className={`group bg-white dark:bg-gray-800 rounded-lg p-4 space-y-3 border ${
-        selected ? "border-green-500" : "border-gray-200 dark:border-gray-700"
+      className={`bg-white dark:bg-gray-800 rounded-lg p-4 space-y-3 border ${
+        selected
+          ? "border-green-500"
+          : matchedField
+            ? "border-yellow-400 dark:border-yellow-500 ring-1 ring-yellow-400/60 dark:ring-yellow-500/50"
+            : "border-gray-200 dark:border-gray-700"
       }`}
       role="article"
       aria-label={`Stream ${id}`}
       aria-current={selected ? "true" : undefined}
+      data-search-match={matchedField ? "true" : undefined}
     >
-      <div className="flex justify-between items-center">
-        <span className="flex items-center gap-2">
+      <div className="flex justify-between items-center min-w-0 gap-2">
+        <span className="flex items-center gap-2 min-w-0 shrink-0">
           {onToggle && (
             <input
               type="checkbox"
@@ -213,7 +289,7 @@ function statusBadgeClass(status: string): string {
               onClick={(e) => e.stopPropagation()}
             />
           )}
-          <span className="text-gray-500 dark:text-gray-400 text-xs">Stream #{id}</span>
+          <span className="text-gray-500 dark:text-gray-400 text-xs truncate">Stream #{id}</span>
           <CopyButton value={id} label="Copy stream ID" />
           <span className="opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity">
             <CopyButton
@@ -223,7 +299,7 @@ function statusBadgeClass(status: string): string {
             />
           </span>
         </span>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap justify-end">
           {onClone && (
             <button
               onClick={(e) => { e.stopPropagation(); onClone(id); }}
@@ -298,20 +374,30 @@ function statusBadgeClass(status: string): string {
       </div>
 
       <div className="text-sm">
-        <p className="text-gray-600 dark:text-gray-400 flex items-center gap-1">
+        <p className="text-gray-600 dark:text-gray-400 flex items-center gap-1 min-w-0">
           From:{" "}
-          <span className="text-gray-900 dark:text-white">
+          <span className="text-gray-900 dark:text-white truncate">
             <FederationName address={sender} truncate />
           </span>
           <CopyButton value={sender} label="Copy sender address" />
         </p>
-        <p className="text-gray-600 dark:text-gray-400 flex items-center gap-1">
+        <p className="text-gray-600 dark:text-gray-400 flex items-center gap-1 min-w-0">
           To:{" "}
-          <span className="text-gray-900 dark:text-white">
+          <span className="text-gray-900 dark:text-white truncate">
             <FederationName address={recipient} truncate />
           </span>
           <CopyButton value={recipient} label="Copy recipient address" />
         </p>
+
+        {matchedField && (
+          <p
+            className="text-xs text-gray-600 dark:text-gray-400 font-mono break-all"
+            data-testid="search-match"
+          >
+            <span className="font-sans">{matchedField.label} match: </span>
+            <HighlightedText text={matchedField.value} query={query} />
+          </p>
+        )}
 
         <p className="text-gray-600 dark:text-gray-400">
           Flow:{" "}
@@ -333,17 +419,25 @@ function statusBadgeClass(status: string): string {
           </span>
         </p>
 
-        {/* Time remaining until stream end (#461) */}
-        {status === "Active" && endTime && (
-          <p className="text-gray-600 dark:text-gray-400">
-            Time remaining:{" "}
-            <span
-              className="text-gray-900 dark:text-white font-medium"
-              title={`Scheduled end time: ${formatDateWithTimezone(new Date(endTime))}`}
-            >
-              <span className="text-blue-600 dark:text-blue-400">
-                {formatTimeUntil(new Date(endTime))}
+        {/* Time remaining until stream end (#461, #558) */}
+        {effectiveStatus === "Active" && endTime && (() => {
+          const remaining = formatTimeRemaining(endTime);
+          return (
+            <p className="text-gray-600 dark:text-gray-400" data-testid="time-remaining">
+              <span
+                className="text-blue-600 dark:text-blue-400 font-medium"
+                title={`Scheduled end time: ${formatDateWithTimezone(new Date(endTime))}`}
+              >
+                {remaining ?? formatEndedAgo(endTime)}
               </span>
+            </p>
+          );
+        })()}
+
+        {effectiveStatus === "Ended" && endTime && (
+          <p className="text-gray-600 dark:text-gray-400" data-testid="time-ended">
+            <span title={`Ended at ${formatDateWithTimezone(new Date(endTime))}`}>
+              {formatEndedAgo(endTime)}
             </span>
           </p>
         )}
@@ -369,3 +463,12 @@ function statusBadgeClass(status: string): string {
     </div>
   );
 }
+
+/**
+ * StreamCard — memoised with a custom comparator so dashboard lists do not
+ * re-render cards whose stream data has not changed (e.g. on a polling tick).
+ *
+ * @see arePropsEqual for the fields used in the comparison.
+ */
+const StreamCard = memo(StreamCardInner, arePropsEqual);
+export default StreamCard;

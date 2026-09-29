@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useRef, useCallback, type RefObject } from "react";
+import { useEffect, useRef, type RefObject } from "react";
+import { pushModal, removeModal, isTopModal } from "./modalStack";
 
 const FOCUSABLE_SELECTOR =
   'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
@@ -18,12 +19,30 @@ function getFocusableElements(container: HTMLElement): HTMLElement[] {
  * - Tab / Shift+Tab cycle within the container.
  * - On deactivation, focus returns to the element that was focused before the
  *   trap activated.
+ * - The trap registers on the global modal stack (#647): opening a new modal
+ *   closes any other open modal via its `onClose`, and only the topmost
+ *   modal traps Tab.
  */
 export function useFocusTrap(
   containerRef: RefObject<HTMLElement>,
   active: boolean,
+  onClose?: () => void,
 ): void {
   const previousFocusRef = useRef<HTMLElement | null>(null);
+  const modalIdRef = useRef<number | null>(null);
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
+
+  // Register with the modal stack while active.
+  useEffect(() => {
+    if (!active) return;
+    const id = pushModal(onCloseRef.current ? () => onCloseRef.current?.() : undefined);
+    modalIdRef.current = id;
+    return () => {
+      removeModal(id);
+      modalIdRef.current = null;
+    };
+  }, [active]);
 
   // Save the currently focused element when the trap activates.
   useEffect(() => {
@@ -61,6 +80,7 @@ export function useFocusTrap(
 
     function handleKeyDown(e: KeyboardEvent) {
       if (e.key !== "Tab") return;
+      if (modalIdRef.current !== null && !isTopModal(modalIdRef.current)) return;
 
       const focusable = getFocusableElements(container!);
       if (focusable.length === 0) return;

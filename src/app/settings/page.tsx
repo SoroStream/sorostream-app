@@ -13,6 +13,7 @@ import {
 import { useToast } from "@/src/lib/toast";
 import { useSettings } from "@/src/context/SettingsContext";
 import { useTranslations } from "@/src/lib/i18n";
+import { useTheme } from "@/src/lib/theme";
 import TwoFactorSetup from "@/components/TwoFactorSetup";
 import DelegatesSection from "@/components/DelegatesSection";
 import { useWallet } from "@/src/context/WalletContext";
@@ -54,6 +55,7 @@ export default function SettingsPage() {
     setPreferredTheme,
     resetStreamPreferences,
   } = useSettings();
+  const { setTheme: applyTheme, useSystemTheme: followSystemTheme } = useTheme();
   const { address } = useWallet();
   const [thresholdInput, setThresholdInput] = useState(String(withdrawThreshold));
   const [thresholdError, setThresholdError] = useState("");
@@ -414,7 +416,18 @@ export default function SettingsPage() {
             <select
               id="preferred-theme"
               value={preferredTheme}
-              onChange={(e) => setPreferredTheme(e.target.value as "light" | "dark" | "system")}
+              onChange={(e) => {
+                // #623: apply the theme immediately via the existing ThemeContext
+                // (CSS variables/class on <html>, no page reload) in addition to
+                // persisting the preference in SettingsContext.
+                const next = e.target.value as "light" | "dark" | "system";
+                setPreferredTheme(next);
+                if (next === "system") {
+                  followSystemTheme();
+                } else {
+                  applyTheme(next);
+                }
+              }}
               className="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-white text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-500"
             >
               <option value="system">System (follow device settings)</option>

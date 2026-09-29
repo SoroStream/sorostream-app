@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useTranslations } from "@/src/lib/i18n";
-import { getFeeConfig, calcWithdrawBreakdown } from "@/src/lib/sorostream";
+import { getFeeConfig, formatUSDC, parseStroops } from "@/src/lib/sorostream";
 
 interface NetReceivedDisplayProps {
   amount: string;
@@ -26,7 +26,8 @@ export default function NetReceivedDisplay({
 
   // Load fee config when amount changes or on mount
   useEffect(() => {
-    if (!amount || parseFloat(amount) <= 0) {
+    const stroops = parseStroops(amount);
+    if (stroops === null || stroops <= BigInt(0)) {
       setFeeBasisPoints(0);
       return;
     }
@@ -56,24 +57,28 @@ export default function NetReceivedDisplay({
     };
   }, [amount]);
 
+  // Convert the decimal input to stroops with bigint arithmetic. Going through
+  // `number` first silently loses precision for large stream amounts (#538).
+  const amountStroops = useMemo(() => parseStroops(amount), [amount]);
+
   // Calculate net amount
-  const amountNum = parseFloat(amount) || 0;
-  if (amountNum <= 0) {
+  if (amountStroops === null || amountStroops <= BigInt(0)) {
     return null;
   }
 
-  const amountStroops = Math.round(amountNum * 10_000_000);
-  const { fee, net, feePercent } = calcWithdrawBreakdown(
-    amountStroops,
-    feeBasisPoints
-  );
+  const fee = (amountStroops * BigInt(feeBasisPoints)) / BigInt(10_000);
+  const net = amountStroops - fee;
+  const feePercent = feeBasisPoints / 100;
 
-  const netDisplay = (net / 10_000_000)
-    .toFixed(7)
-    .replace(/\.?0+$/, "");
-  const feeDisplay = (fee / 10_000_000)
-    .toFixed(7)
-    .replace(/\.?0+$/, "") || "0";
+  const trim = (value: string) => {
+    const [whole, fraction] = value.split(".");
+    return fraction === undefined
+      ? whole
+      : `${whole}.${fraction.replace(/0+$/, "")}`.replace(/\.$/, "");
+  };
+
+  const netDisplay = trim(formatUSDC(net));
+  const feeDisplay = fee === BigInt(0) ? "0" : trim(formatUSDC(fee));
   const tokenLabel = isCustomToken ? "tokens" : tokenSymbol;
 
   return (

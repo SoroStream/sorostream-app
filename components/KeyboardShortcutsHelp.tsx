@@ -17,7 +17,7 @@ export default function KeyboardShortcutsHelp({
 }: KeyboardShortcutsHelpProps) {
   const dialogRef = useRef<HTMLDivElement>(null);
 
-  useFocusTrap(dialogRef, open);
+  useFocusTrap(dialogRef, open, onClose);
 
   if (!open) return null;
 

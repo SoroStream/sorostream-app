@@ -16,7 +16,8 @@
     "new_stream": "+ Novo Fluxo",
     "no_streams": "Nenhum fluxo ainda",
     "create_first": "Crie seu primeiro fluxo →",
-    "manual_refresh": "Atualizar agora"
+    "manual_refresh": "Atualizar agora",
+    "refreshing": "Atualizando…"
   },
   "stream_new": {
     "title": "Criar Fluxo",
@@ -69,6 +70,7 @@
     "compare_status": "Status",
     "compare_recipient": "Destinatário",
     "compare_amount": "Valor (USDC)",
+    "compare_claimable": "Resgatável",
     "compare_flow_rate": "Taxa de Fluxo",
     "compare_start_date": "Data de Início",
     "compare_end_date": "Data de Término",
@@ -92,6 +94,8 @@
     "error_freighter": "Extensão Freighter não encontrada. Por favor, instale-a.",
     "error_lobstr": "Extensão LOBSTR não encontrada. Por favor, instale-a.",
     "error_ledger": "Nenhum dispositivo USB encontrado. Conecte sua Ledger.",
+    "connect_usb": "Conectar via USB",
+    "ledger_webusb_unsupported": "Este navegador não suporta WebUSB. Use Chrome ou Edge para conectar uma Ledger.",
     "error_server_keypair": "Por favor, insira uma chave secreta válida."
   },
   "settings": {

@@ -29,7 +29,7 @@ vi.mock("@/src/lib/addressBook", () => ({
 }));
 
 // We own the federation mock so we can control resolution timing.
-const mockResolveFederationName = vi.fn<[string], Promise<string | null>>();
+const mockResolveFederationName = vi.fn<(addr: string) => Promise<string | null>>();
 vi.mock("@/src/lib/federation", () => ({
   resolveFederationName: (addr: string) => mockResolveFederationName(addr),
 }));

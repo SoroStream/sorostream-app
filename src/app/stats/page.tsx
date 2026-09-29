@@ -9,6 +9,7 @@ import {
   Tooltip,
 } from "recharts";
 import { getProtocolStats, type ProtocolStats } from "@/src/lib/sorostream";
+import { useLocaleDateFormat } from "@/src/lib/dateFormat";
 
 /** Auto-refresh interval in milliseconds. */
 const POLL_INTERVAL_MS = 30_000;
@@ -114,6 +115,7 @@ function StatCard({ label, value, subvalue, sparkData, sparkColor = "#22c55e", i
 // ── Page ──────────────────────────────────────────────────────────────────────
 
 export default function StatsPage() {
+  const { formatTime } = useLocaleDateFormat();
   const [stats, setStats] = useState<ProtocolStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
@@ -173,7 +175,7 @@ export default function StatsPage() {
           <div className="flex items-center gap-3">
             {lastUpdated && (
               <p className="text-xs text-gray-500 tabular-nums">
-                Updated {lastUpdated.toLocaleTimeString()}
+                Updated {formatTime(lastUpdated)}
               </p>
             )}
             <button

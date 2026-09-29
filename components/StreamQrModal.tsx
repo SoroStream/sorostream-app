@@ -18,7 +18,7 @@ export default function StreamQrModal({
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const dialogRef = useRef<HTMLDivElement>(null);
 
-  useFocusTrap(dialogRef, open);
+  useFocusTrap(dialogRef, open, onClose);
 
   useEffect(() => {
     if (!open || !canvasRef.current) return;

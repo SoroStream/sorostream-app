@@ -23,7 +23,7 @@ export default function TopUpModal({
   const modalRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  useFocusTrap(modalRef, open);
+  useFocusTrap(modalRef, open, onClose);
 
   // Focus input when modal opens
   useEffect(() => {
@@ -32,17 +32,33 @@ export default function TopUpModal({
     }
   }, [open]);
 
+  // Always start from a blank field, whatever closed the modal last time. Without
+  // this a previous amount is still in `amount` when the modal is re-opened, so
+  // it looks like the top-up was never applied (#546).
+  useEffect(() => {
+    if (open) {
+      setAmount("");
+      setError("");
+    }
+  }, [open]);
+
   const handleConfirm = async () => {
     const parsedAmount = parseFloat(amount);
-    if (!amount || parsedAmount <= 0) {
+    if (!amount || !(parsedAmount > 0)) {
       setError("Please enter a valid amount greater than 0");
       return;
     }
+    const submitted = amount;
     setError("");
+    // Clear the field before handing off to the parent so the successful
+    // submission never leaves the old value behind (#546).
+    setAmount("");
     try {
-      await onConfirm(amount);
-      setAmount("");
+      await onConfirm(submitted);
+      onClose();
     } catch (err) {
+      // Restore the value so the user can correct and retry.
+      setAmount(submitted);
       setError(err instanceof Error ? err.message : "Failed to top-up stream");
     }
   };
@@ -82,7 +98,8 @@ export default function TopUpModal({
           <input
             ref={inputRef}
             id="topup-amount"
-            type="number"
+            type="tel"
+            inputMode="decimal"
             value={amount}
             onChange={(e) => {
               setAmount(e.target.value);
@@ -114,7 +131,7 @@ export default function TopUpModal({
           </button>
           <button
             onClick={() => void handleConfirm()}
-            disabled={loading || !amount || parseFloat(amount) <= 0}
+            disabled={loading || !amount || !(parseFloat(amount) > 0)}
             className="flex-1 bg-blue-600 text-white py-2 rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-900 flex items-center justify-center gap-2"
           >
             {loading ? (
