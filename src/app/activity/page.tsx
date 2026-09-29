@@ -7,10 +7,12 @@
  * type/asset/date filters, cursor-based "load more" pagination, and
  * real-time prepending of new events as they arrive.
  */
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef, Suspense } from "react";
 import Link from "next/link";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import {
   getActivityEvents,
+  getActivityEventsAll,
   getActivityAssets,
   simulateNewEvent,
   buildStreamAuditLog,
@@ -19,7 +21,13 @@ import {
   type StreamEvent,
   type ActivityQuery,
 } from "@/src/lib/sorostream";
-import { useLocaleDateFormat } from "@/src/lib/dateFormat";
+import {
+  parseActivitySort,
+  sortActivityEvents,
+  toggleActivitySort,
+  type ActivitySortField,
+} from "@/src/lib/activitySort";
+import { downloadActivityCsv } from "@/src/lib/export";
 
 const PAGE_SIZE = 10;
 /** How often we check for newly-arrived events to prepend (ms). */
@@ -41,8 +49,50 @@ const typeConfig: Record<StreamEvent["type"], { label: string; icon: string; col
   alert: { label: "Alert", icon: "⚠", colorClass: "text-yellow-400 bg-yellow-900/30" },
 };
 
+const SORT_COLUMNS: { field: ActivitySortField; label: string; className: string }[] = [
+  { field: "type", label: "Type", className: "flex-1 justify-start pl-12" },
+  { field: "date", label: "Date", className: "justify-start" },
+  { field: "amount", label: "Amount", className: "justify-end w-32" },
+];
+
+function formatDateTime(iso: string): string {
+  return new Date(iso).toLocaleString(undefined, {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
 export default function ActivityPage() {
-  const { formatDateTime } = useLocaleDateFormat();
+  return (
+    <Suspense fallback={null}>
+      <ActivityPageContent />
+    </Suspense>
+  );
+}
+
+function ActivityPageContent() {
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+
+  // Sort state lives in the URL (?sort=amount&dir=desc) so it survives reloads
+  // and can be shared (#556).
+  const sort = parseActivitySort(searchParams.get("sort"), searchParams.get("dir"));
+
+  const setSortField = useCallback(
+    (field: ActivitySortField) => {
+      const next = toggleActivitySort(sort, field);
+      const params = new URLSearchParams(searchParams.toString());
+      params.set("sort", next.field);
+      params.set("dir", next.dir);
+      router.replace(`${pathname}?${params.toString()}`, { scroll: false });
+    },
+    [sort, searchParams, router, pathname],
+  );
+
   const [events, setEvents] = useState<StreamEvent[]>([]);
   const [cursor, setCursor] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -131,6 +181,20 @@ export default function ActivityPage() {
 
   const hasFilters = activeTypes.size > 0 || assetFilter || fromDate || toDate;
 
+  const sortedEvents = useMemo(() => sortActivityEvents(events, sort), [events, sort?.field, sort?.dir]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // CSV export covers every event in the current filter scope (not just the
+  // loaded pages), in the current sort order (#555).
+  const exportCsv = useCallback(() => {
+    const all = getActivityEventsAll({
+      types: activeTypes.size > 0 ? Array.from(activeTypes) : undefined,
+      asset: assetFilter || undefined,
+      from: fromDate || undefined,
+      to: toDate || undefined,
+    });
+    downloadActivityCsv(sortActivityEvents(all, sort));
+  }, [activeTypes, assetFilter, fromDate, toDate, sort]);
+
   // Build a compliance audit log (JSON) for the current filter scope and
   // trigger a client-side download. The export honors the same filters as
   // the on-screen feed so what you see is what gets exported.
@@ -166,6 +230,15 @@ export default function ActivityPage() {
             </p>
           </div>
           <div className="flex items-center gap-3">
+            <button
+              type="button"
+              onClick={exportCsv}
+              disabled={loading || events.length === 0}
+              className="px-3 py-2 text-sm rounded-lg bg-green-600 text-white hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-500 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-900"
+              aria-label="Export activity as CSV"
+            >
+              ⬇ Export CSV
+            </button>
             <button
               type="button"
               onClick={exportAuditLog}
@@ -236,6 +309,7 @@ export default function ActivityPage() {
               <input
                 id="activity-from"
                 type="date"
+                onFocus={primePickerToNow}
                 value={fromDate}
                 onChange={(e) => setFromDate(e.target.value)}
                 max={toDate || undefined}
@@ -249,6 +323,7 @@ export default function ActivityPage() {
               <input
                 id="activity-to"
                 type="date"
+                onFocus={primePickerToNow}
                 value={toDate}
                 onChange={(e) => setToDate(e.target.value)}
                 min={fromDate || undefined}
@@ -294,13 +369,61 @@ export default function ActivityPage() {
           </div>
         ) : (
           <>
+            {/* Sortable column headers (#556) */}
+            <div
+              className="hidden sm:flex items-center gap-3 px-4 mb-2 text-xs uppercase tracking-wide text-gray-400"
+              role="group"
+              aria-label="Sort activity"
+            >
+              {SORT_COLUMNS.map((col) => {
+                const active = sort?.field === col.field;
+                const arrow = active ? (sort!.dir === "asc" ? "▲" : "▼") : "";
+                return (
+                  <button
+                    key={col.field}
+                    type="button"
+                    onClick={() => setSortField(col.field)}
+                    aria-pressed={active}
+                    aria-label={`Sort by ${col.label.toLowerCase()}${
+                      active ? `, currently ${sort!.dir === "asc" ? "ascending" : "descending"}` : ""
+                    }`}
+                    className={`flex items-center gap-1 rounded px-1 py-0.5 hover:text-white transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-500 ${col.className} ${
+                      active ? "text-white font-semibold" : ""
+                    }`}
+                  >
+                    {col.label}
+                    <span aria-hidden="true" className="w-3 text-[10px]">{arrow}</span>
+                  </button>
+                );
+              })}
+            </div>
+            {/* Compact sort control for narrow screens */}
+            <div className="sm:hidden flex flex-wrap gap-2 mb-3" role="group" aria-label="Sort activity">
+              {SORT_COLUMNS.map((col) => {
+                const active = sort?.field === col.field;
+                return (
+                  <button
+                    key={col.field}
+                    type="button"
+                    onClick={() => setSortField(col.field)}
+                    aria-pressed={active}
+                    className={`px-3 py-1 rounded-full text-xs border transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-500 ${
+                      active ? "border-green-600 text-white" : "border-gray-700 text-gray-400"
+                    }`}
+                  >
+                    {col.label}
+                    {active && <span aria-hidden="true"> {sort!.dir === "asc" ? "▲" : "▼"}</span>}
+                  </button>
+                );
+              })}
+            </div>
             <ul
               role="list"
               aria-label="Activity timeline"
               aria-live="polite"
               className="space-y-3"
             >
-              {events.map((event) => {
+              {sortedEvents.map((event) => {
                 const config = typeConfig[event.type];
                 return (
                   <li key={event.id}>

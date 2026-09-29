@@ -8,6 +8,7 @@
  * - Date-range filter to bound results by stream end date.
  * - Paginated at PAGE_SIZE rows per page.
  */
+import { primePickerToNow } from "@/src/lib/datePickerDefault";
 import { useState, useEffect, useMemo } from "react";
 import Link from "next/link";
 import { getArchivedStreams, formatStellarAmount, type StreamData } from "@/src/lib/sorostream";
@@ -101,6 +102,7 @@ export default function ArchivePage() {
             <input
               id="archive-from"
               type="date"
+              onFocus={primePickerToNow}
               value={fromDate}
               onChange={(e) => setFromDate(e.target.value)}
               max={toDate || undefined}
@@ -114,6 +116,7 @@ export default function ArchivePage() {
             <input
               id="archive-to"
               type="date"
+              onFocus={primePickerToNow}
               value={toDate}
               onChange={(e) => setToDate(e.target.value)}
               min={fromDate || undefined}

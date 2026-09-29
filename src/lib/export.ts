@@ -1,4 +1,4 @@
-import type { StreamData } from "./sorostream";
+import type { StreamData, StreamEvent } from "./sorostream";
 
 export interface StreamHistoryEntry {
   timestamp: string;
@@ -276,6 +276,39 @@ export function downloadWalletStreamsCsv(
   const { filename, csv, rowCount } = buildWalletStreamsCsv(streams, walletAddress, now);
   downloadBlob(csv, filename, "text/csv");
   return { filename, rowCount };
+}
+
+/**
+ * Build the /activity CSV export (#555): one row per event with date, type,
+ * amount, token, tx hash and stream ID. Named `sorostream-activity-<date>.csv`.
+ */
+export function buildActivityCsv(
+  events: StreamEvent[],
+  now = Date.now(),
+): { filename: string; csv: string } {
+  const header = ["date", "type", "amount", "token", "tx_hash", "stream_id"];
+  const rows = events.map((e) =>
+    [
+      new Date(e.timestamp).toISOString(),
+      e.type,
+      e.amount ? (Number(e.amount) / STROOPS_PER_UNIT).toFixed(7) : "",
+      e.asset ?? "",
+      e.txHash,
+      e.streamId,
+    ]
+      .map(escapeCsvCell)
+      .join(","),
+  );
+  return {
+    filename: `sorostream-activity-${new Date(now).toISOString().slice(0, 10)}.csv`,
+    csv: [header.join(","), ...rows].join("\n"),
+  };
+}
+
+export function downloadActivityCsv(events: StreamEvent[], now = Date.now()): string {
+  const { filename, csv } = buildActivityCsv(events, now);
+  downloadBlob(csv, filename, "text/csv");
+  return filename;
 }
 
 export function downloadCSVStreaming(entries: StreamHistoryEntry[], streamId: string) {

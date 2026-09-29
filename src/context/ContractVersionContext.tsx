@@ -16,6 +16,12 @@ interface ContractVersionContextType {
 const ContractVersionContext =
   createContext<ContractVersionContextType | null>(null);
 
+/**
+ * Access the shared contract version check.
+ *
+ * @returns {ContractVersionContextType} Expected/deployed contract versions and whether they mismatch.
+ * @throws {Error} When called outside a `ContractVersionProvider`.
+ */
 export function useContractVersion(): ContractVersionContextType {
   const ctx = useContext(ContractVersionContext);
   if (!ctx)

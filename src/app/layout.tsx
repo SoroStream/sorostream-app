@@ -54,6 +54,7 @@ export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
   minimumScale: 1,
+  viewportFit: "cover",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
@@ -62,11 +63,12 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <head>
         {/*
          * Apply the persisted/system theme before first paint to avoid a
-         * flash of the wrong theme. Mirrors the logic in ThemeProvider.
+         * flash of the wrong theme. Mirrors the logic in ThemeProvider; the
+         * storage key must match STORAGE_KEY in src/lib/theme.tsx (#553).
          */}
         <script
           dangerouslySetInnerHTML={{
-            __html: `(function(){try{var s=localStorage.getItem('theme');var m=window.matchMedia?window.matchMedia('(prefers-color-scheme: dark)').matches:false;var c=window.matchMedia?window.matchMedia('(prefers-contrast: more)').matches:false;var t=(s==='light'||s==='dark'||s==='high-contrast')?s:(c?'high-contrast':(m?'dark':'light'));var r=document.documentElement;r.classList.toggle('light',t==='light');r.classList.toggle('dark',t==='dark'||t==='high-contrast');r.classList.toggle('high-contrast',t==='high-contrast');r.style.colorScheme=t==='high-contrast'?'dark':t;}catch(e){}})();`,
+            __html: `(function(){try{var s=localStorage.getItem('sorostream_theme');if(s===null){s=localStorage.getItem('theme');}var m=window.matchMedia?window.matchMedia('(prefers-color-scheme: dark)').matches:false;var c=window.matchMedia?window.matchMedia('(prefers-contrast: more)').matches:false;var t=(s==='light'||s==='dark'||s==='high-contrast')?s:(c?'high-contrast':(m?'dark':'light'));var r=document.documentElement;r.classList.toggle('light',t==='light');r.classList.toggle('dark',t==='dark'||t==='high-contrast');r.classList.toggle('high-contrast',t==='high-contrast');r.style.colorScheme=t==='high-contrast'?'dark':t;}catch(e){}})();`,
           }}
         />
         {/* iOS home screen icon */}

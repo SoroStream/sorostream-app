@@ -20,6 +20,11 @@ function getExpectedVersion(): string {
   return process.env.NEXT_PUBLIC_CONTRACT_VERSION ?? "";
 }
 
+/**
+ * Compare the deployed contract version with `NEXT_PUBLIC_CONTRACT_VERSION`.
+ *
+ * @returns {ContractVersionState} Expected and deployed versions and a `mismatch` flag.
+ */
 export function useContractVersion(): ContractVersionState {
   const [deployedVersion, setDeployedVersion] = useState<string | null>(null);
   const [mismatch, setMismatch] = useState(false);
