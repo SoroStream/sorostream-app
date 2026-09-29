@@ -1445,7 +1445,7 @@ function NewStreamWizard() {
               <div className="border-t border-gray-700 pt-4">
                 <span className="text-gray-400 text-sm">Stream ends</span>
                 <div className="text-lg font-semibold text-white mt-1">
-                  {calculateEndDate(duration).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric", hour: "2-digit", minute: "2-digit" })}
+                  {formatLocaleDateTime(calculateEndDate(duration), undefined, { month: "short", day: "numeric", year: "numeric", hour: "2-digit", minute: "2-digit" })}
                 </div>
               </div>
 
@@ -1590,13 +1590,13 @@ function NewStreamWizard() {
                     <div className="flex justify-between items-center">
                       <span className="text-gray-400 text-sm">Start date</span>
                       <span className="text-white font-mono text-sm">
-                        {startDate.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })}
+                        {formatLocaleDate(startDate, undefined, { month: "short", day: "numeric", year: "numeric" })}
                       </span>
                     </div>
                     <div className="flex justify-between items-center">
                       <span className="text-gray-400 text-sm">End date</span>
                       <span className="text-white font-mono text-sm">
-                        {endDate.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })}
+                        {formatLocaleDate(endDate, undefined, { month: "short", day: "numeric", year: "numeric" })}
                       </span>
                     </div>
                   </>
@@ -1650,7 +1650,7 @@ function NewStreamWizard() {
                 <div className="flex justify-between items-center">
                   <span className="text-gray-400 text-sm">Scheduled Start</span>
                   <span className="text-blue-300 font-mono text-sm">
-                    {new Date(scheduledStart).toLocaleString()}
+                    {formatLocaleDateTime(new Date(scheduledStart))}
                   </span>
                 </div>
               )}
