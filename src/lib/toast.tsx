@@ -41,16 +41,11 @@ interface ToastContextType {
 const ToastContext = createContext<ToastContextType | null>(null);
 
 /**
- * How long a non-persistent toast stays visible before auto-dismissing.
+ * Access toast notification helpers.
  *
- * Screen readers need time to reach and announce a newly inserted
- * `role="alert"` node — a short auto-dismiss can remove the toast from the
- * DOM before that announcement finishes. 10s gives assistive tech enough
- * room without leaving toasts on screen indefinitely (#621; see WCAG 2.2.1
- * Timing Adjustable / 2.2.3 No Timing).
+ * @returns {ToastContextType} Functions to add, update and remove toasts.
+ * @throws {Error} When called outside a `ToastProvider`.
  */
-const TOAST_AUTO_DISMISS_MS = 10_000;
-
 export function useToast() {
   const ctx = useContext(ToastContext);
   if (!ctx) throw new Error("useToast must be used within ToastProvider");

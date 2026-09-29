@@ -6,6 +6,41 @@ import { type StreamData, getStreamsForWallet } from "@/src/lib/sorostream";
 import { useWallet } from "@/src/context/WalletContext";
 import StreamCard from "@/components/StreamCard";
 
+/**
+ * Critical styles inlined so the page stays readable when the service worker
+ * (and therefore the cached CSS bundle) is not yet available (#544).
+ */
+const criticalStyles = {
+  main: {
+    minHeight: "100vh",
+    backgroundColor: "#111827",
+    color: "#ffffff",
+    padding: "1rem",
+    fontFamily: "system-ui, -apple-system, Segoe UI, Roboto, sans-serif",
+  },
+  container: { maxWidth: "48rem", margin: "0 auto", paddingTop: "2rem" },
+  card: {
+    backgroundColor: "#1f2937",
+    border: "1px solid #374151",
+    borderRadius: "1rem",
+    padding: "2rem",
+    textAlign: "center",
+    marginBottom: "1.5rem",
+  },
+  icon: { width: "2rem", height: "2rem", display: "inline-block", color: "#fbbf24" },
+  button: {
+    display: "inline-flex",
+    alignItems: "center",
+    gap: "0.5rem",
+    margin: "0.375rem",
+    padding: "0.625rem 1.25rem",
+    borderRadius: "0.5rem",
+    fontSize: "0.875rem",
+    textDecoration: "none",
+    cursor: "pointer",
+  },
+} satisfies Record<string, React.CSSProperties>;
+
 export default function OfflinePage() {
   const { address } = useWallet();
   const [cachedStreams, setCachedStreams] = useState<StreamData[]>([]);
@@ -42,13 +77,15 @@ export default function OfflinePage() {
       tabIndex={-1}
       className="min-h-screen bg-gray-900 text-white p-4 sm:p-6 flex flex-col items-center justify-start"
       data-testid="offline-fallback-page"
+      style={criticalStyles.main}
     >
-      <div className="max-w-3xl w-full mx-auto space-y-6 pt-8">
-        <div className="bg-gray-800 border border-gray-700 rounded-2xl p-8 text-center space-y-4 shadow-xl">
+      <div className="max-w-3xl w-full mx-auto space-y-6 pt-8" style={criticalStyles.container}>
+        <div className="bg-gray-800 border border-gray-700 rounded-2xl p-8 text-center space-y-4 shadow-xl" style={criticalStyles.card}>
           {/* Offline icon */}
           <div className="w-16 h-16 mx-auto rounded-full bg-amber-900/40 border border-amber-700/60 flex items-center justify-center text-amber-400">
             <svg
               className="w-8 h-8"
+              style={criticalStyles.icon}
               xmlns="http://www.w3.org/2000/svg"
               fill="none"
               viewBox="0 0 24 24"
@@ -76,6 +113,7 @@ export default function OfflinePage() {
             <button
               type="button"
               onClick={() => window.location.reload()}
+              style={{ ...criticalStyles.button, backgroundColor: "#15803d", color: "#ffffff", border: "none" }}
               className="inline-flex items-center gap-2 bg-green-700 text-white px-5 py-2.5 rounded-lg text-sm font-medium hover:bg-green-800 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-500"
             >
               <svg
@@ -98,6 +136,7 @@ export default function OfflinePage() {
 
             <Link
               href="/dashboard"
+              style={{ ...criticalStyles.button, border: "1px solid #374151", color: "#d1d5db" }}
               className="inline-flex items-center gap-2 border border-gray-700 text-gray-300 px-5 py-2.5 rounded-lg text-sm font-medium hover:bg-gray-800 transition-colors"
             >
               Back to Dashboard

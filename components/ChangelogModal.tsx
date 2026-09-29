@@ -15,6 +15,11 @@ interface Changelog {
 
 const STORAGE_KEY = "sorostream-changelog-seen";
 
+/**
+ * Check whether the latest changelog version has been seen by the user.
+ *
+ * @returns {boolean} `true` when `/CHANGELOG.json` has a version not yet stored as seen.
+ */
 export function useChangelogUnread(): boolean {
   const [unread, setUnread] = useState(false);
 

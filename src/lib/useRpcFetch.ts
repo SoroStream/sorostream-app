@@ -13,6 +13,11 @@ import { useToast } from "./toast";
 
 const RATE_LIMIT_TOAST_KEY = "rpc-rate-limit";
 
+/**
+ * Wrap RPC calls with retry handling and rate-limit toast notifications.
+ *
+ * @returns {<T>(fn: () => Promise<T>) => Promise<T>} A function that executes the given RPC call.
+ */
 export function useRpcFetch() {
   const { upsertPersistentToast, removeToast, addToast } = useToast();
   const activeToastId = useRef<number | null>(null);

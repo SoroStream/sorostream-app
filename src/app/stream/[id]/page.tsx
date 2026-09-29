@@ -1,5 +1,6 @@
 "use client";
 
+import { primePickerToNow } from "@/src/lib/datePickerDefault";
 import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { useFocusTrap } from "@/src/lib/useFocusTrap";
 import Link from "next/link";
@@ -18,6 +19,7 @@ import { SkeletonDetail } from "@/components/Skeleton";
 import WalletConnect from "@/components/WalletConnect";
 import KeyboardShortcutsHelp from "@/components/KeyboardShortcutsHelp";
 import TransactionExportButton from "@/components/TransactionExportButton";
+import Tooltip from "@/components/ui/Tooltip";
 import StreamHealthBadge, {
   calculateHealthScore,
   getHealthTier,
@@ -28,7 +30,6 @@ import { type StreamHistoryEntry } from "@/src/lib/export";
 import {
   sorostream,
   type StreamData,
-  getMockStreamHistory,
   claimableNow,
   getMockStream,
   toStroops,
@@ -49,6 +50,12 @@ import { getGiftMessage } from "@/components/GiftStreamModal";
 import { useSettings } from "@/src/context/SettingsContext";
 import { formatStellarAmount } from "@/src/lib/sorostream";
 import { useTranslations } from "@/src/lib/i18n";
+import { useLocaleDateFormat } from "@/src/lib/dateFormat";
+import {
+  readPersistedStreamError,
+  writePersistedStreamError,
+  clearPersistedStreamError,
+} from "@/src/lib/errorPersist";
 import { useKeyboardShortcuts, type ShortcutGroup } from "@/src/lib/useKeyboardShortcuts";
 import { useBookmarks } from "@/src/context/BookmarksContext";
 import { useWallet } from "@/src/context/WalletContext";
@@ -140,6 +147,7 @@ export default function StreamDetail({ params }: { params: { id: string } }) {
   const { address, refetchBalance, triggerStreamRefresh } = useWallet();
   const { isBookmarked, toggleBookmark } = useBookmarks();
   const t = useTranslations("stream_detail");
+  const { formatDateTime } = useLocaleDateFormat();
   const [withdrawConfirmAmount, setWithdrawConfirmAmount] = useState<string | null>(null);
 
   // ── Stream data ────────────────────────────────────────────────────────────
@@ -148,7 +156,10 @@ export default function StreamDetail({ params }: { params: { id: string } }) {
   streamRef.current = stream;
   const [historyEntries, setHistoryEntries] = useState<StreamHistoryEntry[]>([]);
   const [pageLoading, setPageLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  // Seed from sessionStorage so a remount (e.g. browser back/forward, or
+  // navigating away and back) shows the last known error immediately
+  // instead of silently losing it while the retry fetch is in flight (#618).
+  const [error, setError] = useState<string | null>(() => readPersistedStreamError(params.id));
   const [isNetworkError, setIsNetworkError] = useState(false);
   const [routeError, setRouteError] = useState<Error | null>(null);
   const [fetchKey, setFetchKey] = useState(0);
@@ -387,13 +398,38 @@ export default function StreamDetail({ params }: { params: { id: string } }) {
   // When the wallet disconnects (address becomes null), immediately flush the
   // stream state so stale data from the previous session is never shown to a
   // different user who subsequently connects.
+  //
+  // ── Re-sync balance on mid-session wallet switch (#630) ───────────────────
+  // Freighter (and other wallet adapters) let the user switch accounts
+  // without disconnecting first, so `address` can go straight from one
+  // non-null value to another. Without this, the previously-fetched stream
+  // balance/deposit and any in-flight optimistic overrides kept showing the
+  // old wallet's numbers until the next unrelated refetch. Track the last
+  // seen address and, whenever it actually changes (not just on the initial
+  // mount render), clear optimistic overrides and force a fresh fetch.
+  const prevAddressRef = useRef<string | null | undefined>(undefined);
   useEffect(() => {
+    const prevAddress = prevAddressRef.current;
+    prevAddressRef.current = address;
+
+    if (prevAddress === undefined) return; // initial mount — nothing to invalidate yet
+    if (prevAddress === address) return;
+
     if (address === null) {
       setStream(null);
       setHistoryEntries([]);
       setError(null);
+      clearPersistedStreamError(params.id);
       setAllStreams([]);
+      return;
     }
+
+    // Switched to a different connected account: drop stale optimistic
+    // balance state and re-fetch the stream so its deposit/claimable
+    // figures reflect the newly-active wallet.
+    setOptimisticClaimable(null);
+    setOptimisticDeposit(null);
+    setFetchKey((k) => k + 1);
   }, [address]);
 
   // ── Load stream on mount ───────────────────────────────────────────────────
@@ -402,14 +438,19 @@ export default function StreamDetail({ params }: { params: { id: string } }) {
 
     async function loadStream() {
       setPageLoading(true);
-      setError(null);
+      // Deliberately don't clear `error` here: a previously persisted error
+      // (#618) stays visible while this retry is in flight rather than
+      // flashing to a bare loading state, and is cleared below once the
+      // fetch actually succeeds or replaced with a fresh message on failure.
       setIsNetworkError(false);
 
       // Validate ID format client-side before making any network call.
       // This prevents an infinite loading spinner for clearly invalid IDs
       // (e.g. path traversal characters, excessively long strings).
       if (!isValidStreamId(params.id)) {
-        setError(`"${params.id}" is not a valid stream ID.`);
+        const invalidIdMessage = `"${params.id}" is not a valid stream ID.`;
+        setError(invalidIdMessage);
+        writePersistedStreamError(params.id, invalidIdMessage);
         setIsNetworkError(false);
         setPageLoading(false);
         return;
@@ -419,21 +460,26 @@ export default function StreamDetail({ params }: { params: { id: string } }) {
         const timeoutPromise = new Promise<never>((_, reject) =>
           setTimeout(() => reject(new Error("Network timeout: stream data could not be loaded within 10 seconds.")), STREAM_FETCH_TIMEOUT_MS),
         );
-        const data = await Promise.race([
-          sorostream.getStream(params.id),
+        // One batched request for metadata + balance + history (#603).
+        const details = await Promise.race([
+          sorostream.getStreamDetails(params.id),
           timeoutPromise,
         ]);
         if (cancelled) return;
+        const data = details.stream;
         if (!data) {
           setError("Stream not found.");
+          writePersistedStreamError(params.id, "Stream not found.");
           return;
         }
         setStream(data);
+        setError(null);
+        clearPersistedStreamError(params.id);
         // Populate history with mock data only as a fallback while the
         // contract doesn't emit indexable events. The isMock flag lets
         // downstream components suppress display and export.
         setHistoryEntries(
-          getMockStreamHistory(params.id).sort(
+          [...details.history].sort(
             (a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime(),
           ),
         );
@@ -442,6 +488,7 @@ export default function StreamDetail({ params }: { params: { id: string } }) {
         if (!cancelled) {
           const message = err instanceof Error ? err.message : "Failed to load stream data.";
           setError(message);
+          writePersistedStreamError(params.id, message);
           setIsNetworkError(true);
           const nextError = err instanceof Error ? err : new Error("Failed to load stream data.");
           setRouteError(nextError);
@@ -537,6 +584,8 @@ export default function StreamDetail({ params }: { params: { id: string } }) {
   }
 
   // ── Withdraw with optimistic update ───────────────────────────────────────
+  // Rejects on failure so WithdrawConfirmModal can surface the error inline
+  // instead of letting a rapid second click resubmit the transaction (#543).
   const executeWithdraw = useCallback(async () => {
     const prevStream = getMockStream(params.id);
     const prevClaimable = prevStream ? Number(claimableNow(prevStream)) : 0;
@@ -549,10 +598,11 @@ export default function StreamDetail({ params }: { params: { id: string } }) {
       setOptimisticClaimable(null);
       refetchBalance();
       addToast(`Withdrawal submitted! Tx: ${result.txHash}`, "success");
-    } catch {
+    } catch (err) {
       setOptimisticClaimable(null);
       void prevClaimable;
       addToast("Withdrawal failed. Please try again.", "error");
+      throw err;
     } finally {
       setWithdrawLoading(false);
     }
@@ -566,7 +616,8 @@ export default function StreamDetail({ params }: { params: { id: string } }) {
     if (claimableXlm >= withdrawThreshold) {
       setWithdrawConfirmAmount(formatStellarAmount(claimableStroops));
     } else {
-      void executeWithdraw();
+      // Errors are already surfaced via toast; swallow the rejection here.
+      void executeWithdraw().catch(() => {});
     }
   }, [params.id, withdrawThreshold, executeWithdraw]);
 
@@ -784,6 +835,8 @@ export default function StreamDetail({ params }: { params: { id: string } }) {
   // ── Stream completion ─────────────────────────────────────────────────────
   /** True when the current wall-clock time has passed the stream's end time. */
   const [isCompleted, setIsCompleted] = useState(false);
+  /** Header badge reads "Completed" once the end time passes, not just on-chain "Ended". */
+  const headerCompleted = isCompleted && displayStatus !== "Cancelled";
 
   useEffect(() => {
     if (!stream || stream.status === "Cancelled") {
@@ -999,7 +1052,9 @@ export default function StreamDetail({ params }: { params: { id: string } }) {
           <span className="hidden sm:inline" aria-hidden="true">|</span>
           <span
             className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
-              displayStatus === "Active"
+              headerCompleted
+                ? "bg-amber-900 text-amber-300"
+                : displayStatus === "Active"
                 ? "bg-green-900 text-green-400"
                 : displayStatus === "Paused"
                 ? "bg-yellow-900 text-yellow-400"
@@ -1007,10 +1062,10 @@ export default function StreamDetail({ params }: { params: { id: string } }) {
                 ? "bg-red-900 text-red-400"
                 : "bg-gray-700 text-gray-400"
             }`}
-            aria-label={`Status: ${displayStatus}`}
+            aria-label={`Status: ${headerCompleted ? "Completed" : displayStatus}`}
             data-testid="stream-status"
           >
-            {displayStatus}
+            {headerCompleted ? "✅ Completed" : displayStatus}
           </span>
         </div>
 
@@ -1298,22 +1353,10 @@ export default function StreamDetail({ params }: { params: { id: string } }) {
               <div className="col-span-2">
                 <p className="text-gray-400 mb-1 flex items-center gap-2">
                   Metadata URI
-                  <div className="relative group">
-                    <button
-                      type="button"
-                      aria-label="What is metadata URI?"
-                      className="text-gray-500 hover:text-gray-300 text-xs border border-gray-600 rounded-full w-4 h-4 flex items-center justify-center transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-500"
-                    >
-                      ?
-                    </button>
-                    <div
-                      role="tooltip"
-                      className="hidden group-hover:block group-focus-within:block absolute left-0 bottom-6 w-64 bg-gray-700 border border-gray-600 rounded-lg p-3 text-xs text-gray-300 leading-relaxed z-10 shadow-lg"
-                    >
+                  <Tooltip label="What is metadata URI?">
                       External metadata reference that provides additional context or documentation
                       about this stream. Can point to JSON, terms of service, or other relevant data.
-                    </div>
-                  </div>
+                    </Tooltip>
                 </p>
                 <a
                   href={stream.metadataUri}
@@ -1458,7 +1501,7 @@ export default function StreamDetail({ params }: { params: { id: string } }) {
 
           {stream.pauseAt && stream.pauseAt > Math.floor(Date.now() / 1000) && (
             <p className="text-xs text-indigo-400/80 text-center">
-              {t("scheduled_pause_badge")}: {new Date(stream.pauseAt * 1000).toLocaleString()}
+              {t("scheduled_pause_badge")}: {formatDateTime(new Date(stream.pauseAt * 1000))}
             </p>
           )}
 
@@ -1796,6 +1839,7 @@ export default function StreamDetail({ params }: { params: { id: string } }) {
               <input
                 id="pause-at"
                 type="datetime-local"
+                onFocus={primePickerToNow}
                 value={pauseAtInput}
                 onChange={(e) => setPauseAtInput(e.target.value)}
                 className="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2.5 text-white text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-900"
@@ -1894,7 +1938,10 @@ export default function StreamDetail({ params }: { params: { id: string } }) {
       {withdrawConfirmAmount !== null && (
         <WithdrawConfirmModal
           amount={withdrawConfirmAmount}
-          onConfirm={() => { setWithdrawConfirmAmount(null); void executeWithdraw(); }}
+          onConfirm={async () => {
+            setWithdrawConfirmAmount(null);
+            await executeWithdraw();
+          }}
           onCancel={() => setWithdrawConfirmAmount(null)}
         />
       )}

@@ -23,7 +23,9 @@ npm install
 
 # 2. Configure environment
 cp .env.example .env.local
-# Edit .env.local — see .env.example for inline docs on each variable
+# Edit .env.local — .env.example lists every NEXT_PUBLIC_* variable with a
+# one-line description; entries marked "# Required in production" must be set
+# before deploying to mainnet.
 
 # 3. Run dev server
 npm run dev
@@ -50,12 +52,14 @@ rebuild is required directly in [`.env.example`](./.env.example).
 | `NEXT_PUBLIC_RPC_URL` | No | Yes | Custom Soroban RPC endpoint (defaults to testnet public RPC) |
 | `NEXT_PUBLIC_VITALS_ENDPOINT` | No | No | URL to receive Web Vitals POST payloads |
 | `NEXT_PUBLIC_FEE_SPONSOR_ADDRESS` | No | Yes | Stellar public key of fee sponsor for fee-bump transactions |
-| `NEXT_PUBLIC_ADMIN_ADDRESS` | No | Yes | Comma-separated Stellar public key(s) for the `/admin` page |
-| `NEXT_PUBLIC_ADMIN_WALLET` | No | Yes | Deprecated alias for `NEXT_PUBLIC_ADMIN_ADDRESS` |
+| `NEXT_PUBLIC_ADMIN_ADDRESSES` | Production | Yes | Comma-separated Stellar public keys allowed to access `/admin` |
+| `NEXT_PUBLIC_ADMIN_ADDRESS` | No | Yes | Deprecated alias for `NEXT_PUBLIC_ADMIN_ADDRESSES` |
+| `NEXT_PUBLIC_ADMIN_WALLET` | No | Yes | Deprecated alias for `NEXT_PUBLIC_ADMIN_ADDRESSES` |
 | `NEXT_PUBLIC_APP_URL` | No | Yes | Base URL for Open Graph / Twitter Card metadata |
 | `NEXT_PUBLIC_RPC_DEGRADED_MS` | No | Yes | RPC latency (ms) threshold for degraded indicator (default: `2000`) |
 | `NEXT_PUBLIC_RPC_UNREACHABLE_BANNER_S` | No | Yes | Seconds unreachable before full-width banner appears (default: `60`) |
 | `NEXT_PUBLIC_CONTRACT_VERSION` | No | Yes | Expected deployed contract version; mismatch shows a refresh banner |
+| `NEXT_PUBLIC_VAPID_PUBLIC_KEY` | Production | Yes | Web Push VAPID public key; empty falls back to in-tab notifications |
 
 ## Web Vitals
 

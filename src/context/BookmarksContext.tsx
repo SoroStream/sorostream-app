@@ -90,6 +90,12 @@ export function BookmarksProvider({ children }: { children: ReactNode }) {
   );
 }
 
+/**
+ * Access bookmarked streams.
+ *
+ * @returns {BookmarksContextValue} Bookmarked stream IDs plus `isBookmarked` and `toggleBookmark` helpers.
+ * @throws {Error} When called outside a `BookmarksProvider`.
+ */
 export function useBookmarks() {
   const ctx = useContext(BookmarksContext);
   if (!ctx) throw new Error("useBookmarks must be used within BookmarksProvider");

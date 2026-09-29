@@ -17,6 +17,7 @@ import StreamShareButtons from "@/components/StreamShareButtons";
 import { type StreamData, getMockStream, claimableNow, getStreamMemo, formatStellarAmount, sorostream } from "@/src/lib/sorostream";
 import { useSettings } from "@/src/context/SettingsContext";
 import { useTranslations } from "@/src/lib/i18n";
+import { formatLocaleDateTime } from "@/src/lib/dateFormat";
 
 /** Stream ID validation regex */
 const STREAM_ID_REGEX = /^[\w-]{1,32}$/;
@@ -303,7 +304,7 @@ export default function PublicStreamViewerPage() {
                 Start Time
               </p>
               <p className="text-sm font-mono text-gray-900 dark:text-white">
-                {new Date(stream.startTime).toLocaleString(language)}
+                {formatLocaleDateTime(stream.startTime, language)}
               </p>
               {!streamStarted && (
                 <p className="text-xs text-yellow-600 dark:text-yellow-400 mt-1">
@@ -318,7 +319,7 @@ export default function PublicStreamViewerPage() {
                 End Time
               </p>
               <p className="text-sm font-mono text-gray-900 dark:text-white">
-                {new Date(stream.endTime).toLocaleString(language)}
+                {formatLocaleDateTime(stream.endTime, language)}
               </p>
               {!streamEnded && streamStarted && (
                 <p className="text-xs text-green-600 dark:text-green-400 mt-1">

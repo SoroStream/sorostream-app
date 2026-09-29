@@ -1,48 +1,11 @@
 "use client";
 
 import { useState, useCallback } from "react";
+import { copyToClipboard } from "@/src/lib/clipboard";
 
 interface CopyButtonProps {
   value: string;
   label?: string;
-}
-
-/**
- * Attempts to copy `text` using the modern Clipboard API when available and
- * permitted.  Falls back to the legacy execCommand approach for browsers that
- * block navigator.clipboard (e.g. Firefox in certain permission contexts).
- * Returns true on success, false when neither method is available.
- */
-async function copyToClipboard(text: string): Promise<boolean> {
-  // Modern async Clipboard API — requires a secure context and user permission.
-  if (
-    typeof navigator !== "undefined" &&
-    navigator.clipboard &&
-    typeof navigator.clipboard.writeText === "function"
-  ) {
-    try {
-      await navigator.clipboard.writeText(text);
-      return true;
-    } catch {
-      // Permission denied or API unavailable — fall through to execCommand.
-    }
-  }
-
-  // Legacy execCommand fallback (works in Firefox without clipboard permission).
-  try {
-    const textarea = document.createElement("textarea");
-    textarea.value = text;
-    // Keep the element off-screen so it doesn't affect layout or scroll.
-    textarea.style.cssText = "position:fixed;top:-9999px;left:-9999px;opacity:0;";
-    document.body.appendChild(textarea);
-    textarea.focus();
-    textarea.select();
-    const success = document.execCommand("copy");
-    document.body.removeChild(textarea);
-    return success;
-  } catch {
-    return false;
-  }
 }
 
 export default function CopyButton({ value, label = "Copy" }: CopyButtonProps) {

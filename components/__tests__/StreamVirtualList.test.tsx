@@ -42,4 +42,20 @@ describe("StreamVirtualList", () => {
 
     expect(screen.getByText(/^Stream #1$/i)).toBeInTheDocument();
   });
+
+  it("renders 200 streams in under 300 ms", () => {
+    vi.useFakeTimers();
+    const streams = Array.from({ length: 200 }, (_, index) => createStream(index + 1));
+
+    const start = performance.now();
+    render(
+      <SettingsProvider>
+        <StreamVirtualList streams={streams} />
+      </SettingsProvider>,
+    );
+    const elapsed = performance.now() - start;
+    vi.useRealTimers();
+
+    expect(elapsed).toBeLessThan(300);
+  });
 });

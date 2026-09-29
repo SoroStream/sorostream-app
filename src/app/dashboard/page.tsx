@@ -1,5 +1,6 @@
 "use client";
 
+import { primePickerToNow } from "@/src/lib/datePickerDefault";
 import { useState, useEffect, useMemo, useRef, useCallback, Suspense } from "react";
 import Link from "next/link";
 import { useSearchParams, useRouter } from "next/navigation";
@@ -9,6 +10,7 @@ import StreamEventFeed from "@/components/StreamEventFeed";
 import KeyboardShortcutsHelp from "@/components/KeyboardShortcutsHelp";
 import StatusLegend from "@/components/StatusLegend";
 import { StreamErrorBoundary } from "@/components/StreamErrorBoundary";
+import { mergeById } from "@/src/lib/mergeStreams";
 import { getStreamsForWallet, watchClaimable, sorostream, getMockStreamHistory, type StreamData } from "@/src/lib/sorostream";
 import { useRpcFetch } from "@/src/lib/useRpcFetch";
 import { useToast } from "@/src/lib/toast";
@@ -27,6 +29,7 @@ import StreamCard from "@/components/StreamCard";
 import ThemeToggle from "@/components/ThemeToggle";
 import PullToRefresh from "@/components/PullToRefresh";
 import WalletAnalyticsDashboard from "@/components/WalletAnalyticsDashboard";
+import EmptyStreamsIllustration from "@/components/EmptyStreamsIllustration";
 
 type DashboardState = "loading" | "filtered-empty" | "empty" | "ready";
 
@@ -60,8 +63,14 @@ function DashboardContent() {
   const { bookmarkedIds } = useBookmarks();
   const { address, streamRefreshTrigger, setActiveStreamCount } = useWallet();
   const [loading, setLoading] = useState(true);
+  // Streams fetched so far. Only the first page is fetched on load; the rest
+  // are fetched on demand as the user paginates or filters/sorts.
   const [streams, setStreams] = useState<StreamData[]>([]);
-  const [currentPage, setCurrentPage] = useState(1);
+  const [currentPage, setCurrentPage] = useState(() => {
+    const p = parseInt(searchParams.get("page") || "1", 10);
+    return Number.isFinite(p) && p > 0 ? p : 1;
+  });
+  const skipPageResetRef = useRef(true);
   const pageSize = 10;
 
   // Filter states from URL params
@@ -108,8 +117,9 @@ function DashboardContent() {
   const [, setIsRefreshing] = useState(false);
 
   // Pagination state (#383)
-  const [visibleCount, setVisibleCount] = useState(12);
-  const PAGE_SIZE = 12;
+  const [visibleCount, setVisibleCount] = useState(20);
+  const PAGE_SIZE = 20;
+  const loadMoreRef = useRef<HTMLDivElement | null>(null);
 
   // Tab state
   const [activeTab, setActiveTab] = useState<"streams" | "watchlist">("streams");
@@ -127,14 +137,22 @@ function DashboardContent() {
   const [showFilterBar, setShowFilterBar] = useState(true);
   // Index of the currently keyboard-focused stream card (-1 = none)
   const [focusedStreamIndex, setFocusedStreamIndex] = useState(-1);
+  // Last wallet address seen by the load effect (undefined until first run).
+  const prevAddressRef = useRef<string | null | undefined>(undefined);
 
   useEffect(() => {
     let cancelled = false;
 
     // Flush cached data and reset search query immediately on disconnect/address change
     // so streams from a previous wallet session are never returned or mixed in.
+    // The search query is only reset when moving away from a previously
+    // connected wallet, so a ?search= URL param survives page load and the
+    // initial wallet reconnect (#554).
     setStreams([]);
-    setSearch("");
+    if (prevAddressRef.current && prevAddressRef.current !== address) {
+      setSearch("");
+    }
+    prevAddressRef.current = address;
     setSelectedIds(new Set());
     if (!address) {
       setLoading(false);
@@ -145,11 +163,13 @@ function DashboardContent() {
 
     async function load() {
       try {
-        const data = await rpcFetch(() =>
-          Promise.resolve(getStreamsForWallet(address)),
+        // Only fetch the first page up front to keep initial load fast.
+        const page = await rpcFetch(() =>
+          Promise.resolve(getStreamsPageForWallet(address, { limit: DASHBOARD_PAGE_SIZE })),
         );
         if (!cancelled) {
-          setStreams(data);
+          setStreams(page.streams);
+          setTotalStreams(page.total);
           setLastRefreshTime(Date.now());
         }
       } catch {
@@ -161,13 +181,16 @@ function DashboardContent() {
     void load();
 
     // Poll for claimable updates every 30s without resetting scroll position.
+    // Only the streams already loaded are refreshed.
     pollRef.current = setInterval(async () => {
       try {
-        const data = await rpcFetch(() =>
-          Promise.resolve(watchClaimable(getStreamsForWallet(address))),
+        const page = await rpcFetch(() =>
+          Promise.resolve(getStreamsPageForWallet(address, {
+            limit: Math.max(loadedCountRef.current, DASHBOARD_PAGE_SIZE),
+          })),
         );
         if (!cancelled) {
-          setStreams(data);
+          setStreams((prev) => mergeById(prev, data));
           setLastRefreshTime(Date.now());
         }
       } catch {
@@ -180,7 +203,74 @@ function DashboardContent() {
       if (pollRef.current) clearInterval(pollRef.current);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [address, streamRefreshTrigger]);
+  }, [address]);
+
+  // After a form submission / action (triggerStreamRefresh) refetch silently:
+  // keep filters, selection and scroll, skip the loading skeleton, and only
+  // replace the stream items whose data actually changed.
+  const lastRefreshTriggerRef = useRef(streamRefreshTrigger);
+  useEffect(() => {
+    if (lastRefreshTriggerRef.current === streamRefreshTrigger) return;
+    lastRefreshTriggerRef.current = streamRefreshTrigger;
+    if (!address) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const data = await rpcFetch(() =>
+          Promise.resolve(getStreamsForWallet(address)),
+        );
+        if (!cancelled) {
+          setStreams((prev) => mergeById(prev, data));
+          setLastRefreshTime(Date.now());
+        }
+      } catch {
+        // Errors are surfaced via toast by rpcFetch; keep current data.
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [streamRefreshTrigger]);
+
+  // Re-fetch the streams that are already loaded (keeps pagination intact).
+  const reloadLoadedStreams = useCallback(async () => {
+    const page = await rpcFetch(() =>
+      Promise.resolve(getStreamsPageForWallet(address, {
+        limit: Math.max(loadedCountRef.current, DASHBOARD_PAGE_SIZE),
+      })),
+    );
+    setStreams(page.streams);
+    setTotalStreams(page.total);
+  }, [address, rpcFetch]);
+
+  // Fetch more streams on demand until at least `upTo` are loaded.
+  const loadingMoreRef = useRef(false);
+  const ensureLoaded = useCallback(async (upTo: number) => {
+    if (!address || loadingMoreRef.current) return;
+    const offset = loadedCountRef.current;
+    const target = Math.min(upTo, totalStreams);
+    if (offset >= target) return;
+    loadingMoreRef.current = true;
+    setLoadingMore(true);
+    try {
+      const page = await rpcFetch(() =>
+        Promise.resolve(getStreamsPageForWallet(address, { offset, limit: target - offset })),
+      );
+      // Drop the result if the wallet changed while this request was in flight.
+      if (addressRef.current !== address) return;
+      setStreams((prev) => {
+        const seen = new Set(prev.map((s) => s.id));
+        return [...prev, ...page.streams.filter((s) => !seen.has(s.id))];
+      });
+      setTotalStreams(page.total);
+    } catch {
+      // Errors are surfaced via toast by rpcFetch.
+    } finally {
+      loadingMoreRef.current = false;
+      setLoadingMore(false);
+    }
+  }, [address, rpcFetch, totalStreams]);
 
   // Manual refresh ("r" shortcut / refresh event) — re-fetch without resetting filters.
   const refreshStreams = useCallback(async () => {
@@ -190,7 +280,7 @@ function DashboardContent() {
       const data = await rpcFetch(() =>
         Promise.resolve(getStreamsForWallet(address)),
       );
-      setStreams(data);
+      setStreams((prev) => mergeById(prev, data));
       setLastRefreshTime(Date.now());
       addToast("Stream list refreshed.", "info");
     } catch {
@@ -198,7 +288,7 @@ function DashboardContent() {
     } finally {
       setIsRefreshing(false);
     }
-  }, [address, rpcFetch, addToast]);
+  }, [address, reloadLoadedStreams, addToast]);
 
   useEffect(() => {
     const handler = () => void refreshStreams();
@@ -257,9 +347,27 @@ function DashboardContent() {
   }, [streams, statusFilter, tokenFilter, search, bookmarksOnly, bookmarkedIds, selectedTags, dateFrom, dateTo, minRate, maxRate]);
 
   useEffect(() => {
-    // Reset to page 1 when filters change
+    // Reset to page 1 when filters change (skip initial mount so ?page= survives refresh)
+    if (skipPageResetRef.current) {
+      skipPageResetRef.current = false;
+      return;
+    }
     setCurrentPage(1);
   }, [statusFilter, tokenFilter, search, bookmarksOnly, selectedTags, dateFrom, dateTo, minRate, maxRate]);
+
+  // Infinite scroll: load the next page when the sentinel scrolls into view (#552)
+  useEffect(() => {
+    const sentinel = loadMoreRef.current;
+    if (!sentinel || typeof IntersectionObserver === "undefined") return;
+    if (sortedFiltered.length <= visibleCount) return;
+    const observer = new IntersectionObserver((entries) => {
+      if (entries.some((e) => e.isIntersecting)) {
+        setVisibleCount((c) => c + PAGE_SIZE);
+      }
+    });
+    observer.observe(sentinel);
+    return () => observer.disconnect();
+  }, [sortedFiltered.length, visibleCount]);
 
   // Sort filtered streams, pinning bookmarks first, then by the chosen sort field.
   const sortedFiltered = useMemo(() => {
@@ -304,11 +412,12 @@ function DashboardContent() {
     // Only write sort params when they differ from defaults to keep URLs clean.
     if (sortField !== "created") params.set("sort", sortField);
     if (sortOrder !== "desc") params.set("dir", sortOrder);
+    if (currentPage > 1) params.set("page", String(currentPage));
 
     const queryString = params.toString();
     const newPath = queryString ? `/dashboard?${queryString}` : "/dashboard";
     router.replace(newPath);
-  }, [statusFilter, tokenFilter, search, sortField, sortOrder, dateFrom, dateTo, minRate, maxRate, router]);
+  }, [statusFilter, tokenFilter, search, sortField, sortOrder, dateFrom, dateTo, minRate, maxRate, currentPage, router]);
 
   const clearFilters = () => {
     setStatusFilter("");
@@ -320,15 +429,47 @@ function DashboardContent() {
     setDateTo("");
     setMinRate("");
     setMaxRate("");
-    setVisibleCount(PAGE_SIZE);
   };
 
   const hasActiveFilters = !!(statusFilter || tokenFilter || search.trim() || bookmarksOnly || selectedTags.length > 0 || dateFrom || dateTo || minRate || maxRate);
 
-  // Reset pagination when filters change
+  const allStreamsLoaded = streams.length >= totalStreams;
+  // Filtering, non-default sorting and grouping need the full dataset to be
+  // correct, so fetch the remaining streams when any of them is in effect.
+  const needsFullDataset =
+    hasActiveFilters || sortField !== "created" || sortOrder !== "desc" || groupBy !== "none";
+
+  // Page count is recalculated from the filtered + sorted result. Until every
+  // stream is loaded, the server-reported total is used so the page count and
+  // the user's current page stay stable while the rest is fetched.
+  const paginatedCount = allStreamsLoaded ? sortedFiltered.length : totalStreams;
+  const {
+    currentPage,
+    totalPages,
+    pageStart,
+    pageEnd,
+    nextPage,
+    prevPage,
+    hasPrev,
+    hasNext,
+  } = usePagination(paginatedCount, DASHBOARD_PAGE_SIZE);
+
+  const pageStreams = useMemo(
+    () => sortedFiltered.slice(pageStart, pageEnd),
+    [sortedFiltered, pageStart, pageEnd],
+  );
+
+  // Load remaining streams on demand: when the current page needs rows that
+  // haven't been fetched yet, or when filter/sort needs the full dataset.
   useEffect(() => {
-    setVisibleCount(PAGE_SIZE);
-  }, [statusFilter, tokenFilter, search, bookmarksOnly, selectedTags, dateFrom, dateTo, minRate, maxRate]);
+    if (allStreamsLoaded) return;
+    void ensureLoaded(needsFullDataset ? totalStreams : pageEnd);
+  }, [allStreamsLoaded, needsFullDataset, totalStreams, pageEnd, streams.length, ensureLoaded]);
+
+  // Keyboard focus is scoped to the visible page.
+  useEffect(() => {
+    setFocusedStreamIndex(-1);
+  }, [currentPage]);
 
   // Grouped view: bucket the (already filtered + sorted) streams by token.
   const assetGroups = useMemo(() => {
@@ -451,8 +592,7 @@ function DashboardContent() {
     try {
       await Promise.all(ids.map((id) => sorostream.cancelStream(id)));
       addToast(`Cancelled ${ids.length} stream(s) successfully.`, "success");
-      const data = await rpcFetch(() => Promise.resolve(getStreamsForWallet(address)));
-      setStreams(data);
+      await reloadLoadedStreams();
       clearSelection();
       setShowBulkCancelConfirm(false);
       // Clear optimistic overrides once data is refreshed
@@ -468,7 +608,7 @@ function DashboardContent() {
     } finally {
       setBulkLoading(false);
     }
-  }, [selectedIds, optimisticOps, addToast, rpcFetch, clearSelection, address]);
+  }, [selectedIds, optimisticOps, addToast, reloadLoadedStreams, clearSelection]);
 
   const handleBulkTopUp = useCallback(async () => {
     const ids = Array.from(selectedIds);
@@ -488,8 +628,7 @@ function DashboardContent() {
     try {
       await Promise.all(ids.map((id) => sorostream.topUp(id)));
       addToast(`Topped up ${ids.length} stream(s) successfully.`, "success");
-      const data = await rpcFetch(() => Promise.resolve(getStreamsForWallet(address)));
-      setStreams(data);
+      await reloadLoadedStreams();
       clearSelection();
       setOptimisticOps((current) => {
         const next = { ...current };
@@ -503,7 +642,7 @@ function DashboardContent() {
     } finally {
       setBulkLoading(false);
     }
-  }, [selectedIds, optimisticOps, streams, addToast, rpcFetch, clearSelection, address]);
+  }, [selectedIds, optimisticOps, streams, addToast, reloadLoadedStreams, clearSelection]);
 
   const handleBulkExport = useCallback(() => {
     const ids = Array.from(selectedIds);
@@ -549,9 +688,9 @@ function DashboardContent() {
           key: "j",
           description: "Next stream",
           action: () => {
-            if (sortedFiltered.length === 0) return;
+            if (pageStreams.length === 0) return;
             setFocusedStreamIndex((i) => {
-              const next = i < sortedFiltered.length - 1 ? i + 1 : 0;
+              const next = i < pageStreams.length - 1 ? i + 1 : 0;
               return next;
             });
           },
@@ -560,9 +699,9 @@ function DashboardContent() {
           key: "k",
           description: "Previous stream",
           action: () => {
-            if (sortedFiltered.length === 0) return;
+            if (pageStreams.length === 0) return;
             setFocusedStreamIndex((i) => {
-              const prev = i > 0 ? i - 1 : sortedFiltered.length - 1;
+              const prev = i > 0 ? i - 1 : pageStreams.length - 1;
               return prev;
             });
           },
@@ -571,8 +710,8 @@ function DashboardContent() {
           key: "Enter",
           description: "Open focused stream",
           action: () => {
-            if (focusedStreamIndex >= 0 && focusedStreamIndex < sortedFiltered.length) {
-              router.push(`/stream/${sortedFiltered[focusedStreamIndex].id}`);
+            if (focusedStreamIndex >= 0 && focusedStreamIndex < pageStreams.length) {
+              router.push(`/stream/${pageStreams[focusedStreamIndex].id}`);
             }
           },
         },
@@ -580,7 +719,7 @@ function DashboardContent() {
         { key: "?", shift: true, description: "Toggle keyboard shortcuts help", action: () => setShowShortcutsHelp((v) => !v) },
       ],
     },
-  ], [router, clearSelection, refreshStreams, sortedFiltered, focusedStreamIndex]);
+  ], [router, clearSelection, refreshStreams, pageStreams, focusedStreamIndex]);
 
   useKeyboardShortcuts(shortcutGroups);
 
@@ -588,7 +727,9 @@ function DashboardContent() {
     <main id="main-content" tabIndex={-1} className="min-h-screen bg-gray-900 text-white p-4 sm:p-6">
       <div className="max-w-6xl mx-auto">
         <div className="flex flex-wrap justify-between items-center gap-3 mb-6">
-          <h1 className="text-2xl font-bold">Dashboard</h1>
+          <h1 className="text-2xl font-bold">
+            Dashboard <span className="text-gray-400 font-normal">({streams.length} stream{streams.length === 1 ? "" : "s"})</span>
+          </h1>
           <div className="flex flex-wrap items-center gap-2">
             <button
               type="button"
@@ -776,6 +917,7 @@ function DashboardContent() {
                   <input
                     id="filter-date-from"
                     type="date"
+                    onFocus={primePickerToNow}
                     value={dateFrom}
                     onChange={(e) => setDateFrom(e.target.value)}
                     max={dateTo || undefined}
@@ -788,6 +930,7 @@ function DashboardContent() {
                   <input
                     id="filter-date-to"
                     type="date"
+                    onFocus={primePickerToNow}
                     value={dateTo}
                     onChange={(e) => setDateTo(e.target.value)}
                     min={dateFrom || undefined}
@@ -874,7 +1017,7 @@ function DashboardContent() {
                   type="search"
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
-                  placeholder="Search by recipient, sender, or ID…"
+                  placeholder="Search by recipient address, sender, or ID…"
                   className="flex-1 min-w-0 w-full sm:min-w-[200px] bg-gray-800 border border-gray-700 rounded-lg px-4 py-2 text-sm text-white placeholder-gray-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-500 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-900"
                   aria-label="Search streams"
                 />
@@ -1073,27 +1216,7 @@ function DashboardContent() {
                 </ul>
               </div>
             ) : state === "empty" ? (
-              <div className="bg-gray-800 rounded-xl p-10 text-center flex flex-col items-center gap-4">
-                <svg width="120" height="120" viewBox="0 0 120 120" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-                  <circle cx="60" cy="60" r="56" fill="#1f2937" stroke="#374151" strokeWidth="2" />
-                  <path d="M40 75 Q60 45 80 75" stroke="#10b981" strokeWidth="3" strokeLinecap="round" fill="none" />
-                  <circle cx="40" cy="75" r="4" fill="#10b981" />
-                  <circle cx="60" cy="55" r="4" fill="#10b981" />
-                  <circle cx="80" cy="75" r="4" fill="#10b981" />
-                  <path d="M52 88 L68 88" stroke="#4b5563" strokeWidth="2" strokeLinecap="round" />
-                  <path d="M55 93 L65 93" stroke="#4b5563" strokeWidth="2" strokeLinecap="round" />
-                  <circle cx="60" cy="35" r="6" fill="#374151" />
-                  <path d="M57 35 L63 35 M60 32 L60 38" stroke="#9ca3af" strokeWidth="2" strokeLinecap="round" />
-                </svg>
-                <h2 className="text-xl font-semibold text-white">No streams yet</h2>
-                <p className="text-gray-400 text-sm max-w-xs">Create your first payment stream to get started</p>
-                <Link
-                  href="/stream/new"
-                  className="mt-2 inline-flex items-center gap-2 bg-green-700 text-white px-5 py-2 rounded-lg text-sm font-medium hover:bg-green-800 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-500 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-800"
-                >
-                  + Create Stream
-                </Link>
-              </div>
+              <EmptyStreamsIllustration />
             ) : state === "filtered-empty" ? (
               <div className="bg-gray-800 rounded-xl p-10 text-center flex flex-col items-center gap-4">
                 <svg width="80" height="80" viewBox="0 0 80 80" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
@@ -1125,7 +1248,7 @@ function DashboardContent() {
                 {assetGroups.map(({ token, items }) => (
                   <section key={token} aria-label={`Streams in ${token}`}>
                     <div className="flex items-center gap-2 mb-3">
-                      <h3 className="text-sm font-semibold text-white">{token}</h3>
+                      <h2 className="text-sm font-semibold text-white">{token}</h2>
                       <span className="text-xs text-gray-400 bg-gray-800 rounded-full px-2 py-0.5">
                         {items.length}
                       </span>
@@ -1145,6 +1268,7 @@ function DashboardContent() {
                                 selected={multiSelectMode ? selectedIds.has(s.id) : false}
                                 onToggle={multiSelectMode ? toggleSelect : undefined}
                                 onClone={handleClone}
+                                highlightQuery={search}
                                 scheduledStartTime={s.scheduledStartTime}
                                 startTime={s.startTime}
                                 endTime={s.endTime}
@@ -1178,9 +1302,9 @@ function DashboardContent() {
                         >
                           ▼
                         </span>
-                        <h3 className="text-sm font-semibold text-white group-hover:text-green-300 transition-colors">
+                        <h2 className="text-sm font-semibold text-white group-hover:text-green-300 transition-colors">
                           {label}
-                        </h3>
+                        </h2>
                         <span
                           className="text-xs bg-gray-800 text-gray-400 rounded-full px-2 py-0.5"
                           title={`${items.length} stream${items.length !== 1 ? "s" : ""} total`}
@@ -1212,6 +1336,7 @@ function DashboardContent() {
                                     selected={multiSelectMode ? selectedIds.has(s.id) : false}
                                     onToggle={multiSelectMode ? toggleSelect : undefined}
                                     onClone={handleClone}
+                                    highlightQuery={search}
                                     scheduledStartTime={s.scheduledStartTime}
                                     startTime={s.startTime}
                                     endTime={s.endTime}
@@ -1233,6 +1358,7 @@ function DashboardContent() {
                   selectedIds={multiSelectMode ? selectedIds : undefined}
                   onToggleSelect={multiSelectMode ? toggleSelect : undefined}
                   onClone={handleClone}
+                  highlightQuery={search}
                   focusedStreamId={focusedStreamIndex >= 0 && focusedStreamIndex < sortedFiltered.length ? sortedFiltered[focusedStreamIndex].id : undefined}
                   optimisticOps={optimisticOps}
                 />
@@ -1244,17 +1370,18 @@ function DashboardContent() {
                   >
                     Previous
                   </button>
-                  <span className="text-sm text-gray-400">
-                    Page {currentPage} of {Math.ceil(sortedFiltered.length / pageSize) || 1}
+                  <span className="text-sm text-gray-400" aria-live="polite" data-testid="dashboard-page-indicator">
+                    Page {currentPage} of {totalPages}
                   </span>
-                  <button 
-                    disabled={currentPage >= Math.ceil(sortedFiltered.length / pageSize)}
-                    onClick={() => setCurrentPage(p => p + 1)}
+                  <button
+                    type="button"
+                    disabled={!hasNext}
+                    onClick={nextPage}
                     className="px-4 py-2 bg-gray-800 text-white rounded disabled:opacity-50"
                   >
                     Next
                   </button>
-                </div>
+                </nav>
               </div>
             )}
             </PullToRefresh>
@@ -1262,7 +1389,7 @@ function DashboardContent() {
 
             {/* Pagination: Load More (#383) */}
             {sortedFiltered.length > visibleCount && (
-              <div className="mt-4 text-center">
+              <div ref={loadMoreRef} className="mt-4 text-center">
                 <button
                   onClick={() => setVisibleCount((c) => c + PAGE_SIZE)}
                   className="px-6 py-2 bg-gray-800 border border-gray-700 text-gray-300 rounded-lg text-sm hover:bg-gray-700 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-500 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-900"
@@ -1277,7 +1404,9 @@ function DashboardContent() {
             {sortedFiltered.length > 0 && sortedFiltered.length <= visibleCount && (
               <div className="mt-4 text-center">
                 <p className="text-xs text-gray-500">
-                  All {sortedFiltered.length} stream{sortedFiltered.length === 1 ? "" : "s"} loaded
+                  Showing {pageStart + 1}–{pageStart + pageStreams.length} of {paginatedCount} stream
+                  {paginatedCount === 1 ? "" : "s"}
+                  {loadingMore && " · loading…"}
                 </p>
               </div>
             )}
