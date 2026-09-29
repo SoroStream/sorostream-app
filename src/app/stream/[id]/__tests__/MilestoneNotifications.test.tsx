@@ -62,6 +62,18 @@ vi.mock("@/src/lib/sorostream", async (importOriginal) => {
         status: "Active",
         token: "USDC",
       }),
+      getStreamDetails: vi.fn().mockResolvedValue({ stream: {
+        id: "100",
+        sender: "GA7QYNF7SOWQ3GLR2BGMZEHXAVIRZA4KVWLTJJFC7MGXUA74P7UJVSGZ",
+        recipient: "GB7B2XS7YYUWVLXUYG6EWBEYHV4WTUY5VWFDOXWOITVNHAJBMMRV7ZGO",
+        deposit: 1000000000,
+        flowRate: "100",
+        startTime: new Date(now - 60000).toISOString(), // 60s elapsed out of 100s -> 60%
+        endTime: new Date(now + 40000).toISOString(),
+        lastWithdrawTime: new Date(now - 60000).toISOString(),
+        status: "Active",
+        token: "USDC",
+      }, claimable: "0", history: [] }),
     },
   };
 });

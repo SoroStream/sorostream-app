@@ -1,5 +1,6 @@
 "use client";
 
+import { primePickerToNow } from "@/src/lib/datePickerDefault";
 import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { useFocusTrap } from "@/src/lib/useFocusTrap";
 import Link from "next/link";
@@ -28,7 +29,6 @@ import { type StreamHistoryEntry } from "@/src/lib/export";
 import {
   sorostream,
   type StreamData,
-  getMockStreamHistory,
   claimableNow,
   getMockStream,
   toStroops,
@@ -419,11 +419,13 @@ export default function StreamDetail({ params }: { params: { id: string } }) {
         const timeoutPromise = new Promise<never>((_, reject) =>
           setTimeout(() => reject(new Error("Network timeout: stream data could not be loaded within 10 seconds.")), STREAM_FETCH_TIMEOUT_MS),
         );
-        const data = await Promise.race([
-          sorostream.getStream(params.id),
+        // One batched request for metadata + balance + history (#603).
+        const details = await Promise.race([
+          sorostream.getStreamDetails(params.id),
           timeoutPromise,
         ]);
         if (cancelled) return;
+        const data = details.stream;
         if (!data) {
           setError("Stream not found.");
           return;
@@ -433,7 +435,7 @@ export default function StreamDetail({ params }: { params: { id: string } }) {
         // contract doesn't emit indexable events. The isMock flag lets
         // downstream components suppress display and export.
         setHistoryEntries(
-          getMockStreamHistory(params.id).sort(
+          [...details.history].sort(
             (a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime(),
           ),
         );
@@ -788,6 +790,8 @@ export default function StreamDetail({ params }: { params: { id: string } }) {
   // ── Stream completion ─────────────────────────────────────────────────────
   /** True when the current wall-clock time has passed the stream's end time. */
   const [isCompleted, setIsCompleted] = useState(false);
+  /** Header badge reads "Completed" once the end time passes, not just on-chain "Ended". */
+  const headerCompleted = isCompleted && displayStatus !== "Cancelled";
 
   useEffect(() => {
     if (!stream || stream.status === "Cancelled") {
@@ -1003,7 +1007,9 @@ export default function StreamDetail({ params }: { params: { id: string } }) {
           <span className="hidden sm:inline" aria-hidden="true">|</span>
           <span
             className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
-              displayStatus === "Active"
+              headerCompleted
+                ? "bg-amber-900 text-amber-300"
+                : displayStatus === "Active"
                 ? "bg-green-900 text-green-400"
                 : displayStatus === "Paused"
                 ? "bg-yellow-900 text-yellow-400"
@@ -1011,10 +1017,10 @@ export default function StreamDetail({ params }: { params: { id: string } }) {
                 ? "bg-red-900 text-red-400"
                 : "bg-gray-700 text-gray-400"
             }`}
-            aria-label={`Status: ${displayStatus}`}
+            aria-label={`Status: ${headerCompleted ? "Completed" : displayStatus}`}
             data-testid="stream-status"
           >
-            {displayStatus}
+            {headerCompleted ? "✅ Completed" : displayStatus}
           </span>
         </div>
 
@@ -1800,6 +1806,7 @@ export default function StreamDetail({ params }: { params: { id: string } }) {
               <input
                 id="pause-at"
                 type="datetime-local"
+                onFocus={primePickerToNow}
                 value={pauseAtInput}
                 onChange={(e) => setPauseAtInput(e.target.value)}
                 className="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2.5 text-white text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-900"

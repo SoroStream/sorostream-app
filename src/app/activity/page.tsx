@@ -309,6 +309,7 @@ function ActivityPageContent() {
               <input
                 id="activity-from"
                 type="date"
+                onFocus={primePickerToNow}
                 value={fromDate}
                 onChange={(e) => setFromDate(e.target.value)}
                 max={toDate || undefined}
@@ -322,6 +323,7 @@ function ActivityPageContent() {
               <input
                 id="activity-to"
                 type="date"
+                onFocus={primePickerToNow}
                 value={toDate}
                 onChange={(e) => setToDate(e.target.value)}
                 min={fromDate || undefined}
