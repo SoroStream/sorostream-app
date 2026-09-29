@@ -8,9 +8,11 @@
  * - Date-range filter to bound results by stream end date.
  * - Paginated at PAGE_SIZE rows per page.
  */
+import { primePickerToNow } from "@/src/lib/datePickerDefault";
 import { useState, useEffect, useMemo } from "react";
 import Link from "next/link";
 import { getArchivedStreams, formatStellarAmount, type StreamData } from "@/src/lib/sorostream";
+import { useLocaleDateFormat } from "@/src/lib/dateFormat";
 
 const PAGE_SIZE = 10;
 
@@ -26,15 +28,8 @@ function StatusBadge({ status }: { status: StreamData["status"] }) {
   );
 }
 
-function formatDate(iso: string) {
-  return new Date(iso).toLocaleDateString(undefined, {
-    year: "numeric",
-    month: "short",
-    day: "numeric",
-  });
-}
-
 export default function ArchivePage() {
+  const { formatDate } = useLocaleDateFormat();
   const [allStreams, setAllStreams] = useState<StreamData[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -107,6 +102,7 @@ export default function ArchivePage() {
             <input
               id="archive-from"
               type="date"
+              onFocus={primePickerToNow}
               value={fromDate}
               onChange={(e) => setFromDate(e.target.value)}
               max={toDate || undefined}
@@ -120,6 +116,7 @@ export default function ArchivePage() {
             <input
               id="archive-to"
               type="date"
+              onFocus={primePickerToNow}
               value={toDate}
               onChange={(e) => setToDate(e.target.value)}
               min={fromDate || undefined}

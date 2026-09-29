@@ -8,67 +8,134 @@ interface StreamProgressBarProps {
   stream: StreamData;
 }
 
-export default function StreamProgressBar({ stream }: StreamProgressBarProps) {
-  const { percentage, isCompleted, elapsedText } = useMemo(() => {
-    const start = new Date(stream.startTime).getTime();
-    const end = new Date(stream.endTime).getTime();
-    const now = Date.now();
+type ProgressState = "not-started" | "active" | "completed";
 
-    const totalDuration = end - start;
+export interface StreamProgress {
+  /** Always a finite number clamped to [0, 100]. */
+  percentage: number;
+  /** Integer form of `percentage`, safe for `aria-valuenow`. */
+  ariaValueNow: number;
+  isCompleted: boolean;
+  /** Lifecycle bucket, exposed for testing and styling. */
+  state: ProgressState;
+  elapsedText: string;
+}
 
-    if (totalDuration <= 0) {
-      return { percentage: 0, isCompleted: false, elapsedText: "0%" };
-    }
+function clampPercentage(value: number): number {
+  if (!Number.isFinite(value)) return 0;
+  return Math.max(0, Math.min(100, value));
+}
 
-    // For cancelled streams, the recipient only received what dripped before
-    // cancellation — not the full deposit. Use the pro-rated streamed amount
-    // so the bar reflects the actual net received.
-    if (stream.status === "Cancelled") {
-      const streamed = getStreamedAmount(stream);
-      const pct = stream.deposit > 0 ? (streamed / stream.deposit) * 100 : 0;
-      const percentage = Math.max(0, Math.min(100, pct));
-      return {
-        percentage,
-        isCompleted: true,
-        elapsedText: `${Math.round(percentage)}%`,
-      };
-    }
+/**
+ * Pure progress calculation, extracted so it can be unit-tested without
+ * rendering (and so the rendered bar and its ARIA value can never diverge).
+ *
+ * Guarantees (#540):
+ *  - not-yet-started streams report exactly 0% / `aria-valuenow="0"`
+ *  - ended (or past-end) streams report exactly 100% / `aria-valuenow="100"`
+ *  - malformed or missing timestamps degrade to 0 instead of producing
+ *    `NaN` (which previously leaked into both `style.width` and the ARIA value)
+ */
+export function calculateStreamProgress(stream: StreamData, now: number = Date.now()): StreamProgress {
+  const start = new Date(stream.startTime).getTime();
+  const end = new Date(stream.endTime).getTime();
 
-    // Clamp the effective current time to [start, end] so that:
-    //  - future streams (now < start) always show 0%
-    //  - completed streams (now > end) always show 100%
-    const effectiveNow = Math.min(Math.max(now, start), end);
-    const elapsed = effectiveNow - start;
+  const hasValidWindow = Number.isFinite(start) && Number.isFinite(end) && end > start;
 
-    const rawPercentage = Math.max(0, Math.min(100, (elapsed / totalDuration) * 100));
-    const isCompleted = stream.status === "Ended" || now >= end;
-    const finalPercentage = isCompleted ? 100 : rawPercentage;
-
+  // For cancelled streams, the recipient only received what dripped before
+  // cancellation — not the full deposit. Use the pro-rated streamed amount
+  // so the bar reflects the actual net received.
+  if (stream.status === "Cancelled") {
+    const streamed = getStreamedAmount(stream);
+    const pct = stream.deposit > 0 ? (streamed / stream.deposit) * 100 : 0;
+    const percentage = clampPercentage(pct);
     return {
-      percentage: finalPercentage,
-      isCompleted,
-      elapsedText: `${Math.round(finalPercentage)}%`,
+      percentage,
+      ariaValueNow: Math.round(percentage),
+      isCompleted: true,
+      state: "completed",
+      elapsedText: `${Math.round(percentage)}%`,
     };
-  }, [stream]);
+  }
+
+  if (!hasValidWindow) {
+    // Unparseable/zero-length window: nothing measurable to report.
+    return {
+      percentage: 0,
+      ariaValueNow: 0,
+      isCompleted: false,
+      state: "not-started",
+      elapsedText: "0%",
+    };
+  }
+
+  const totalDuration = end - start;
+
+  // A stream that has not started yet is never "completed", regardless of
+  // its status string, and must read as 0%.
+  if (now < start) {
+    return {
+      percentage: 0,
+      ariaValueNow: 0,
+      isCompleted: false,
+      state: "not-started",
+      elapsedText: "0%",
+    };
+  }
+
+  // Past the end (or explicitly Ended): report a full bar.
+  if (stream.status === "Ended" || now >= end) {
+    return {
+      percentage: 100,
+      ariaValueNow: 100,
+      isCompleted: true,
+      state: "completed",
+      elapsedText: "100%",
+    };
+  }
+
+  // Mid-stream: clamp so rounding can never produce 0 or 100 spuriously.
+  const percentage = clampPercentage(((now - start) / totalDuration) * 100);
+
+  return {
+    percentage,
+    ariaValueNow: Math.round(percentage),
+    isCompleted: false,
+    state: "active",
+    elapsedText: `${Math.round(percentage)}%`,
+  };
+}
+
+export default function StreamProgressBar({ stream }: StreamProgressBarProps) {
+  const { percentage, ariaValueNow, isCompleted, state, elapsedText } = useMemo(
+    () => calculateStreamProgress(stream),
+    [stream],
+  );
 
   return (
     <div className="space-y-2">
       <div className="flex justify-between items-center text-sm">
         <span className="text-gray-400">Progress</span>
-        <span className={`font-medium ${isCompleted ? "text-green-400" : "text-white"}`}>
-          {isCompleted ? "Completed" : elapsedText}
+        <span
+          data-testid="progress-label"
+          className={`font-medium ${isCompleted ? "text-green-400" : "text-white"}`}
+        >
+          {state === "not-started" ? "Not started" : isCompleted ? "Completed" : elapsedText}
         </span>
       </div>
       <div className="relative pt-1 pb-4">
         <div
           className="relative h-3 bg-gray-700 rounded-full overflow-hidden"
           role="progressbar"
-          aria-valuenow={Math.round(percentage)}
+          aria-valuenow={ariaValueNow}
           aria-valuemin={0}
           aria-valuemax={100}
+          aria-valuetext={state === "not-started" ? "Not started" : `${elapsedText} elapsed`}
           aria-label={`Stream progress: ${elapsedText}`}
+          data-progress-state={state}
         >
           <div
+            data-testid="progress-fill"
             className={`h-full transition-all duration-500 ease-out ${
               isCompleted ? "bg-green-500" : "bg-green-600"
             }`}
@@ -104,9 +171,11 @@ export default function StreamProgressBar({ stream }: StreamProgressBarProps) {
         })}
       </div>
       <p className="text-xs text-gray-500">
-        {isCompleted
-          ? "Stream has finished"
-          : `${Math.round(percentage)}% of total duration elapsed`}
+        {state === "not-started"
+          ? "This stream has not started yet"
+          : isCompleted
+            ? "Stream has finished"
+            : `${elapsedText} of total duration elapsed`}
       </p>
     </div>
   );

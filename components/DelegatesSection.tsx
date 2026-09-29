@@ -94,6 +94,10 @@ export default function DelegatesSection() {
             onChange={(e) => { setInput(e.target.value); setInputError(""); }}
             onKeyDown={(e) => { if (e.key === "Enter") void handleAdd(); }}
             placeholder="G… (Stellar public key)"
+            autoComplete="off"
+            autoCorrect="off"
+            autoCapitalize="off"
+            spellCheck={false}
             className="flex-1 bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-white font-mono text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-500"
             aria-invalid={!!inputError}
             aria-describedby={inputError ? "delegate-input-error" : undefined}

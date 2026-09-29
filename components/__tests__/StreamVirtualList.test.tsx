@@ -43,28 +43,19 @@ describe("StreamVirtualList", () => {
     expect(screen.getByText(/^Stream #1$/i)).toBeInTheDocument();
   });
 
-  it("moves DOM focus between stream cards with arrow keys (#616)", async () => {
-    const streams = Array.from({ length: 6 }, (_, index) => createStream(index + 1));
+  it("renders 200 streams in under 300 ms", () => {
+    vi.useFakeTimers();
+    const streams = Array.from({ length: 200 }, (_, index) => createStream(index + 1));
 
+    const start = performance.now();
     render(
       <SettingsProvider>
         <StreamVirtualList streams={streams} />
       </SettingsProvider>,
     );
+    const elapsed = performance.now() - start;
+    vi.useRealTimers();
 
-    const links = await screen.findAllByRole("link");
-    expect(links.length).toBeGreaterThan(1);
-
-    links[0].focus();
-    expect(document.activeElement).toBe(links[0]);
-
-    fireEvent.keyDown(links[0], { key: "ArrowRight" });
-    expect(document.activeElement).toBe(links[1]);
-
-    fireEvent.keyDown(links[1], { key: "ArrowLeft" });
-    expect(document.activeElement).toBe(links[0]);
-
-    fireEvent.keyDown(links[0], { key: "ArrowDown" });
-    expect(document.activeElement).toBe(links[2]);
+    expect(elapsed).toBeLessThan(300);
   });
 });

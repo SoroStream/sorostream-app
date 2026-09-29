@@ -69,6 +69,7 @@
     "compare_status": "Estado",
     "compare_recipient": "Destinatario",
     "compare_amount": "Cantidad (USDC)",
+    "compare_claimable": "Reclamable",
     "compare_flow_rate": "Tasa de Flujo",
     "compare_start_date": "Fecha de Inicio",
     "compare_end_date": "Fecha de Fin",
@@ -92,6 +93,8 @@
     "error_freighter": "Extensión Freighter no encontrada. Por favor, instálela.",
     "error_lobstr": "Extensión LOBSTR no encontrada. Por favor, instálela.",
     "error_ledger": "No se encontró ningún dispositivo USB. Conecte su Ledger.",
+    "connect_usb": "Conectar vía USB",
+    "ledger_webusb_unsupported": "Este navegador no admite WebUSB. Use Chrome o Edge para conectar una Ledger.",
     "error_server_keypair": "Por favor, introduzca una clave secreta válida."
   },
   "settings": {

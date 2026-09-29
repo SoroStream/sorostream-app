@@ -15,13 +15,15 @@ interface StreamVirtualListProps {
   focusedStreamId?: string;
   /** Active optimistic operations keyed by stream ID. */
   optimisticOps?: Record<string, { type: string; optimisticDeposit?: number; optimisticStatus?: string; optimisticClaimable?: number }>;
+  /** Active search text — forwarded to each card so matches are highlighted. */
+  highlightQuery?: string;
 }
 
 /** Estimated row height in px (two-column grid). Grows if items are taller. */
 const BASE_ROW_HEIGHT = 280;
 const OVERSCAN_ROWS = 5;
 
-export default function StreamVirtualList({ streams, selectedIds, onToggleSelect, onClone, focusedStreamId, optimisticOps }: StreamVirtualListProps) {
+export default function StreamVirtualList({ streams, selectedIds, onToggleSelect, onClone, focusedStreamId, optimisticOps, highlightQuery }: StreamVirtualListProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const savedScrollTop = useRef(0);
   const [scrollTop, setScrollTop] = useState(0);
@@ -247,6 +249,7 @@ export default function StreamVirtualList({ streams, selectedIds, onToggleSelect
                       optimisticStatus={optimisticOps?.[stream.id]?.optimisticStatus}
                       optimisticDeposit={optimisticOps?.[stream.id]?.optimisticDeposit}
                       optimisticClaimable={optimisticOps?.[stream.id]?.optimisticClaimable}
+                      highlightQuery={highlightQuery}
                     />
                   </Link>
                 </div>

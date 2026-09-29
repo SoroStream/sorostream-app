@@ -163,6 +163,12 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
   );
 }
 
+/**
+ * Access the in-app notification centre.
+ *
+ * @returns {NotificationContextValue} Per-section unread counts and helpers to read or clear them.
+ * @throws {Error} When called outside a `NotificationProvider`.
+ */
 export function useNotifications() {
   const ctx = useContext(NotificationContext);
   if (!ctx) throw new Error("useNotifications must be used within NotificationProvider");

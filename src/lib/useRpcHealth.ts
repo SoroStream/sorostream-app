@@ -33,6 +33,11 @@ function getBannerThreshold(): number {
   return Number.isFinite(parsed) && parsed > 0 ? parsed : 60;
 }
 
+/**
+ * Periodically ping the active RPC endpoint and report its health.
+ *
+ * @returns {RpcHealthState} Status, latency in ms, last check time and whether to show the warning banner.
+ */
 export function useRpcHealth(): RpcHealthState {
   const { rpcUrl } = useNetwork();
   const [status, setStatus] = useState<RpcStatus>("unknown");

@@ -1,4 +1,4 @@
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import WithdrawConfirmModal from '../WithdrawConfirmModal';
 
@@ -82,3 +82,114 @@ describe('WithdrawConfirmModal', () => {
     expect(dialog).toHaveAttribute('aria-modal', 'true');
   });
 });
+
+// ── Issue #543: rapid double-clicks must not submit twice ────────────────────
+describe('WithdrawConfirmModal double-submit protection (#543)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('calls onConfirm only once for two rapid clicks in the same tick', () => {
+    const onConfirm = vi.fn();
+    render(
+      <WithdrawConfirmModal amount={AMOUNT} onConfirm={onConfirm} onCancel={vi.fn()} />,
+    );
+
+    fireEvent.change(screen.getByRole('textbox'), { target: { value: AMOUNT } });
+    const confirm = screen.getByRole('button', { name: /confirm withdrawal/i });
+    fireEvent.click(confirm);
+    fireEvent.click(confirm);
+    fireEvent.click(confirm);
+
+    expect(onConfirm).toHaveBeenCalledTimes(1);
+  });
+
+  it('disables the confirm button and shows a spinner while the transaction is pending', async () => {
+    let resolveTx: () => void = () => {};
+    const onConfirm = vi.fn(
+      () =>
+        new Promise<void>((resolve) => {
+          resolveTx = resolve;
+        }),
+    );
+    render(
+      <WithdrawConfirmModal amount={AMOUNT} onConfirm={onConfirm} onCancel={vi.fn()} />,
+    );
+
+    fireEvent.change(screen.getByRole('textbox'), { target: { value: AMOUNT } });
+    fireEvent.click(screen.getByRole('button', { name: /confirm withdrawal/i }));
+
+    const busy = await screen.findByRole('button', { name: /submitting/i });
+    expect(busy).toBeDisabled();
+    expect(busy).toHaveAttribute('aria-busy', 'true');
+    expect(screen.getByTestId('withdraw-confirm-spinner')).toBeInTheDocument();
+    expect(screen.getByRole('textbox')).toBeDisabled();
+
+    resolveTx();
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: /confirm withdrawal/i })).not.toBeDisabled();
+    });
+  });
+
+  it('re-enables the confirm button after the transaction resolves', async () => {
+    const onConfirm = vi.fn().mockResolvedValue(undefined);
+    render(
+      <WithdrawConfirmModal amount={AMOUNT} onConfirm={onConfirm} onCancel={vi.fn()} />,
+    );
+
+    fireEvent.change(screen.getByRole('textbox'), { target: { value: AMOUNT } });
+    fireEvent.click(screen.getByRole('button', { name: /confirm withdrawal/i }));
+
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: /confirm withdrawal/i })).not.toBeDisabled();
+    });
+    expect(screen.queryByTestId('withdraw-confirm-error')).not.toBeInTheDocument();
+  });
+
+  it('surfaces the failure inline and allows a retry when onConfirm rejects', async () => {
+    const onConfirm = vi
+      .fn()
+      .mockRejectedValueOnce(new Error('tx failed'))
+      .mockResolvedValueOnce(undefined);
+    render(
+      <WithdrawConfirmModal amount={AMOUNT} onConfirm={onConfirm} onCancel={vi.fn()} />,
+    );
+
+    fireEvent.change(screen.getByRole('textbox'), { target: { value: AMOUNT } });
+    fireEvent.click(screen.getByRole('button', { name: /confirm withdrawal/i }));
+
+    const error = await screen.findByTestId('withdraw-confirm-error');
+    expect(error).toHaveAttribute('role', 'alert');
+    expect(error).toHaveTextContent(/withdrawal failed/i);
+
+    const confirm = screen.getByRole('button', { name: /confirm withdrawal/i });
+    expect(confirm).not.toBeDisabled();
+    fireEvent.click(confirm);
+
+    await waitFor(() => {
+      expect(onConfirm).toHaveBeenCalledTimes(2);
+    });
+    await waitFor(() => {
+      expect(screen.queryByTestId('withdraw-confirm-error')).not.toBeInTheDocument();
+    });
+  });
+
+  it('does not submit a second time while the first submission is still pending', async () => {
+    const onConfirm = vi.fn(
+      () => new Promise<void>(() => {}), // never settles
+    );
+    render(
+      <WithdrawConfirmModal amount={AMOUNT} onConfirm={onConfirm} onCancel={vi.fn()} />,
+    );
+
+    fireEvent.change(screen.getByRole('textbox'), { target: { value: AMOUNT } });
+    fireEvent.click(screen.getByRole('button', { name: /confirm withdrawal/i }));
+
+    const busy = await screen.findByRole('button', { name: /submitting/i });
+    fireEvent.click(busy);
+    fireEvent.click(busy);
+
+    expect(onConfirm).toHaveBeenCalledTimes(1);
+  });
+});
+

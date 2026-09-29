@@ -42,20 +42,68 @@ export const lobstrAdapter: WalletAdapter = {
   disconnect() {},
 };
 
-// ── Ledger (stub — real transport requires @ledgerhq/hw-transport-webusb) ──
+// ── Ledger (WebUSB transport + Stellar app) ───────────────────────────────
+/** BIP-44 derivation path for the first Stellar account (SEP-0005). */
+export const LEDGER_STELLAR_PATH = "44'/148'/0'";
+
+function stellarNetworkPassphrase(Networks: { PUBLIC: string; TESTNET: string }) {
+  return process.env.NEXT_PUBLIC_STELLAR_NETWORK === "mainnet"
+    ? Networks.PUBLIC
+    : Networks.TESTNET;
+}
+
+/** True when the browser exposes the WebUSB API needed to talk to a Ledger. */
+export function isWebUsbSupported(): boolean {
+  return typeof navigator !== "undefined" && "usb" in navigator && !!(navigator as any).usb;
+}
+
+/**
+ * Open a WebUSB transport, run `fn` against the Stellar app, then close the
+ * transport. Reuses an already-authorised device when possible so the browser
+ * device picker is only shown on first use.
+ */
+async function withLedgerStellarApp<T>(
+  fn: (app: import("@ledgerhq/hw-app-str").default) => Promise<T>,
+): Promise<T> {
+  const { default: TransportWebUSB } = await import("@ledgerhq/hw-transport-webusb");
+  const { default: Str } = await import("@ledgerhq/hw-app-str");
+  const transport =
+    (await TransportWebUSB.openConnected()) ?? (await TransportWebUSB.create());
+  try {
+    return await fn(new Str(transport));
+  } finally {
+    await transport.close();
+  }
+}
+
+let ledgerPublicKey: string | null = null;
+
 export const ledgerAdapter: WalletAdapter = {
   type: "ledger",
   async isAvailable() {
-    return typeof window !== "undefined" && "usb" in navigator;
+    return typeof window !== "undefined" && isWebUsbSupported();
   },
   async getPublicKey() {
-    // TODO: replace with real Ledger Stellar app transport call
-    throw new Error("Ledger transport not yet integrated");
+    const { StrKey } = await import("@stellar/stellar-sdk");
+    const { rawPublicKey } = await withLedgerStellarApp((app) =>
+      app.getPublicKey(LEDGER_STELLAR_PATH),
+    );
+    ledgerPublicKey = StrKey.encodeEd25519PublicKey(rawPublicKey);
+    return ledgerPublicKey;
   },
-  async signTransaction(_xdr) {
-    throw new Error("Ledger transport not yet integrated");
+  async signTransaction(xdr) {
+    const { TransactionBuilder, Networks } = await import("@stellar/stellar-sdk");
+    const tx = TransactionBuilder.fromXDR(xdr, stellarNetworkPassphrase(Networks));
+    const publicKey = ledgerPublicKey ?? (await ledgerAdapter.getPublicKey());
+    const { signature } = await withLedgerStellarApp((app) =>
+      app.signTransaction(LEDGER_STELLAR_PATH, tx.signatureBase()),
+    );
+    tx.addSignature(publicKey, signature.toString("base64"));
+    return tx.toEnvelope().toXDR("base64");
   },
-  disconnect() {},
+  disconnect() {
+    ledgerPublicKey = null;
+  },
 };
 
 // ── Server Keypair (insecure — for testing / server-side use only) ─────────
@@ -79,11 +127,7 @@ export class ServerKeypairAdapter implements WalletAdapter {
   async signTransaction(xdr: string) {
     const { Keypair, Transaction, Networks } = await import("@stellar/stellar-sdk");
     const kp = Keypair.fromSecret(this.secret);
-    const network =
-      process.env.NEXT_PUBLIC_STELLAR_NETWORK === "mainnet"
-        ? Networks.PUBLIC
-        : Networks.TESTNET;
-    const tx = new Transaction(xdr, network);
+    const tx = new Transaction(xdr, stellarNetworkPassphrase(Networks));
     tx.sign(kp);
     return tx.toEnvelope().toXDR("base64");
   }

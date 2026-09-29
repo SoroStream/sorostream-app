@@ -40,6 +40,12 @@ interface ToastContextType {
 
 const ToastContext = createContext<ToastContextType | null>(null);
 
+/**
+ * Access toast notification helpers.
+ *
+ * @returns {ToastContextType} Functions to add, update and remove toasts.
+ * @throws {Error} When called outside a `ToastProvider`.
+ */
 export function useToast() {
   const ctx = useContext(ToastContext);
   if (!ctx) throw new Error("useToast must be used within ToastProvider");
@@ -65,7 +71,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
     (message: string, type: ToastType = "info") => {
       const id = Date.now() + Math.random();
       setToasts((prev) => [...prev, { id, message, type }]);
-      setTimeout(() => removeToast(id), 4000);
+      setTimeout(() => removeToast(id), TOAST_AUTO_DISMISS_MS);
     },
     [removeToast],
   );
