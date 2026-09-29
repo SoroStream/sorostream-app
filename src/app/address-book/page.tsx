@@ -289,6 +289,10 @@ export default function AddressBookPage() {
                     setFormErrors((prev) => ({ ...prev, address: "" }));
                   }}
                   placeholder="G..."
+                  autoComplete="off"
+                  autoCorrect="off"
+                  autoCapitalize="off"
+                  spellCheck={false}
                   className="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2.5 text-white text-sm font-mono focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-500 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-800"
                   aria-required="true"
                   aria-invalid={!!formErrors.address}

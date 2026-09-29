@@ -6,6 +6,7 @@ import { useTranslations } from "@/src/lib/i18n";
 import type { StreamData } from "@/src/lib/sorostream";
 import { formatStellarAmount } from "@/src/lib/sorostream";
 import FederationName from "@/components/FederationName";
+import ClaimableTooltip from "@/components/ClaimableTooltip";
 
 interface StreamComparisonModalProps {
   open: boolean;
@@ -352,6 +353,25 @@ export default function StreamComparisonModal({
                         currentStream.deposit,
                         selectedStream.deposit
                       )}
+                    />
+
+                    <ComparisonRow
+                      label={t("compare_claimable")}
+                      current={
+                        <ClaimableTooltip
+                          stream={currentStream}
+                          active={open}
+                          label={t("compare_claimable")}
+                        />
+                      }
+                      compared={
+                        <ClaimableTooltip
+                          stream={selectedStream}
+                          active={open}
+                          label={t("compare_claimable")}
+                        />
+                      }
+                      highlighted={false}
                     />
 
                     <ComparisonRow

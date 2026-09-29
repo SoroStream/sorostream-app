@@ -65,6 +65,7 @@
     "compare_status": "Status",
     "compare_recipient": "Recipient",
     "compare_amount": "Amount (USDC)",
+    "compare_claimable": "Claimable",
     "compare_flow_rate": "Flow Rate",
     "compare_start_date": "Start Date",
     "compare_end_date": "End Date",
