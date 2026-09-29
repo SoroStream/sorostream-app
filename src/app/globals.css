@@ -270,3 +270,76 @@ body {
   background: #4b5563;
   border-radius: 9999px;
 }
+
+/*
+ * Mobile accessibility: Ensure minimum 44px tap targets (#638).
+ * Interactive elements should have at least 44x44px of clickable area
+ * on mobile devices per WCAG 2.5.5 level AAA guidelines.
+ * Applied to buttons, links, and other interactive elements.
+ */
+@media (max-width: 768px) {
+  /* Ensure buttons and interactive elements have minimum 44px touch target */
+  button,
+  a[href],
+  [role="button"],
+  [role="link"],
+  [role="option"],
+  [role="menuitem"],
+  input[type="checkbox"],
+  input[type="radio"],
+  select {
+    min-height: 2.75rem; /* 44px */
+    min-width: 2.75rem; /* 44px */
+  }
+
+  /* Icons/small elements should still allow pointer interaction */
+  svg {
+    pointer-events: none;
+  }
+}
+
+/*
+ * Landscape orientation on mobile (#635).
+ * Fixes layout issues in landscape mode on mobile devices by:
+ * 1. Reducing bottom padding/nav height to preserve vertical space
+ * 2. Making modals scrollable if they exceed viewport height
+ * 3. Adjusting fixed nav positioning
+ */
+@media (max-height: 500px) and (orientation: landscape) {
+  /* Reduce spacing for landscape mode to preserve vertical space */
+  .pb-24 {
+    padding-bottom: 1rem; /* Reduce from 6rem */
+  }
+
+  /* Make bottom nav less obtrusive in landscape */
+  nav[aria-label="Mobile navigation"] {
+    height: 3.5rem; /* Reduce from 4rem (64px) to 56px */
+  }
+
+  nav[aria-label="Mobile navigation"] ul {
+    height: 3.5rem;
+  }
+
+  /* Spacer should match new nav height */
+  nav[aria-label="Mobile navigation"] + div,
+  .md\:hidden + div {
+    height: 3.5rem;
+  }
+
+  /* Reduce padding on pages in landscape */
+  main > div[class*="space-y"] > div:first-child {
+    padding-top: 0.5rem;
+  }
+
+  /* Make modals scrollable in landscape to prevent overflow */
+  [role="dialog"],
+  [class*="modal"] {
+    max-height: calc(100vh - 2rem);
+    overflow-y: auto;
+  }
+
+  /* Adjust main content max-height for modals like GlobalSearch */
+  .fixed.inset-0 .max-h-\[70vh\] {
+    max-height: calc(100vh - 2rem);
+  }
+}

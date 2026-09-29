@@ -8,7 +8,7 @@ import {
   useCallback,
   type ReactNode,
 } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import Fuse from "fuse.js";
 import { getMockStreams, getMockStreamHistory } from "@/src/lib/sorostream";
 
@@ -26,9 +26,11 @@ interface ResultGroup {
 }
 
 const DEBOUNCE_MS = 300;
+const SEARCH_PARAM_KEY = "q";
 
 export default function GlobalSearch() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [debouncedQuery, setDebouncedQuery] = useState("");
@@ -36,15 +38,40 @@ export default function GlobalSearch() {
   const inputRef = useRef<HTMLInputElement>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout>>();
   const listRef = useRef<HTMLDivElement>(null);
+  const isInitializedRef = useRef(false);
+
+  // Initialize query from URL params on mount
+  useEffect(() => {
+    if (!isInitializedRef.current) {
+      const urlQuery = searchParams.get(SEARCH_PARAM_KEY) || "";
+      if (urlQuery) {
+        setQuery(urlQuery);
+        setDebouncedQuery(urlQuery);
+        setOpen(true);
+      }
+      isInitializedRef.current = true;
+    }
+  }, [searchParams]);
 
   // Debounce input
   useEffect(() => {
     debounceRef.current = setTimeout(() => {
       setDebouncedQuery(query);
       setSelectedIndex(-1);
+      // Update URL with search query
+      if (query.trim()) {
+        const newParams = new URLSearchParams(searchParams);
+        newParams.set(SEARCH_PARAM_KEY, query.trim());
+        router.push(`?${newParams.toString()}`, { scroll: false });
+      } else {
+        const newParams = new URLSearchParams(searchParams);
+        newParams.delete(SEARCH_PARAM_KEY);
+        const newUrl = newParams.toString() ? `?${newParams.toString()}` : "/";
+        router.push(newUrl, { scroll: false });
+      }
     }, DEBOUNCE_MS);
     return () => clearTimeout(debounceRef.current);
-  }, [query]);
+  }, [query, router, searchParams]);
 
   // Build Fuse index from streams and history
   const fuse = useMemo(() => {
@@ -114,9 +141,16 @@ export default function GlobalSearch() {
       setQuery("");
       setDebouncedQuery("");
       setSelectedIndex(-1);
+      // Clear search params when navigating away
+      const newParams = new URLSearchParams(searchParams);
+      newParams.delete(SEARCH_PARAM_KEY);
+      const newUrl = newParams.toString() ? `?${newParams.toString()}` : "/";
+      if (newUrl !== "/") {
+        router.push(newUrl, { scroll: false });
+      }
       router.push(href);
     },
-    [router],
+    [router, searchParams],
   );
 
   // Keyboard navigation within results dropdown
