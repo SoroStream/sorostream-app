@@ -27,6 +27,7 @@ import StreamCard from "@/components/StreamCard";
 import ThemeToggle from "@/components/ThemeToggle";
 import PullToRefresh from "@/components/PullToRefresh";
 import WalletAnalyticsDashboard from "@/components/WalletAnalyticsDashboard";
+import EmptyStreamsIllustration from "@/components/EmptyStreamsIllustration";
 
 type DashboardState = "loading" | "filtered-empty" | "empty" | "ready";
 
@@ -1081,27 +1082,7 @@ function DashboardContent() {
                 </ul>
               </div>
             ) : state === "empty" ? (
-              <div className="bg-gray-800 rounded-xl p-10 text-center flex flex-col items-center gap-4">
-                <svg width="120" height="120" viewBox="0 0 120 120" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-                  <circle cx="60" cy="60" r="56" fill="#1f2937" stroke="#374151" strokeWidth="2" />
-                  <path d="M40 75 Q60 45 80 75" stroke="#10b981" strokeWidth="3" strokeLinecap="round" fill="none" />
-                  <circle cx="40" cy="75" r="4" fill="#10b981" />
-                  <circle cx="60" cy="55" r="4" fill="#10b981" />
-                  <circle cx="80" cy="75" r="4" fill="#10b981" />
-                  <path d="M52 88 L68 88" stroke="#4b5563" strokeWidth="2" strokeLinecap="round" />
-                  <path d="M55 93 L65 93" stroke="#4b5563" strokeWidth="2" strokeLinecap="round" />
-                  <circle cx="60" cy="35" r="6" fill="#374151" />
-                  <path d="M57 35 L63 35 M60 32 L60 38" stroke="#9ca3af" strokeWidth="2" strokeLinecap="round" />
-                </svg>
-                <h2 className="text-xl font-semibold text-white">No streams yet</h2>
-                <p className="text-gray-400 text-sm max-w-xs">Create your first payment stream to get started</p>
-                <Link
-                  href="/stream/new"
-                  className="mt-2 inline-flex items-center gap-2 bg-green-700 text-white px-5 py-2 rounded-lg text-sm font-medium hover:bg-green-800 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-500 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-800"
-                >
-                  + Create Stream
-                </Link>
-              </div>
+              <EmptyStreamsIllustration />
             ) : state === "filtered-empty" ? (
               <div className="bg-gray-800 rounded-xl p-10 text-center flex flex-col items-center gap-4">
                 <svg width="80" height="80" viewBox="0 0 80 80" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
