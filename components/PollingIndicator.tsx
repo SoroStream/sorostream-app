@@ -58,7 +58,7 @@ export default function PollingIndicator({
             <span className={`inline-block w-2 h-2 rounded-full ${
               isLoading ? "bg-yellow-400 animate-pulse" : "bg-green-400"
             }`} aria-hidden="true" />
-            Next in {secondsUntilNext}s
+            {isLoading ? "Refreshing…" : `Next in ${secondsUntilNext}s`}
           </span>
         </>
       )}

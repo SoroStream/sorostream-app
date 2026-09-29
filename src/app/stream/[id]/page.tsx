@@ -1,5 +1,6 @@
 "use client";
 
+import { primePickerToNow } from "@/src/lib/datePickerDefault";
 import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { useFocusTrap } from "@/src/lib/useFocusTrap";
 import Link from "next/link";
@@ -18,6 +19,7 @@ import { SkeletonDetail } from "@/components/Skeleton";
 import WalletConnect from "@/components/WalletConnect";
 import KeyboardShortcutsHelp from "@/components/KeyboardShortcutsHelp";
 import TransactionExportButton from "@/components/TransactionExportButton";
+import Tooltip from "@/components/ui/Tooltip";
 import StreamHealthBadge, {
   calculateHealthScore,
   getHealthTier,
@@ -28,7 +30,6 @@ import { type StreamHistoryEntry } from "@/src/lib/export";
 import {
   sorostream,
   type StreamData,
-  getMockStreamHistory,
   claimableNow,
   getMockStream,
   toStroops,
@@ -419,11 +420,13 @@ export default function StreamDetail({ params }: { params: { id: string } }) {
         const timeoutPromise = new Promise<never>((_, reject) =>
           setTimeout(() => reject(new Error("Network timeout: stream data could not be loaded within 10 seconds.")), STREAM_FETCH_TIMEOUT_MS),
         );
-        const data = await Promise.race([
-          sorostream.getStream(params.id),
+        // One batched request for metadata + balance + history (#603).
+        const details = await Promise.race([
+          sorostream.getStreamDetails(params.id),
           timeoutPromise,
         ]);
         if (cancelled) return;
+        const data = details.stream;
         if (!data) {
           setError("Stream not found.");
           return;
@@ -433,7 +436,7 @@ export default function StreamDetail({ params }: { params: { id: string } }) {
         // contract doesn't emit indexable events. The isMock flag lets
         // downstream components suppress display and export.
         setHistoryEntries(
-          getMockStreamHistory(params.id).sort(
+          [...details.history].sort(
             (a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime(),
           ),
         );
@@ -537,6 +540,8 @@ export default function StreamDetail({ params }: { params: { id: string } }) {
   }
 
   // ── Withdraw with optimistic update ───────────────────────────────────────
+  // Rejects on failure so WithdrawConfirmModal can surface the error inline
+  // instead of letting a rapid second click resubmit the transaction (#543).
   const executeWithdraw = useCallback(async () => {
     const prevStream = getMockStream(params.id);
     const prevClaimable = prevStream ? Number(claimableNow(prevStream)) : 0;
@@ -549,10 +554,11 @@ export default function StreamDetail({ params }: { params: { id: string } }) {
       setOptimisticClaimable(null);
       refetchBalance();
       addToast(`Withdrawal submitted! Tx: ${result.txHash}`, "success");
-    } catch {
+    } catch (err) {
       setOptimisticClaimable(null);
       void prevClaimable;
       addToast("Withdrawal failed. Please try again.", "error");
+      throw err;
     } finally {
       setWithdrawLoading(false);
     }
@@ -566,7 +572,8 @@ export default function StreamDetail({ params }: { params: { id: string } }) {
     if (claimableXlm >= withdrawThreshold) {
       setWithdrawConfirmAmount(formatStellarAmount(claimableStroops));
     } else {
-      void executeWithdraw();
+      // Errors are already surfaced via toast; swallow the rejection here.
+      void executeWithdraw().catch(() => {});
     }
   }, [params.id, withdrawThreshold, executeWithdraw]);
 
@@ -784,6 +791,8 @@ export default function StreamDetail({ params }: { params: { id: string } }) {
   // ── Stream completion ─────────────────────────────────────────────────────
   /** True when the current wall-clock time has passed the stream's end time. */
   const [isCompleted, setIsCompleted] = useState(false);
+  /** Header badge reads "Completed" once the end time passes, not just on-chain "Ended". */
+  const headerCompleted = isCompleted && displayStatus !== "Cancelled";
 
   useEffect(() => {
     if (!stream || stream.status === "Cancelled") {
@@ -999,7 +1008,9 @@ export default function StreamDetail({ params }: { params: { id: string } }) {
           <span className="hidden sm:inline" aria-hidden="true">|</span>
           <span
             className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
-              displayStatus === "Active"
+              headerCompleted
+                ? "bg-amber-900 text-amber-300"
+                : displayStatus === "Active"
                 ? "bg-green-900 text-green-400"
                 : displayStatus === "Paused"
                 ? "bg-yellow-900 text-yellow-400"
@@ -1007,10 +1018,10 @@ export default function StreamDetail({ params }: { params: { id: string } }) {
                 ? "bg-red-900 text-red-400"
                 : "bg-gray-700 text-gray-400"
             }`}
-            aria-label={`Status: ${displayStatus}`}
+            aria-label={`Status: ${headerCompleted ? "Completed" : displayStatus}`}
             data-testid="stream-status"
           >
-            {displayStatus}
+            {headerCompleted ? "✅ Completed" : displayStatus}
           </span>
         </div>
 
@@ -1298,22 +1309,10 @@ export default function StreamDetail({ params }: { params: { id: string } }) {
               <div className="col-span-2">
                 <p className="text-gray-400 mb-1 flex items-center gap-2">
                   Metadata URI
-                  <div className="relative group">
-                    <button
-                      type="button"
-                      aria-label="What is metadata URI?"
-                      className="text-gray-500 hover:text-gray-300 text-xs border border-gray-600 rounded-full w-4 h-4 flex items-center justify-center transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-500"
-                    >
-                      ?
-                    </button>
-                    <div
-                      role="tooltip"
-                      className="hidden group-hover:block group-focus-within:block absolute left-0 bottom-6 w-64 bg-gray-700 border border-gray-600 rounded-lg p-3 text-xs text-gray-300 leading-relaxed z-10 shadow-lg"
-                    >
+                  <Tooltip label="What is metadata URI?">
                       External metadata reference that provides additional context or documentation
                       about this stream. Can point to JSON, terms of service, or other relevant data.
-                    </div>
-                  </div>
+                    </Tooltip>
                 </p>
                 <a
                   href={stream.metadataUri}
@@ -1796,6 +1795,7 @@ export default function StreamDetail({ params }: { params: { id: string } }) {
               <input
                 id="pause-at"
                 type="datetime-local"
+                onFocus={primePickerToNow}
                 value={pauseAtInput}
                 onChange={(e) => setPauseAtInput(e.target.value)}
                 className="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2.5 text-white text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-900"
@@ -1894,7 +1894,10 @@ export default function StreamDetail({ params }: { params: { id: string } }) {
       {withdrawConfirmAmount !== null && (
         <WithdrawConfirmModal
           amount={withdrawConfirmAmount}
-          onConfirm={() => { setWithdrawConfirmAmount(null); void executeWithdraw(); }}
+          onConfirm={async () => {
+            setWithdrawConfirmAmount(null);
+            await executeWithdraw();
+          }}
           onCancel={() => setWithdrawConfirmAmount(null)}
         />
       )}

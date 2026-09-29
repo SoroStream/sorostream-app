@@ -17,7 +17,10 @@ interface ThemeContextValue {
   useSystemTheme: () => void;
 }
 
-const STORAGE_KEY = "theme";
+/** localStorage key for the user's explicit theme choice (#553). */
+export const STORAGE_KEY = "sorostream_theme";
+/** Pre-#553 key; read once and migrated to STORAGE_KEY. */
+const LEGACY_STORAGE_KEY = "theme";
 
 const ThemeContext = createContext<ThemeContextValue>({
   theme: "dark",
@@ -57,7 +60,17 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     setMounted(true);
     let stored: Theme | null = null;
     try {
-      const raw = window.localStorage.getItem(STORAGE_KEY);
+      let raw = window.localStorage.getItem(STORAGE_KEY);
+      if (raw === null) {
+        const legacy = window.localStorage.getItem(LEGACY_STORAGE_KEY);
+        if (legacy !== null) {
+          window.localStorage.removeItem(LEGACY_STORAGE_KEY);
+          if (isValidTheme(legacy)) {
+            window.localStorage.setItem(STORAGE_KEY, legacy);
+            raw = legacy;
+          }
+        }
+      }
       if (raw && isValidTheme(raw)) stored = raw;
     } catch {
       // ignore storage access errors (private browsing, etc.)

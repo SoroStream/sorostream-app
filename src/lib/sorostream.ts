@@ -578,6 +578,14 @@ export const sorostream = {
     return { txHash: "", newEndTime: new Date() };
   },
   getStream: async (id: string) => getMockStream(id),
+  /**
+   * Batched stream details (#603): metadata, claimable balance and history in a
+   * single call. The backend is currently mocked and has no batch endpoint, so
+   * this resolves all three from one snapshot; when a real batch RPC/indexer
+   * endpoint exists, only this function needs to change. Concurrent calls for
+   * the same id share one in-flight request.
+   */
+  getStreamDetails: (id: string) => getStreamDetails(id),
   getClaimable: async (streamId: string) => claimableNow(getMockStream(streamId)),
   getStreamsBySender: async () => { applyScheduledPauses(); return MOCK_STREAMS; },
   getStreamsByRecipient: async () => { applyScheduledPauses(); return MOCK_STREAMS; },
@@ -700,6 +708,29 @@ export function getMockStreamHistory(id: string): StreamHistoryEntry[] {
     );
   }
   return base;
+}
+
+export interface StreamDetails {
+  stream: StreamData | null;
+  claimable: string;
+  history: StreamHistoryEntry[];
+}
+
+const inflightDetails = new Map<string, Promise<StreamDetails>>();
+
+export function getStreamDetails(id: string): Promise<StreamDetails> {
+  const pending = inflightDetails.get(id);
+  if (pending) return pending;
+  const p = (async () => {
+    const stream = getMockStream(id);
+    return {
+      stream,
+      claimable: stream ? claimableNow(stream) : "0",
+      history: stream ? getMockStreamHistory(id) : [],
+    };
+  })().finally(() => inflightDetails.delete(id));
+  inflightDetails.set(id, p);
+  return p;
 }
 
 export const createClient = () => sorostream;
