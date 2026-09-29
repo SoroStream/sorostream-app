@@ -537,6 +537,8 @@ export default function StreamDetail({ params }: { params: { id: string } }) {
   }
 
   // ── Withdraw with optimistic update ───────────────────────────────────────
+  // Rejects on failure so WithdrawConfirmModal can surface the error inline
+  // instead of letting a rapid second click resubmit the transaction (#543).
   const executeWithdraw = useCallback(async () => {
     const prevStream = getMockStream(params.id);
     const prevClaimable = prevStream ? Number(claimableNow(prevStream)) : 0;
@@ -549,10 +551,11 @@ export default function StreamDetail({ params }: { params: { id: string } }) {
       setOptimisticClaimable(null);
       refetchBalance();
       addToast(`Withdrawal submitted! Tx: ${result.txHash}`, "success");
-    } catch {
+    } catch (err) {
       setOptimisticClaimable(null);
       void prevClaimable;
       addToast("Withdrawal failed. Please try again.", "error");
+      throw err;
     } finally {
       setWithdrawLoading(false);
     }
@@ -566,7 +569,8 @@ export default function StreamDetail({ params }: { params: { id: string } }) {
     if (claimableXlm >= withdrawThreshold) {
       setWithdrawConfirmAmount(formatStellarAmount(claimableStroops));
     } else {
-      void executeWithdraw();
+      // Errors are already surfaced via toast; swallow the rejection here.
+      void executeWithdraw().catch(() => {});
     }
   }, [params.id, withdrawThreshold, executeWithdraw]);
 
@@ -1894,7 +1898,10 @@ export default function StreamDetail({ params }: { params: { id: string } }) {
       {withdrawConfirmAmount !== null && (
         <WithdrawConfirmModal
           amount={withdrawConfirmAmount}
-          onConfirm={() => { setWithdrawConfirmAmount(null); void executeWithdraw(); }}
+          onConfirm={async () => {
+            setWithdrawConfirmAmount(null);
+            await executeWithdraw();
+          }}
           onCancel={() => setWithdrawConfirmAmount(null)}
         />
       )}

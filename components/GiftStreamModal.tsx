@@ -27,6 +27,44 @@ const DURATION_PRESETS = [
 /** Stores the gift message alongside the stream ID, client-side only. */
 const GIFT_MESSAGES_KEY = "sorostream-gift-messages";
 
+/**
+ * Stellar text memos are capped at 28 bytes. Anything longer is silently
+ * truncated on-chain, so the recipient would see a different message than the
+ * sender typed (#547).
+ */
+export const GIFT_MESSAGE_MAX_CHARS = 28;
+
+function utf8ByteLength(value: string): number {
+  if (typeof TextEncoder !== "undefined") {
+    return new TextEncoder().encode(value).length;
+  }
+  // Fallback for environments without TextEncoder.
+  let bytes = 0;
+  for (let i = 0; i < value.length; i++) {
+    const code = value.codePointAt(i) ?? 0;
+    if (code <= 0x7f) bytes += 1;
+    else if (code <= 0x7ff) bytes += 2;
+    else if (code <= 0xffff) bytes += 3;
+    else {
+      bytes += 4;
+      i++; // surrogate pair consumed
+    }
+  }
+  return bytes;
+}
+
+export function validateGiftMessage(message: string): string {
+  if (!message) return "";
+  if (message.length > GIFT_MESSAGE_MAX_CHARS) {
+    return `Message is too long — ${GIFT_MESSAGE_MAX_CHARS} characters maximum (currently ${message.length}).`;
+  }
+  const bytes = utf8ByteLength(message);
+  if (bytes > GIFT_MESSAGE_MAX_CHARS) {
+    return `Message is too long — ${GIFT_MESSAGE_MAX_CHARS} bytes maximum (currently ${bytes} bytes).`;
+  }
+  return "";
+}
+
 export function getGiftMessage(streamId: string): string | null {
   if (typeof window === "undefined") return null;
   try {
@@ -87,12 +125,17 @@ export default function GiftStreamModal({ onClose }: GiftStreamModalProps) {
   const [durationSeconds, setDurationSeconds] = useState(30 * 86400);
   const [customDuration, setCustomDuration] = useState("");
   const [giftMessage, setGiftMessage] = useState("");
-  const [errors, setErrors] = useState({ recipient: "", amount: "" });
+  const [errors, setErrors] = useState({ recipient: "", amount: "", message: "" });
 
   const effectiveDuration =
     customDuration && parseInt(customDuration, 10) > 0
       ? parseInt(customDuration, 10) * 86400
       : durationSeconds;
+
+  const trimmedMessage = giftMessage.trim();
+  const messageError = validateGiftMessage(trimmedMessage);
+  const messageTooLong = messageError !== "";
+  const messageBytes = utf8ByteLength(trimmedMessage);
 
   function validate(): boolean {
     const recipientErr = validateStellarAddress(recipient);
@@ -100,8 +143,9 @@ export default function GiftStreamModal({ onClose }: GiftStreamModalProps) {
     if (!amount || isNaN(parseFloat(amount)) || parseFloat(amount) <= 0) {
       amountErr = "Amount must be greater than 0.";
     }
-    setErrors({ recipient: recipientErr, amount: amountErr });
-    return !recipientErr && !amountErr;
+    const messageErr = validateGiftMessage(trimmedMessage);
+    setErrors({ recipient: recipientErr, amount: amountErr, message: messageErr });
+    return !recipientErr && !amountErr && !messageErr;
   }
 
   async function handleSubmit(e: FormEvent) {
@@ -279,13 +323,47 @@ export default function GiftStreamModal({ onClose }: GiftStreamModalProps) {
               <textarea
                 id="gift-message"
                 value={giftMessage}
-                onChange={(e) => setGiftMessage(e.target.value)}
+                onChange={(e) => {
+                  setGiftMessage(e.target.value);
+                  setErrors((p) => ({ ...p, message: "" }));
+                }}
                 rows={3}
-                maxLength={280}
                 placeholder="Write a personal note to the recipient…"
-                className="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2.5 text-white text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-500 placeholder-gray-500 resize-none"
+                aria-invalid={messageTooLong || undefined}
+                aria-describedby={
+                  messageTooLong
+                    ? "gift-message-hint gift-message-counter"
+                    : "gift-message-counter"
+                }
+                className={`w-full bg-gray-700 border rounded-lg px-4 py-2.5 text-white text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-500 placeholder-gray-500 resize-none ${
+                  messageTooLong ? "border-red-500" : "border-gray-600"
+                }`}
               />
-              <p className="text-gray-500 text-xs mt-1 text-right">{giftMessage.length}/280</p>
+              {messageTooLong && (
+                <p
+                  id="gift-message-hint"
+                  role="alert"
+                  data-testid="gift-message-error"
+                  className="text-red-400 text-xs mt-1"
+                >
+                  {messageError}
+                </p>
+              )}
+              <p
+                id="gift-message-counter"
+                data-testid="gift-message-counter"
+                aria-live="polite"
+                className={`text-xs mt-1 text-right ${
+                  messageTooLong ? "text-red-400" : "text-gray-500"
+                }`}
+              >
+                {giftMessage.length}/{GIFT_MESSAGE_MAX_CHARS} characters · {messageBytes}/
+                {GIFT_MESSAGE_MAX_CHARS} bytes
+              </p>
+              <p className="text-gray-500 text-xs mt-1">
+                Stellar memos hold at most {GIFT_MESSAGE_MAX_CHARS} bytes — longer messages are
+                truncated on-chain.
+              </p>
             </div>
 
             {/* Actions */}
