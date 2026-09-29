@@ -52,6 +52,7 @@ function resolveKey<N extends Namespace>(
  *   const t = useTranslations("dashboard");
  *   t("title")              // → "Dashboard"
  *   t("title", { id: "5" }) // → interpolated string
+ *   t("common.active_stream_singular", { count: "1" }) // pluralization support
  */
 export function useTranslations<N extends Namespace>(namespace: N) {
   let language = "en";

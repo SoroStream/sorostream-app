@@ -2,6 +2,7 @@
 
 import React, { useRef, useEffect, useState } from "react";
 import { useWallet } from "@/src/context/WalletContext";
+import { useFocusTrap } from "@/src/lib/useFocusTrap";
 
 export function SessionTimeoutModal() {
   const { showSessionWarning1Min, sessionTimeRemaining, extendSession, disconnect } = useWallet();
@@ -27,20 +28,8 @@ export function SessionTimeoutModal() {
     }
   };
 
-  // Focus trap: keep focus within modal when open
-  useEffect(() => {
-    if (!showSessionWarning1Min) return;
-
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape") {
-        // Don't allow escape - this is blocking
-        e.preventDefault();
-      }
-    };
-
-    document.addEventListener("keydown", handleKeyDown);
-    return () => document.removeEventListener("keydown", handleKeyDown);
-  }, [showSessionWarning1Min]);
+  // Use focus trap to keep focus within modal and prevent Tab escape
+  useFocusTrap(modalRef, showSessionWarning1Min);
 
   // Kept mounted in the DOM at all times and toggled via `display: none`
   // (Tailwind's `hidden` class) rather than conditionally rendered/unmounted.

@@ -175,6 +175,8 @@
     "history_created": "Creado",
     "history_withdrawal": "Retiro",
     "history_top_up": "Recarga",
-    "history_cancelled": "Cancelado"
+    "history_cancelled": "Cancelado",
+    "active_stream_singular": "Tiene {count} flujo activo. Desconectarse detiene las actualizaciones en vivo — necesitará reconectarse para administrarlo.",
+    "active_stream_plural": "Tiene {count} flujos activos. Desconectarse detiene las actualizaciones en vivo — necesitará reconectarse para administrarlos."
   }
 }
