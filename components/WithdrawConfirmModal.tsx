@@ -34,7 +34,7 @@ export default function WithdrawConfirmModal({
   // clicks dispatched in the same tick would both pass the state check.
   const submittingRef = useRef(false);
 
-  useFocusTrap(dialogRef, true);
+  useFocusTrap(dialogRef, true, onCancel);
 
   // Close on Escape
   useEffect(() => {

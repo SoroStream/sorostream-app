@@ -34,7 +34,7 @@ export default function StreamComparisonModal({
   const dropdownRef = useRef<HTMLDivElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
 
-  useFocusTrap(dialogRef, open);
+  useFocusTrap(dialogRef, open, onClose);
 
   // Filter out current stream and search through available streams
   const filteredStreams = useMemo(() => {

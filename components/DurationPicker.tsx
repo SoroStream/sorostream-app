@@ -77,6 +77,7 @@ export default function DurationPicker({ onChange, error: externalError, initial
             }`}
             aria-label="Days"
             aria-invalid={!!displayError}
+            aria-describedby={displayError ? "duration-error" : undefined}
           />
         </label>
         {([
@@ -105,6 +106,7 @@ export default function DurationPicker({ onChange, error: externalError, initial
               }`}
               aria-label={label}
               aria-invalid={!!displayError}
+              aria-describedby={displayError ? "duration-error" : undefined}
             />
           </label>
         ))}

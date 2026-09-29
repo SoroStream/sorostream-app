@@ -77,7 +77,7 @@ function DashboardContent() {
   const [statusFilter, setStatusFilter] = useState(searchParams.get("status") || "");
   const [tokenFilter, setTokenFilter] = useState(searchParams.get("token") || "");
   const [search, setSearch] = useState(searchParams.get("search") || "");
-  const [bookmarksOnly, setBookmarksOnly] = useState(false);
+  const [bookmarksOnly, setBookmarksOnly] = useState(searchParams.get("bookmarks") === "1");
   // Date range filters — ISO date strings (YYYY-MM-DD), persisted in URL (#520)
   const [dateFrom, setDateFrom] = useState(searchParams.get("dateFrom") || "");
   const [dateTo, setDateTo] = useState(searchParams.get("dateTo") || "");
@@ -85,7 +85,9 @@ function DashboardContent() {
   const [minRate, setMinRate] = useState(searchParams.get("minRate") || "");
   const [maxRate, setMaxRate] = useState(searchParams.get("maxRate") || "");
   // Tag filter — multiselect, client-side only
-  const [selectedTags, setSelectedTags] = useState<string[]>([]);
+  const [selectedTags, setSelectedTags] = useState<string[]>(() =>
+    (searchParams.get("tags") || "").split(",").filter(Boolean),
+  );
   const [allTags, setAllTags] = useState<string[]>([]);
 
   // Sort state — read from URL query string (?sort=amount&dir=desc).
@@ -122,13 +124,19 @@ function DashboardContent() {
   const loadMoreRef = useRef<HTMLDivElement | null>(null);
 
   // Tab state
-  const [activeTab, setActiveTab] = useState<"streams" | "watchlist">("streams");
+  // Active tab persisted in URL (?tab=watchlist) so switching tabs keeps filter/sort state (#646)
+  const [activeTab, setActiveTab] = useState<"streams" | "watchlist">(() =>
+    searchParams.get("tab") === "watchlist" ? "watchlist" : "streams",
+  );
 
   // UI state
   const [showShortcutsHelp, setShowShortcutsHelp] = useState(false);
   const [showGiftModal, setShowGiftModal] = useState(false);
   // When "asset", streams are grouped by their token; when "tag", by their tag label.
-  const [groupBy, setGroupBy] = useState<"none" | "asset" | "tag">("none");
+  const [groupBy, setGroupBy] = useState<"none" | "asset" | "tag">(() => {
+    const g = searchParams.get("group");
+    return g === "asset" || g === "tag" ? g : "none";
+  });
   // Track which tag groups are collapsed. Key = tag label, value = true when collapsed.
   const [collapsedGroups, setCollapsedGroups] = useState<Record<string, boolean>>({});
   const searchRef = useRef<HTMLInputElement>(null);

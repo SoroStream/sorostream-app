@@ -104,7 +104,7 @@ export default function GiftStreamModal({ onClose }: GiftStreamModalProps) {
   const { address } = useWallet();
   const { addToast } = useToast();
   const modalRef = useRef<HTMLDivElement>(null);
-  useFocusTrap(modalRef, true);
+  useFocusTrap(modalRef, true, onClose);
 
   // Close on Escape key
   useEffect(() => {
