@@ -277,8 +277,8 @@ function statusBadgeClass(status: string): string {
       aria-current={selected ? "true" : undefined}
       data-search-match={matchedField ? "true" : undefined}
     >
-      <div className="flex justify-between items-center">
-        <span className="flex items-center gap-2">
+      <div className="flex justify-between items-center min-w-0 gap-2">
+        <span className="flex items-center gap-2 min-w-0 shrink-0">
           {onToggle && (
             <input
               type="checkbox"
@@ -289,10 +289,10 @@ function statusBadgeClass(status: string): string {
               onClick={(e) => e.stopPropagation()}
             />
           )}
-          <span className="text-gray-500 dark:text-gray-400 text-xs">Stream #{id}</span>
+          <span className="text-gray-500 dark:text-gray-400 text-xs truncate">Stream #{id}</span>
           <CopyButton value={id} label="Copy stream ID" />
         </span>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap justify-end">
           {onClone && (
             <button
               onClick={(e) => { e.stopPropagation(); onClone(id); }}
@@ -367,16 +367,16 @@ function statusBadgeClass(status: string): string {
       </div>
 
       <div className="text-sm">
-        <p className="text-gray-600 dark:text-gray-400 flex items-center gap-1">
+        <p className="text-gray-600 dark:text-gray-400 flex items-center gap-1 min-w-0">
           From:{" "}
-          <span className="text-gray-900 dark:text-white">
+          <span className="text-gray-900 dark:text-white truncate">
             <FederationName address={sender} truncate />
           </span>
           <CopyButton value={sender} label="Copy sender address" />
         </p>
-        <p className="text-gray-600 dark:text-gray-400 flex items-center gap-1">
+        <p className="text-gray-600 dark:text-gray-400 flex items-center gap-1 min-w-0">
           To:{" "}
-          <span className="text-gray-900 dark:text-white">
+          <span className="text-gray-900 dark:text-white truncate">
             <FederationName address={recipient} truncate />
           </span>
           <CopyButton value={recipient} label="Copy recipient address" />
