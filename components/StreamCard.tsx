@@ -13,6 +13,7 @@ import StreamHealthBadge, {
 } from "@/components/StreamHealthBadge";
 import { getMockStreamHistory } from "@/src/lib/sorostream";
 import { formatDateWithTimezone } from "@/src/lib/timezone";
+import { formatTimeRemaining, formatEndedAgo } from "@/src/lib/timeRemaining";
 import StreamTagChips from "@/components/StreamTagChips";
 import { formatDateUtc } from "@/src/lib/timezone";
 
@@ -71,6 +72,29 @@ interface StreamCardProps {
   optimisticDeposit?: number;
   /** Optimistic claimable override while transaction is pending. */
   optimisticClaimable?: number;
+  /** Active dashboard search text. Matching cards are highlighted and the matched text is marked. */
+  highlightQuery?: string;
+}
+
+/** Renders `text` with every case-insensitive occurrence of `query` wrapped in <mark>. */
+function HighlightedText({ text, query }: { text: string; query: string }) {
+  const lower = text.toLowerCase();
+  const q = query.toLowerCase();
+  const parts: ReactNode[] = [];
+  let cursor = 0;
+  let idx = lower.indexOf(q);
+  while (idx !== -1) {
+    if (idx > cursor) parts.push(text.slice(cursor, idx));
+    parts.push(
+      <mark key={idx} className="bg-yellow-300 dark:bg-yellow-500/40 text-gray-900 dark:text-yellow-100 rounded-sm">
+        {text.slice(idx, idx + q.length)}
+      </mark>,
+    );
+    cursor = idx + q.length;
+    idx = lower.indexOf(q, cursor);
+  }
+  if (cursor < text.length) parts.push(text.slice(cursor));
+  return <>{parts}</>;
 }
 
 /**
@@ -117,6 +141,7 @@ function StreamCardInner({
   optimisticStatus,
   optimisticDeposit,
   optimisticClaimable,
+  highlightQuery,
 }: StreamCardProps) {
   const { isBookmarked, toggleBookmark } = useBookmarks();
   const bookmarked = isBookmarked(id);
@@ -227,14 +252,30 @@ function statusBadgeClass(status: string): string {
     return estimateStreamCompletionTime({ startTime, flowRate, deposit });
   })();
 
+  // ── Search highlight (#554) ───────────────────────────────────────────
+  const query = highlightQuery?.trim() ?? "";
+  const matchedField: { label: string; value: string } | null = (() => {
+    if (!query) return null;
+    const q = query.toLowerCase();
+    if (recipient.toLowerCase().includes(q)) return { label: "Recipient", value: recipient };
+    if (sender.toLowerCase().includes(q)) return { label: "Sender", value: sender };
+    if (id.toLowerCase().includes(q)) return { label: "Stream ID", value: id };
+    return null;
+  })();
+
   return (
     <div
       className={`bg-white dark:bg-gray-800 rounded-lg p-4 space-y-3 border ${
-        selected ? "border-green-500" : "border-gray-200 dark:border-gray-700"
+        selected
+          ? "border-green-500"
+          : matchedField
+            ? "border-yellow-400 dark:border-yellow-500 ring-1 ring-yellow-400/60 dark:ring-yellow-500/50"
+            : "border-gray-200 dark:border-gray-700"
       }`}
       role="article"
       aria-label={`Stream ${id}`}
       aria-current={selected ? "true" : undefined}
+      data-search-match={matchedField ? "true" : undefined}
     >
       <div className="flex justify-between items-center">
         <span className="flex items-center gap-2">
@@ -341,6 +382,16 @@ function statusBadgeClass(status: string): string {
           <CopyButton value={recipient} label="Copy recipient address" />
         </p>
 
+        {matchedField && (
+          <p
+            className="text-xs text-gray-600 dark:text-gray-400 font-mono break-all"
+            data-testid="search-match"
+          >
+            <span className="font-sans">{matchedField.label} match: </span>
+            <HighlightedText text={matchedField.value} query={query} />
+          </p>
+        )}
+
         <p className="text-gray-600 dark:text-gray-400">
           Flow:{" "}
           <span className="text-green-600 dark:text-green-400">
@@ -361,17 +412,25 @@ function statusBadgeClass(status: string): string {
           </span>
         </p>
 
-        {/* Time remaining until stream end (#461) */}
-        {status === "Active" && endTime && (
-          <p className="text-gray-600 dark:text-gray-400">
-            Time remaining:{" "}
-            <span
-              className="text-gray-900 dark:text-white font-medium"
-              title={`Scheduled end time: ${formatDateWithTimezone(new Date(endTime))}`}
-            >
-              <span className="text-blue-600 dark:text-blue-400">
-                {formatTimeUntil(new Date(endTime))}
+        {/* Time remaining until stream end (#461, #558) */}
+        {effectiveStatus === "Active" && endTime && (() => {
+          const remaining = formatTimeRemaining(endTime);
+          return (
+            <p className="text-gray-600 dark:text-gray-400" data-testid="time-remaining">
+              <span
+                className="text-blue-600 dark:text-blue-400 font-medium"
+                title={`Scheduled end time: ${formatDateWithTimezone(new Date(endTime))}`}
+              >
+                {remaining ?? formatEndedAgo(endTime)}
               </span>
+            </p>
+          );
+        })()}
+
+        {effectiveStatus === "Ended" && endTime && (
+          <p className="text-gray-600 dark:text-gray-400" data-testid="time-ended">
+            <span title={`Ended at ${formatDateWithTimezone(new Date(endTime))}`}>
+              {formatEndedAgo(endTime)}
             </span>
           </p>
         )}
