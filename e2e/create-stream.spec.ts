@@ -355,3 +355,36 @@ test.describe('Create Stream – template picker prefill flow', () => {
     await expect(page.locator('h1')).toContainText(`Stream #${streamId}`);
   });
 });
+
+test.describe('Create Stream – full wizard flow', () => {
+  test('recipient → amount & duration → review → submit → detail → dashboard', async ({ page }) => {
+    await page.goto('/stream/new');
+
+    // Step 1: recipient
+    await page.getByLabel('Recipient Address').fill(VALID_RECIPIENT);
+    await page.getByRole('button', { name: 'Next' }).click();
+
+    // Step 2: amount & duration
+    await page.getByLabel('Amount (USDC)').fill('75');
+    await page.getByLabel('Days').fill('3');
+    await page.getByRole('button', { name: 'Next' }).click();
+
+    // Step 3: review shows entered values
+    await expect(page.getByText('75 USDC')).toBeVisible();
+    await expect(page.getByText('3d')).toBeVisible();
+
+    // Submit
+    await page.getByRole('button', { name: 'Create Stream' }).click();
+
+    // Detail page
+    await expect(page).toHaveURL(/\/stream\/\d+/);
+    const streamId = page.url().split('/stream/')[1].split('?')[0];
+    expect(streamId).toBeTruthy();
+    await expect(page.locator('h1')).toContainText(`Stream #${streamId}`);
+
+    // Dashboard lists the new stream
+    await page.goto('/dashboard');
+    await expect(page.locator('[role="status"]')).not.toBeVisible({ timeout: 5000 });
+    await expect(page.getByText(`#${streamId}`)).toBeVisible();
+  });
+});

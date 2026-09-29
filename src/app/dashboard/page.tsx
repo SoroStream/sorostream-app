@@ -62,7 +62,11 @@ function DashboardContent() {
   const { address, streamRefreshTrigger, setActiveStreamCount } = useWallet();
   const [loading, setLoading] = useState(true);
   const [streams, setStreams] = useState<StreamData[]>([]);
-  const [currentPage, setCurrentPage] = useState(1);
+  const [currentPage, setCurrentPage] = useState(() => {
+    const p = parseInt(searchParams.get("page") || "1", 10);
+    return Number.isFinite(p) && p > 0 ? p : 1;
+  });
+  const skipPageResetRef = useRef(true);
   const pageSize = 10;
 
   // Filter states from URL params
@@ -266,7 +270,11 @@ function DashboardContent() {
   }, [streams, statusFilter, tokenFilter, search, bookmarksOnly, bookmarkedIds, selectedTags, dateFrom, dateTo, minRate, maxRate]);
 
   useEffect(() => {
-    // Reset to page 1 when filters change
+    // Reset to page 1 when filters change (skip initial mount so ?page= survives refresh)
+    if (skipPageResetRef.current) {
+      skipPageResetRef.current = false;
+      return;
+    }
     setCurrentPage(1);
   }, [statusFilter, tokenFilter, search, bookmarksOnly, selectedTags, dateFrom, dateTo, minRate, maxRate]);
 
@@ -313,11 +321,12 @@ function DashboardContent() {
     // Only write sort params when they differ from defaults to keep URLs clean.
     if (sortField !== "created") params.set("sort", sortField);
     if (sortOrder !== "desc") params.set("dir", sortOrder);
+    if (currentPage > 1) params.set("page", String(currentPage));
 
     const queryString = params.toString();
     const newPath = queryString ? `/dashboard?${queryString}` : "/dashboard";
     router.replace(newPath);
-  }, [statusFilter, tokenFilter, search, sortField, sortOrder, dateFrom, dateTo, minRate, maxRate, router]);
+  }, [statusFilter, tokenFilter, search, sortField, sortOrder, dateFrom, dateTo, minRate, maxRate, currentPage, router]);
 
   const clearFilters = () => {
     setStatusFilter("");
@@ -1114,7 +1123,7 @@ function DashboardContent() {
                 {assetGroups.map(({ token, items }) => (
                   <section key={token} aria-label={`Streams in ${token}`}>
                     <div className="flex items-center gap-2 mb-3">
-                      <h3 className="text-sm font-semibold text-white">{token}</h3>
+                      <h2 className="text-sm font-semibold text-white">{token}</h2>
                       <span className="text-xs text-gray-400 bg-gray-800 rounded-full px-2 py-0.5">
                         {items.length}
                       </span>
@@ -1168,9 +1177,9 @@ function DashboardContent() {
                         >
                           ▼
                         </span>
-                        <h3 className="text-sm font-semibold text-white group-hover:text-green-300 transition-colors">
+                        <h2 className="text-sm font-semibold text-white group-hover:text-green-300 transition-colors">
                           {label}
-                        </h3>
+                        </h2>
                         <span
                           className="text-xs bg-gray-800 text-gray-400 rounded-full px-2 py-0.5"
                           title={`${items.length} stream${items.length !== 1 ? "s" : ""} total`}

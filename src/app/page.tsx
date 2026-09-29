@@ -26,7 +26,7 @@ export default function Home() {
           {steps.map((item, i) => (
             <div key={i} className="bg-gray-800 rounded-xl p-6">
               <div className="text-2xl font-bold text-green-400 mb-2">{i + 1}</div>
-              <h3 className="font-semibold mb-2">{t(item.titleKey)}</h3>
+              <h2 className="font-semibold mb-2">{t(item.titleKey)}</h2>
               <p className="text-gray-400 text-sm">{t(item.descKey)}</p>
             </div>
           ))}
