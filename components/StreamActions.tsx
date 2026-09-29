@@ -3,7 +3,14 @@
 import { useState, useCallback, useRef, useEffect } from "react";
 import LiveCounter from "@/components/LiveCounter";
 import WithdrawFeeBreakdownModal from "@/components/WithdrawFeeBreakdownModal";
-import { sorostream, claimableNow, getMockStream, truncateAddress } from "@/src/lib/sorostream";
+import {
+  sorostream,
+  claimableNow,
+  getMockStream,
+  getRemainingBalance,
+  formatStellarAmount,
+  truncateAddress,
+} from "@/src/lib/sorostream";
 import { useToast } from "@/src/lib/toast";
 import { useSettings } from "@/src/context/SettingsContext";
 import { useWallet } from "@/src/context/WalletContext";
@@ -54,6 +61,9 @@ export default function StreamActions({
   const [cancelPending, setCancelPending] = useState(false);
   const [confirmAmount, setConfirmAmount] = useState<number | null>(null);
   const [showCancelConfirm, setShowCancelConfirm] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [showCloneModal, setShowCloneModal] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
   const { addToast, upsertPersistentToast, removeToast } = useToast();
   const { withdrawThreshold } = useSettings();
   const { refetchBalance } = useWallet();
@@ -71,12 +81,49 @@ export default function StreamActions({
    * and the batched state update that sets `withdrawing = true`.
    */
   const withdrawingRef = useRef(false);
+  const dismissCancelRef = useRef<HTMLButtonElement | null>(null);
+
+  // Focus the safe "Cancel" action when the confirmation opens and let Escape
+  // dismiss it without submitting anything.
+  useEffect(() => {
+    if (!showCancelConfirm) return;
+    dismissCancelRef.current?.focus();
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setShowCancelConfirm(false);
+    };
+    document.addEventListener("keydown", onKeyDown);
+    return () => document.removeEventListener("keydown", onKeyDown);
+  }, [showCancelConfirm]);
 
   useEffect(() => {
     return () => {
       if (countdownIntervalRef.current) clearInterval(countdownIntervalRef.current);
       if (submitTimeoutRef.current) clearTimeout(submitTimeoutRef.current);
     };
+  }, []);
+
+  // Close the "More actions" dropdown on outside click or Escape.
+  useEffect(() => {
+    if (!menuOpen) return;
+    function handlePointerDown(e: MouseEvent) {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        setMenuOpen(false);
+      }
+    }
+    function handleKey(e: KeyboardEvent) {
+      if (e.key === "Escape") setMenuOpen(false);
+    }
+    document.addEventListener("mousedown", handlePointerDown);
+    document.addEventListener("keydown", handleKey);
+    return () => {
+      document.removeEventListener("mousedown", handlePointerDown);
+      document.removeEventListener("keydown", handleKey);
+    };
+  }, [menuOpen]);
+
+  const handleDuplicate = useCallback(() => {
+    setMenuOpen(false);
+    setShowCloneModal(true);
   }, []);
 
   const executeWithdraw = useCallback(async () => {
@@ -216,6 +263,7 @@ export default function StreamActions({
             role="dialog"
             aria-modal="true"
             aria-labelledby="cancel-confirm-title"
+            aria-describedby="cancel-confirm-description"
             className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4"
           >
             <div className="bg-white dark:bg-gray-800 rounded-xl p-6 w-full max-w-sm space-y-4 border border-gray-200 dark:border-gray-700">
@@ -225,41 +273,53 @@ export default function StreamActions({
               >
                 Cancel stream #{streamId}?
               </h2>
-              <p className="text-sm text-gray-600 dark:text-gray-400">
-                Cancellation is irreversible. Any remaining deposit stays with the sender and the stream stops immediately.
+              <p
+                id="cancel-confirm-description"
+                className="text-sm text-gray-600 dark:text-gray-400"
+              >
+                Cancellation is irreversible. The stream stops immediately and the
+                unstreamed balance is returned to the sender.
               </p>
-              {stream && (
-                <dl className="text-sm space-y-1 rounded-lg bg-gray-100 dark:bg-gray-700 p-3">
-                  <div className="flex justify-between gap-3">
-                    <dt className="text-gray-500 dark:text-gray-400">Status</dt>
-                    <dd className="text-gray-900 dark:text-white">{stream.status}</dd>
-                  </div>
-                  <div className="flex justify-between gap-3">
-                    <dt className="text-gray-500 dark:text-gray-400">From</dt>
-                    <dd className="text-gray-900 dark:text-white font-mono">{truncateAddress(stream.sender)}</dd>
-                  </div>
-                  <div className="flex justify-between gap-3">
-                    <dt className="text-gray-500 dark:text-gray-400">To</dt>
-                    <dd className="text-gray-900 dark:text-white font-mono">{truncateAddress(stream.recipient)}</dd>
-                  </div>
-                  <div className="flex justify-between gap-3">
-                    <dt className="text-gray-500 dark:text-gray-400">Deposit</dt>
-                    <dd className="text-gray-900 dark:text-white">{(stream.deposit / 10_000_000).toFixed(2)} {stream.token}</dd>
-                  </div>
-                </dl>
-              )}
+              <dl className="text-sm space-y-1 rounded-lg bg-gray-100 dark:bg-gray-700 p-3">
+                <div className="flex justify-between gap-3">
+                  <dt className="text-gray-500 dark:text-gray-400">Stream ID</dt>
+                  <dd className="text-gray-900 dark:text-white font-mono">#{streamId}</dd>
+                </div>
+                {stream && (
+                  <>
+                    <div className="flex justify-between gap-3">
+                      <dt className="text-gray-500 dark:text-gray-400">Recipient</dt>
+                      <dd
+                        className="text-gray-900 dark:text-white font-mono"
+                        title={stream.recipient}
+                      >
+                        {truncateAddress(stream.recipient)}
+                      </dd>
+                    </div>
+                    <div className="flex justify-between gap-3">
+                      <dt className="text-gray-500 dark:text-gray-400">Returned to sender</dt>
+                      <dd className="text-gray-900 dark:text-white font-mono">
+                        {formatStellarAmount(getRemainingBalance(stream))} {stream.token}
+                      </dd>
+                    </div>
+                  </>
+                )}
+              </dl>
               <div className="flex gap-3 pt-1">
                 <button
+                  ref={dismissCancelRef}
+                  type="button"
                   onClick={() => setShowCancelConfirm(false)}
                   className="flex-1 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 py-2 rounded-lg text-sm hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-500"
                 >
-                  Keep Stream
+                  Cancel
                 </button>
                 <button
+                  type="button"
                   onClick={handleCancelConfirmed}
                   className="flex-1 bg-red-600 text-white py-2 rounded-lg text-sm font-medium hover:bg-red-700 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500"
                 >
-                  Cancel Stream
+                  Confirm Cancel
                 </button>
               </div>
             </div>
@@ -315,9 +375,43 @@ export default function StreamActions({
           ) : cancelPending ? (
             "Undo Cancel"
           ) : (
-            "Cancel"
+            "Cancel stream"
           )}
         </button>
+
+        <div className="relative" ref={menuRef}>
+          <button
+            type="button"
+            onClick={() => setMenuOpen((o) => !o)}
+            aria-haspopup="menu"
+            aria-expanded={menuOpen}
+            aria-label="More stream actions"
+            className="h-full px-3 rounded-lg border border-gray-600 text-gray-300 hover:bg-gray-700 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-500 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-900"
+          >
+            <span aria-hidden="true">⋯</span>
+          </button>
+          {menuOpen && (
+            <div
+              role="menu"
+              aria-label="Stream actions"
+              className="absolute right-0 top-full mt-2 w-44 rounded-lg border border-gray-700 bg-gray-800 py-1 shadow-xl z-40"
+            >
+              <button
+                type="button"
+                role="menuitem"
+                onClick={handleDuplicate}
+                disabled={!getMockStream(streamId)}
+                className="flex w-full items-center gap-2 px-4 py-2 text-left text-sm text-gray-200 hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:bg-gray-700"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                  <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
+                  <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+                </svg>
+                Duplicate
+              </button>
+            </div>
+          )}
+        </div>
       </div>
 
       {confirmAmount !== null && (
@@ -328,6 +422,13 @@ export default function StreamActions({
           onCancel={() => setConfirmAmount(null)}
         />
       )}
+
+      {showCloneModal && (() => {
+        const stream = getMockStream(streamId);
+        return stream ? (
+          <StreamCloneModal stream={stream} onClose={() => setShowCloneModal(false)} />
+        ) : null;
+      })()}
     </>
   );
 }

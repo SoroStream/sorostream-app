@@ -1,12 +1,18 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useFocusTrap } from "@/src/lib/useFocusTrap";
 
 interface WithdrawConfirmModalProps {
   /** XLM amount being withdrawn (display value, e.g. "1234.5600000") */
   amount: string;
-  onConfirm: () => void;
+  /**
+   * Called when the user confirms. May return a promise; while the promise is
+   * pending the Confirm button is disabled and shows a spinner, and a rejected
+   * promise is surfaced inline so a second submission can never be triggered
+   * by a rapid double-click (#543).
+   */
+  onConfirm: () => void | Promise<unknown>;
   onCancel: () => void;
 }
 
@@ -20,8 +26,13 @@ export default function WithdrawConfirmModal({
   onCancel,
 }: WithdrawConfirmModalProps) {
   const [typed, setTyped] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [error, setError] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
   const dialogRef = useRef<HTMLDivElement>(null);
+  // Synchronous guard: `disabled` is only applied on the next render, so two
+  // clicks dispatched in the same tick would both pass the state check.
+  const submittingRef = useRef(false);
 
   useFocusTrap(dialogRef, true);
 
@@ -35,6 +46,24 @@ export default function WithdrawConfirmModal({
   }, [onCancel]);
 
   const matches = typed === amount;
+  const confirmDisabled = !matches || isSubmitting;
+
+  const handleConfirm = useCallback(async () => {
+    if (submittingRef.current) return;
+    submittingRef.current = true;
+    setIsSubmitting(true);
+    setError("");
+
+    try {
+      await onConfirm();
+    } catch {
+      // Surface the failure inline instead of silently re-enabling the button.
+      setError("Withdrawal failed. Please check your wallet and try again.");
+    } finally {
+      submittingRef.current = false;
+      setIsSubmitting(false);
+    }
+  }, [onConfirm]);
 
   return (
     <div
@@ -42,6 +71,7 @@ export default function WithdrawConfirmModal({
       role="dialog"
       aria-modal="true"
       aria-labelledby="withdraw-confirm-title"
+      aria-busy={isSubmitting || undefined}
       className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4"
     >
       <div className="bg-white dark:bg-gray-800 rounded-xl p-6 w-full max-w-sm space-y-5 border border-gray-200 dark:border-gray-700">
@@ -74,29 +104,55 @@ export default function WithdrawConfirmModal({
             onChange={(e) => setTyped(e.target.value)}
             placeholder={amount}
             autoComplete="off"
-            className="w-full bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 text-gray-900 dark:text-white font-mono text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-500"
+            disabled={isSubmitting}
+            className="w-full bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 text-gray-900 dark:text-white font-mono text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-500 disabled:opacity-60"
             aria-describedby="withdraw-confirm-hint"
           />
-          {typed.length > 0 && !matches && (
+          {!isSubmitting && typed.length > 0 && !matches && (
             <p id="withdraw-confirm-hint" className="text-red-400 text-xs mt-1">
               Amount doesn&apos;t match.
             </p>
           )}
         </div>
 
+        {error && (
+          <p
+            role="alert"
+            data-testid="withdraw-confirm-error"
+            className="text-red-400 text-xs"
+          >
+            {error}
+          </p>
+        )}
+
         <div className="flex gap-3 pt-1">
           <button
             onClick={onCancel}
-            className="flex-1 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 py-2 rounded-lg text-sm hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-500 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-900 dark:focus-visible:ring-offset-gray-900"
+            disabled={isSubmitting}
+            className="flex-1 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 py-2 rounded-lg text-sm hover:bg-gray-100 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-500 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-900 dark:focus-visible:ring-offset-gray-900"
           >
             Cancel
           </button>
           <button
-            onClick={onConfirm}
-            disabled={!matches}
-            className="flex-1 bg-green-600 text-white py-2 rounded-lg text-sm font-medium hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-500 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-900 dark:focus-visible:ring-offset-gray-900"
+            onClick={handleConfirm}
+            disabled={confirmDisabled}
+            aria-busy={isSubmitting || undefined}
+            className="flex-1 bg-green-600 text-white py-2 rounded-lg text-sm font-medium hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-500 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-900 dark:focus-visible:ring-offset-gray-900 inline-flex items-center justify-center gap-2"
           >
-            Confirm Withdrawal
+            {isSubmitting && (
+              <svg
+                data-testid="withdraw-confirm-spinner"
+                className="animate-spin h-4 w-4"
+                xmlns="http://www.w3.org/2000/svg"
+                fill="none"
+                viewBox="0 0 24 24"
+                aria-hidden="true"
+              >
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z" />
+              </svg>
+            )}
+            {isSubmitting ? "Submitting…" : "Confirm Withdrawal"}
           </button>
         </div>
       </div>

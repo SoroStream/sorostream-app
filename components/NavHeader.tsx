@@ -115,12 +115,14 @@ export default function NavHeader() {
           scrolled ? "border-gray-200 bg-white/95 dark:border-gray-700 dark:bg-gray-900/95 backdrop-blur" : "border-gray-200 bg-white dark:border-gray-800 dark:bg-gray-900"
         }`}
       >
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 h-14 flex items-center justify-between min-w-0">
-        <div className="flex items-center gap-6 min-w-0 shrink">
-          <Link href="/" className="text-lg font-bold text-green-400 rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-500 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-900">
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 min-h-14 py-1.5 flex flex-wrap items-center justify-between gap-x-3 gap-y-2 min-w-0">
+        <div className="flex items-center gap-3 lg:gap-6 min-w-0 shrink-0">
+          <Link href="/" className="shrink-0 text-lg font-bold text-green-400 rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-500 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-900">
             SoroStream
           </Link>
-          <nav className="hidden sm:flex items-center gap-4" aria-label={t("main_navigation")}>
+          {/* Nav wraps onto a second line instead of overflowing into the
+              wallet controls on medium-width viewports (#542). */}
+          <nav className="hidden sm:flex flex-wrap items-center gap-x-2 sm:gap-x-3 lg:gap-x-4 gap-y-1 min-w-0" aria-label={t("main_navigation")}>
             {NAV_LINKS.map((link) => {
               const isActive = pathname === link.href || (link.href !== "/" && pathname.startsWith(link.href));
               const unread = countFor(link.href);
@@ -130,7 +132,7 @@ export default function NavHeader() {
                   key={link.href}
                   href={link.href}
                   aria-current={isActive ? "page" : undefined}
-                  className={`text-sm transition-colors rounded-md px-1 py-0.5 inline-flex items-center focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-500 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-900 dark:focus-visible:ring-offset-gray-900 ${
+                  className={`text-sm whitespace-nowrap transition-colors rounded-md px-1 py-0.5 inline-flex items-center focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-500 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-900 dark:focus-visible:ring-offset-gray-900 ${
                     isActive ? "text-gray-900 dark:text-white font-medium" : "text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white"
                   }`}
                 >
@@ -142,13 +144,13 @@ export default function NavHeader() {
             })}
           </nav>
         </div>
-        <div className="flex items-center gap-2 min-w-0 overflow-hidden">
+        <div className="flex flex-wrap items-center justify-end gap-2 min-w-0 shrink-0">
           <GlobalSearch />
           <NetworkSelector />
           <RpcHealthIndicator />
           {address && (
             <span
-              className="text-xs text-gray-600 dark:text-gray-300 font-mono hidden md:inline-block"
+              className="text-xs text-gray-600 dark:text-gray-300 font-mono hidden md:inline-block shrink-0"
               aria-label={t("wallet_balance")}
             >
               {balanceLoading && xlmBalance === null && usdcBalance === null ? (
