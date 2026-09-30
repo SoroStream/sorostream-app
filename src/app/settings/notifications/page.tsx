@@ -30,8 +30,25 @@ import {
 } from "@/src/lib/pushSubscription";
 import { dispatchWebhook } from "@/src/lib/webhooks";
 import { useToast } from "@/src/lib/toast";
+import PerStreamNotificationSettings from "@/src/components/PerStreamNotificationSettings";
+import { checkStreamNotifications } from "@/src/lib/streamNotificationWatcher";
 
 const EVENT_LABELS: { key: keyof NotificationEventPrefs; label: string; description: string }[] = [
+  {
+    key: "expiring24h",
+    label: "24h before expiry",
+    description: "Notify 24 hours before a stream you own or receive expires.",
+  },
+  {
+    key: "expiring1h",
+    label: "1h before expiry",
+    description: "Notify 1 hour before a stream you own or receive expires.",
+  },
+  {
+    key: "claimableThresholdEnabled",
+    label: "Claimable balance threshold",
+    description: "Notify when available claimable balance crosses your configured threshold.",
+  },
   {
     key: "streamReceived",
     label: "Stream received",
@@ -51,11 +68,6 @@ const EVENT_LABELS: { key: keyof NotificationEventPrefs; label: string; descript
     key: "streamCompleted",
     label: "Stream completed",
     description: "A stream you created or receive has fully vested.",
-  },
-  {
-    key: "expiringSoon",
-    label: "Expiring soon",
-    description: "A stream is scheduled to expire within 24 hours.",
   },
 ];
 
@@ -129,6 +141,7 @@ export default function NotificationSettingsPage() {
       if (permission === "granted") {
         persist({ ...prefs, pushEnabled: true });
         addToast("Browser push notifications enabled.", "success");
+        void checkStreamNotifications();
       } else {
         addToast("Push permission was denied. Enable it in your browser settings to opt in.", "error");
       }
@@ -386,21 +399,52 @@ export default function NotificationSettingsPage() {
           <h2 className="text-lg font-semibold">Events</h2>
           <div className="space-y-4">
             {EVENT_LABELS.map(({ key, label, description }) => (
-              <div key={key} className="flex items-center justify-between gap-4">
-                <div>
-                  <p className="text-sm font-medium text-gray-200">{label}</p>
-                  <p className="text-gray-500 text-xs mt-0.5">{description}</p>
+              <div key={key} className="space-y-2">
+                <div className="flex items-center justify-between gap-4">
+                  <div>
+                    <p className="text-sm font-medium text-gray-200">{label}</p>
+                    <p className="text-gray-500 text-xs mt-0.5">{description}</p>
+                  </div>
+                  <Toggle
+                    checked={prefs.events[key] ?? true}
+                    onChange={(next) => handleToggleEvent(key, next)}
+                    disabled={subControlsDisabled}
+                    label={label}
+                  />
                 </div>
-                <Toggle
-                  checked={prefs.events[key]}
-                  onChange={(next) => handleToggleEvent(key, next)}
-                  disabled={subControlsDisabled}
-                  label={label}
-                />
+                {key === "claimableThresholdEnabled" && (prefs.events.claimableThresholdEnabled ?? true) && (
+                  <div className="pt-2 pl-4 border-l-2 border-green-600/50 mt-1 flex items-center gap-3">
+                    <label htmlFor="global-claimable-threshold" className="text-gray-300 text-xs font-medium">
+                      Threshold amount (tokens/XLM):
+                    </label>
+                    <input
+                      id="global-claimable-threshold"
+                      type="number"
+                      min="0"
+                      step="any"
+                      value={prefs.events.claimableThreshold ?? 100}
+                      onChange={(e) => {
+                        const val = parseFloat(e.target.value);
+                        persist({
+                          ...prefs,
+                          events: {
+                            ...prefs.events,
+                            claimableThreshold: Number.isFinite(val) && val >= 0 ? val : 0,
+                          },
+                        });
+                      }}
+                      disabled={subControlsDisabled}
+                      className="w-28 bg-gray-700 border border-gray-600 rounded px-2.5 py-1 text-white text-xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-500"
+                    />
+                  </div>
+                )}
               </div>
             ))}
           </div>
         </div>
+
+        {/* Per-Stream Notification Preferences (#76) */}
+        <PerStreamNotificationSettings />
       </div>
     </main>
   );

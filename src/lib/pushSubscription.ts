@@ -150,30 +150,52 @@ export interface PushPayload {
   body: string;
   /** Icon path relative to the public directory. */
   icon?: string;
-  /** Absolute URL to open when the notification is clicked. */
+  /** Badge path relative to the public directory. */
+  badge?: string;
+  /** Absolute or relative URL to open when the notification is clicked. */
   url?: string;
   /** Arbitrary tag used to deduplicate or replace a previous notification. */
   tag?: string;
+  renotify?: boolean;
 }
 
 /**
- * Dispatch a visible notification via the service worker.  The SW listens for
- * `sorostream-show-notification` messages and calls `self.registration.showNotification()`.
+ * Dispatch a visible notification via the service worker (#76).
+ * The SW listens for `sorostream-show-notification` messages and calls `self.registration.showNotification()`.
+ * This allows notifications to be displayed even when the tab is in the background.
  *
- * Falls back to the Notification API directly when no SW is active yet.
+ * Falls back to direct service worker registration showNotification or Notification API.
  */
 export async function dispatchPushNotification(payload: PushPayload): Promise<void> {
+  if (typeof window === "undefined") return;
   if (!isWebPushSupported()) return;
   if (Notification.permission !== "granted") return;
 
-  const registration = await navigator.serviceWorker.getRegistration(SW_PATH).catch(() => null);
+  try {
+    const registration =
+      (await navigator.serviceWorker.ready.catch(() => null)) ??
+      (await navigator.serviceWorker.getRegistration(SW_PATH).catch(() => null));
 
-  if (registration?.active) {
-    registration.active.postMessage({
-      type: "sorostream-show-notification",
-      payload,
-    });
-    return;
+    if (registration) {
+      if (registration.active) {
+        registration.active.postMessage({
+          type: "sorostream-show-notification",
+          payload,
+        });
+        return;
+      }
+      // Show notification directly on the service worker registration (works in background)
+      await registration.showNotification(payload.title, {
+        body: payload.body,
+        icon: payload.icon ?? "/icons/icon-192.png",
+        badge: payload.badge ?? "/icons/icon-192.png",
+        tag: payload.tag,
+        data: { url: payload.url ?? "/dashboard" },
+      });
+      return;
+    }
+  } catch (err) {
+    // Non-fatal — proceed to Notification fallback
   }
 
   // Fallback: direct Notification API (tab must be in focus for this to work).

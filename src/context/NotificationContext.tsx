@@ -18,6 +18,7 @@ import {
   type ReactNode,
 } from "react";
 import { getStreamEvents, type StreamEvent } from "@/src/lib/sorostream";
+import { checkStreamNotifications } from "@/src/lib/streamNotificationWatcher";
 
 /** Display cap — counts above this render as "99+". */
 export const BADGE_CAP = 99;
@@ -39,6 +40,8 @@ interface NotificationContextValue {
   countFor: (section: string) => number;
   /** Reset a section's unread count to zero (call when the user visits it). */
   clearSection: (section: string) => void;
+  /** Manually trigger an evaluation of stream notifications (#76). */
+  checkNotifications: () => Promise<void>;
 }
 
 const NotificationContext = createContext<NotificationContextValue | undefined>(undefined);
@@ -139,6 +142,29 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
     return () => window.removeEventListener("storage", onStorage);
   }, []);
 
+  // Monitor stream events for expiry and claimable thresholds (#76)
+  useEffect(() => {
+    void checkStreamNotifications();
+
+    const interval = setInterval(() => {
+      void checkStreamNotifications();
+    }, 5000);
+
+    const onVisibility = () => {
+      void checkStreamNotifications();
+    };
+    document.addEventListener("visibilitychange", onVisibility);
+
+    return () => {
+      clearInterval(interval);
+      document.removeEventListener("visibilitychange", onVisibility);
+    };
+  }, []);
+
+  const checkNotifications = useCallback(async () => {
+    await checkStreamNotifications();
+  }, []);
+
   const clearSection = useCallback(
     (section: string) => {
       setCounts((prev) => {
@@ -154,8 +180,8 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
   const countFor = useCallback((section: string) => counts[section] ?? 0, [counts]);
 
   const value = useMemo(
-    () => ({ counts, countFor, clearSection }),
-    [counts, countFor, clearSection],
+    () => ({ counts, countFor, clearSection, checkNotifications }),
+    [counts, countFor, clearSection, checkNotifications],
   );
 
   return (
