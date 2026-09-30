@@ -201,7 +201,7 @@ function NavLink({ href, label, isActive, icon, isCreate }: NavLinkProps) {
       aria-current={isActive ? "page" : undefined}
       className={`
         flex flex-col items-center justify-center gap-1 h-full w-full text-[10px] font-medium
-        transition-colors
+        transition-colors min-h-11 min-w-11
         focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-500 focus-visible:ring-inset
         ${
           isCreate
@@ -215,7 +215,7 @@ function NavLink({ href, label, isActive, icon, isCreate }: NavLinkProps) {
       <span
         className={`
           flex items-center justify-center rounded-full transition-colors
-          ${isCreate ? "bg-green-700 text-white w-10 h-10 -mt-5 shadow-lg shadow-green-900/50" : ""}
+          ${isCreate ? "bg-green-700 text-white w-11 h-11 -mt-5 shadow-lg shadow-green-900/50" : ""}
         `}
       >
         {icon(isActive)}

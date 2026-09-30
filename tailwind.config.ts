@@ -18,6 +18,9 @@ const config: Config = {
           900: "#0c4a6e",
         },
       },
+      screens: {
+        "landscape": { "raw": "(max-height: 500px) and (orientation: landscape)" },
+      },
     },
   },
   plugins: [],
