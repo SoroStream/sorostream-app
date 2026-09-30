@@ -291,6 +291,13 @@ function statusBadgeClass(status: string): string {
           )}
           <span className="text-gray-500 dark:text-gray-400 text-xs truncate">Stream #{id}</span>
           <CopyButton value={id} label="Copy stream ID" />
+          <span className="opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity">
+            <CopyButton
+              value={typeof window !== "undefined" ? `${window.location.origin}/stream/${id}/public` : `/stream/${id}/public`}
+              label="Copy stream link"
+              showTooltip
+            />
+          </span>
         </span>
         <div className="flex items-center gap-2 flex-wrap justify-end">
           {onClone && (
