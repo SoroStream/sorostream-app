@@ -11,6 +11,7 @@ import {
   ServerKeypairAdapter,
 } from "@/src/lib/wallets";
 import { useTranslations } from "@/src/lib/i18n";
+import { useFocusTrap } from "@/src/lib/useFocusTrap";
 import CopyButton from "@/components/CopyButton";
 import { trackEvent } from "@/src/lib/analytics";
 import { useWallet } from "@/src/context/WalletContext";
@@ -35,6 +36,7 @@ const WALLET_TYPES: WalletType[] = ["freighter", "ledger", "server-keypair"];
  */
 export default function WalletConnect({ onConnect, compact = false }: WalletConnectProps) {
   const t = useTranslations("wallet");
+  const tCommon = useTranslations("common");
   const {
     address: contextAddress,
     connect: contextConnect,
@@ -57,6 +59,10 @@ export default function WalletConnect({ onConnect, compact = false }: WalletConn
   useEffect(() => {
     setUsbSupported(isWebUsbSupported());
   }, []);
+
+  // Ref for disconnect confirmation modal focus trapping
+  const disconnectModalRef = useRef<HTMLDivElement>(null);
+  useFocusTrap(disconnectModalRef, showDisconnectConfirm, () => setShowDisconnectConfirm(false));
 
   // ── Freighter extension detection ──────────────────────────────────────
   // Start as `null` (unknown) so we don't flash the install prompt during SSR
@@ -359,6 +365,7 @@ export default function WalletConnect({ onConnect, compact = false }: WalletConn
             }}
           >
             <div
+              ref={disconnectModalRef}
               role="dialog"
               aria-modal="true"
               aria-labelledby="disconnect-confirm-title"
@@ -389,8 +396,7 @@ export default function WalletConnect({ onConnect, compact = false }: WalletConn
                   Disconnect wallet?
                 </h2>
                 <p className="text-sm text-gray-300">
-                  You have {activeStreamCount} active stream{activeStreamCount !== 1 ? "s" : ""}.
-                  Disconnecting stops live updates — you&apos;ll need to reconnect to manage them.
+                  {tCommon(activeStreamCount === 1 ? "active_stream_singular" : "active_stream_plural", { count: String(activeStreamCount) })}
                 </p>
                 <div className="flex gap-3 pt-2">
                   <button

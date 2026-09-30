@@ -171,6 +171,8 @@
     "history_created": "Created",
     "history_withdrawal": "Withdrawal",
     "history_top_up": "Top-up",
-    "history_cancelled": "Cancelled"
+    "history_cancelled": "Cancelled",
+    "active_stream_singular": "You have {count} active stream. Disconnecting stops live updates — you'll need to reconnect to manage it.",
+    "active_stream_plural": "You have {count} active streams. Disconnecting stops live updates — you'll need to reconnect to manage them."
   }
 }

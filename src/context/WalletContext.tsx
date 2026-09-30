@@ -133,6 +133,9 @@ export function WalletProvider({ children }: { children: ReactNode }) {
   const sessionCheckIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const warning5MinTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const warning1MinTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Memoize the Freighter adapter to prevent re-instantiation on every render (#631)
+  const freighterAdapter = useMemo(() => getFreighterAdapter(), []);
   /** Check the wallet network and update mismatch state. */
   const verifyNetwork = useCallback(async () => {
     const matches = await checkNetworkMatch();
@@ -203,8 +206,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
   const extendSession = useCallback(async () => {
     try {
       // Refresh connection to extend session
-      const adapter = await getFreighterAdapter();
-      const connected = await adapter.isConnected();
+      const connected = await freighterAdapter.isConnected();
       if (connected) {
         // Reset session tracking
         startSessionTracking();
@@ -214,7 +216,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
     } catch (err) {
       console.error("Failed to extend session:", err);
     }
-  }, [startSessionTracking]);
+  }, [freighterAdapter, startSessionTracking]);
 
   const triggerStreamRefresh = useCallback(() => {
     setStreamRefreshTrigger((n) => n + 1);
@@ -342,8 +344,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
     setError(null);
 
     try {
-      const adapter = await getFreighterAdapter();
-      const connected = await adapter.isConnected();
+      const connected = await freighterAdapter.isConnected();
 
       if (!connected) {
         setError("Freighter extension not found. Please install it.");
@@ -393,7 +394,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
     } finally {
       setIsConnecting(false);
     }
-  }, [verifyNetwork, startWatcher, startSessionTracking, triggerStreamRefresh, handleWalletError]);
+  }, [freighterAdapter, verifyNetwork, startWatcher, startSessionTracking, triggerStreamRefresh, handleWalletError]);
 
   const connectWithAddress = useCallback(
     (externalAddress: string, walletType: string) => {
@@ -468,8 +469,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
     // Non-Freighter adapters (server-keypair) rely on the time-based check above.
     if (connectedWalletType === "freighter") {
       try {
-        const adapter = await getFreighterAdapter();
-        const connected = await adapter.isConnected();
+        const connected = await freighterAdapter.isConnected();
         if (!connected && address) {
           setSessionExpired(true);
           disconnect();
@@ -478,7 +478,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
         // Silently fail — the time-based check above is the primary guard
       }
     }
-  }, [address, sessionExpiresAt, disconnect, connectedWalletType]);
+  }, [address, sessionExpiresAt, disconnect, connectedWalletType, freighterAdapter]);
 
   /** Start/stop the 60-second session validity poll based on page visibility. */
   useEffect(() => {
