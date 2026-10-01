@@ -3,12 +3,29 @@ export interface NotificationEventPrefs {
   streamCompleted: boolean;
   /** Notify ~24 hours before a stream is scheduled to expire. */
   expiringSoon: boolean;
+  /** Notify 24 hours before a stream is scheduled to expire (#76). */
+  expiring24h?: boolean;
+  /** Notify 1 hour before a stream is scheduled to expire (#76). */
+  expiring1h?: boolean;
   /** Notify when claimable funds become available to withdraw. */
   withdrawalAvailable: boolean;
+  /** Notify when claimable balance crosses a user-configured threshold (#76). */
+  claimableThresholdEnabled?: boolean;
+  /** User-configured claimable balance threshold in tokens/XLM (#76). */
+  claimableThreshold?: number;
   /** Notify when a new incoming stream is received (#523). */
   streamReceived: boolean;
   /** Notify when a sender cancels a stream you are receiving (#523). */
   streamCancelled: boolean;
+}
+
+export interface StreamNotificationPref {
+  streamId: string;
+  enabled: boolean;
+  notifyExpiry24h?: boolean;
+  notifyExpiry1h?: boolean;
+  notifyClaimableThreshold?: boolean;
+  claimableThreshold?: number;
 }
 
 export interface NotificationPrefs {
@@ -18,6 +35,8 @@ export interface NotificationPrefs {
   emailEnabled: boolean;
   email: string;
   events: NotificationEventPrefs;
+  /** Per-stream notification preferences keyed by stream ID (#76). */
+  streamPrefs?: Record<string, StreamNotificationPref>;
   /** When true, stream state-change events are POSTed to `webhookUrl`. */
   webhookEnabled: boolean;
   /** Destination for webhook POST events (must be an https:// URL). */
@@ -34,10 +53,15 @@ export const DEFAULT_NOTIFICATION_PREFS: NotificationPrefs = {
   events: {
     streamCompleted: true,
     expiringSoon: true,
+    expiring24h: true,
+    expiring1h: true,
     withdrawalAvailable: true,
+    claimableThresholdEnabled: true,
+    claimableThreshold: 100,
     streamReceived: true,
     streamCancelled: true,
   },
+  streamPrefs: {},
   webhookEnabled: false,
   webhookUrl: "",
 };
@@ -93,6 +117,7 @@ export function getNotificationPrefs(): NotificationPrefs {
       ...DEFAULT_NOTIFICATION_PREFS,
       ...parsed,
       events: { ...DEFAULT_NOTIFICATION_PREFS.events, ...(parsed.events ?? {}) },
+      streamPrefs: parsed.streamPrefs ?? {},
     };
   } catch {
     return DEFAULT_NOTIFICATION_PREFS;
@@ -102,6 +127,49 @@ export function getNotificationPrefs(): NotificationPrefs {
 export function saveNotificationPrefs(prefs: NotificationPrefs): void {
   if (typeof window === "undefined") return;
   localStorage.setItem(STORAGE_KEY, JSON.stringify(prefs));
+}
+
+/**
+ * Get notification preferences for a specific stream (#76).
+ * Falls back to global defaults when not explicitly configured.
+ */
+export function getStreamNotificationPref(streamId: string): StreamNotificationPref {
+  const prefs = getNotificationPrefs();
+  const existing = prefs.streamPrefs?.[streamId];
+  if (existing) return existing;
+  return {
+    streamId,
+    enabled: true,
+    notifyExpiry24h: prefs.events.expiring24h ?? true,
+    notifyExpiry1h: prefs.events.expiring1h ?? true,
+    notifyClaimableThreshold: prefs.events.claimableThresholdEnabled ?? true,
+    claimableThreshold: prefs.events.claimableThreshold ?? 100,
+  };
+}
+
+/**
+ * Update notification preferences for a specific stream (#76).
+ */
+export function setStreamNotificationPref(
+  streamId: string,
+  pref: Partial<StreamNotificationPref>,
+): NotificationPrefs {
+  const prefs = getNotificationPrefs();
+  const current = getStreamNotificationPref(streamId);
+  const updatedPref: StreamNotificationPref = {
+    ...current,
+    ...pref,
+    streamId,
+  };
+  const updated: NotificationPrefs = {
+    ...prefs,
+    streamPrefs: {
+      ...(prefs.streamPrefs ?? {}),
+      [streamId]: updatedPref,
+    },
+  };
+  saveNotificationPrefs(updated);
+  return updated;
 }
 
 /** True when the browser supports the Notification API at all. */

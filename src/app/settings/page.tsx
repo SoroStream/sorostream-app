@@ -17,6 +17,7 @@ import { useTheme } from "@/src/lib/theme";
 import TwoFactorSetup from "@/components/TwoFactorSetup";
 import DelegatesSection from "@/components/DelegatesSection";
 import { useWallet } from "@/src/context/WalletContext";
+import PerStreamNotificationSettings from "@/src/components/PerStreamNotificationSettings";
 
 function truncateAddress(address: string): string {
   if (!address) return "";
@@ -290,12 +291,16 @@ export default function SettingsPage() {
             <div>
               <h2 className="text-lg font-semibold">Notification Preferences</h2>
               <p className="text-gray-400 text-sm mt-1">
-                Configure browser push and email alerts for stream events.
+                Configure browser push, per-stream alerts, and email notifications.
               </p>
             </div>
             <span className="text-green-400 text-sm shrink-0">Manage →</span>
           </div>
         </Link>
+
+        {/* Per-Stream Notification Preferences (#76) */}
+        <PerStreamNotificationSettings />
+
         {/* Stream Creation Preferences */}
         <div className="bg-gray-800 rounded-xl p-6 space-y-4 mb-8">
           <div className="flex items-start justify-between">

@@ -163,19 +163,25 @@ self.addEventListener("notificationclick", (event) => {
   );
 });
 
-// ── Message: local notification dispatch from the app ───────────────────────
+// ── Message: local notification dispatch from the app (#76, #523) ─────────
 // The app posts `sorostream-show-notification` messages when it wants to show
-// a notification without a real push server (e.g. for stream milestones).
+// a notification without a real push server (e.g. for stream milestones, expiry, claimable threshold).
 self.addEventListener("message", (event) => {
   if (!event.data || event.data.type !== "sorostream-show-notification") return;
   const { payload } = event.data;
   if (!payload || !payload.title) return;
 
-  self.registration.showNotification(payload.title, {
+  const promise = self.registration.showNotification(payload.title, {
     body: payload.body ?? "",
     icon: payload.icon ?? "/icons/icon-192.png",
-    badge: "/icons/icon-192.png",
+    badge: payload.badge ?? "/icons/icon-192.png",
     tag: payload.tag ?? "sorostream-local",
+    renotify: payload.renotify ?? false,
     data: { url: payload.url ?? "/dashboard" },
   });
+
+  if (typeof event.waitUntil === "function") {
+    event.waitUntil(promise);
+  }
 });
+
