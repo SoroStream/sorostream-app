@@ -54,7 +54,7 @@ describe("ThemeProvider", () => {
       expect(document.documentElement.classList.contains("dark")).toBe(true);
     });
 
-    expect(localStorage.getItem("theme")).toBeNull();
+    expect(localStorage.getItem("sorostream_theme")).toBeNull();
   });
 
   it("persists a manual toggle to localStorage", async () => {
@@ -75,14 +75,14 @@ describe("ThemeProvider", () => {
     await waitFor(() => {
       expect(screen.getByTestId("theme")).toHaveTextContent("dark");
       expect(screen.getByTestId("system")).toHaveTextContent("false");
-      expect(localStorage.getItem("theme")).toBe("dark");
+      expect(localStorage.getItem("sorostream_theme")).toBe("dark");
     });
 
     fireEvent.click(screen.getByRole("button", { name: "System" }));
 
     await waitFor(() => {
       expect(screen.getByTestId("system")).toHaveTextContent("true");
-      expect(localStorage.getItem("theme")).toBeNull();
+      expect(localStorage.getItem("sorostream_theme")).toBeNull();
     });
   });
 });

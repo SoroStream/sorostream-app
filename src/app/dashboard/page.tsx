@@ -11,7 +11,8 @@ import KeyboardShortcutsHelp from "@/components/KeyboardShortcutsHelp";
 import StatusLegend from "@/components/StatusLegend";
 import { StreamErrorBoundary } from "@/components/StreamErrorBoundary";
 import { mergeById } from "@/src/lib/mergeStreams";
-import { getStreamsForWallet, watchClaimable, sorostream, getMockStreamHistory, type StreamData } from "@/src/lib/sorostream";
+import { getStreamsForWallet, getStreamsPageForWallet, watchClaimable, sorostream, getMockStreamHistory, type StreamData } from "@/src/lib/sorostream";
+import { usePagination, DASHBOARD_PAGE_SIZE } from "@/src/lib/pagination";
 import { useRpcFetch } from "@/src/lib/useRpcFetch";
 import { useToast } from "@/src/lib/toast";
 import { downloadCSV, downloadWalletStreamsCsv } from "@/src/lib/export";
@@ -68,10 +69,23 @@ function DashboardContent() {
   // Streams fetched so far. Only the first page is fetched on load; the rest
   // are fetched on demand as the user paginates or filters/sorts.
   const [streams, setStreams] = useState<StreamData[]>([]);
-  const [currentPage, setCurrentPage] = useState(() => {
-    const p = parseInt(searchParams.get("page") || "1", 10);
-    return Number.isFinite(p) && p > 0 ? p : 1;
-  });
+  // Server-reported total stream count for this wallet — may be larger than
+  // `streams.length` until the rest is fetched on demand (see ensureLoaded).
+  const [totalStreams, setTotalStreams] = useState(0);
+  // True while ensureLoaded is fetching additional pages beyond the first.
+  const [loadingMore, setLoadingMore] = useState(false);
+  // Mirrors `address` for use inside async callbacks so an in-flight fetch
+  // can detect that the wallet changed and discard its (now stale) result.
+  const addressRef = useRef(address);
+  useEffect(() => {
+    addressRef.current = address;
+  }, [address]);
+  // Mirrors `streams.length` for use inside ensureLoaded without making it
+  // depend on (and re-run for every change to) the streams array itself.
+  const loadedCountRef = useRef(0);
+  useEffect(() => {
+    loadedCountRef.current = streams.length;
+  }, [streams.length]);
   const skipPageResetRef = useRef(true);
   const pageSize = 10;
 
@@ -202,7 +216,7 @@ function DashboardContent() {
           })),
         );
         if (!cancelled) {
-          setStreams((prev) => mergeById(prev, data));
+          setStreams((prev) => mergeById(prev, page.streams));
           setLastRefreshTime(Date.now());
         }
       } catch {
@@ -358,29 +372,6 @@ function DashboardContent() {
     });
   }, [streams, statusFilter, tokenFilter, search, bookmarksOnly, bookmarkedIds, selectedTags, dateFrom, dateTo, minRate, maxRate]);
 
-  useEffect(() => {
-    // Reset to page 1 when filters change (skip initial mount so ?page= survives refresh)
-    if (skipPageResetRef.current) {
-      skipPageResetRef.current = false;
-      return;
-    }
-    setCurrentPage(1);
-  }, [statusFilter, tokenFilter, search, bookmarksOnly, selectedTags, dateFrom, dateTo, minRate, maxRate]);
-
-  // Infinite scroll: load the next page when the sentinel scrolls into view (#552)
-  useEffect(() => {
-    const sentinel = loadMoreRef.current;
-    if (!sentinel || typeof IntersectionObserver === "undefined") return;
-    if (sortedFiltered.length <= visibleCount) return;
-    const observer = new IntersectionObserver((entries) => {
-      if (entries.some((e) => e.isIntersecting)) {
-        setVisibleCount((c) => c + PAGE_SIZE);
-      }
-    });
-    observer.observe(sentinel);
-    return () => observer.disconnect();
-  }, [sortedFiltered.length, visibleCount]);
-
   // Sort filtered streams, pinning bookmarks first, then by the chosen sort field.
   const sortedFiltered = useMemo(() => {
     const dir = sortOrder === "asc" ? 1 : -1;
@@ -407,29 +398,19 @@ function DashboardContent() {
     });
   }, [filtered, bookmarkedIds, sortField, sortOrder]);
 
-  // Update URL params when filters or sort state change.
-  // Sort is stored in ?sort=<field>&dir=<order> so that browser back/forward
-  // navigation restores the previous sort state without touching localStorage.
+  // Infinite scroll: load the next page when the sentinel scrolls into view (#552)
   useEffect(() => {
-    const params = new URLSearchParams();
-    if (statusFilter) params.set("status", statusFilter);
-    if (tokenFilter) params.set("token", tokenFilter);
-    if (search.trim()) params.set("search", search);
-    // Date range filters (#520)
-    if (dateFrom) params.set("dateFrom", dateFrom);
-    if (dateTo) params.set("dateTo", dateTo);
-    // Min/max rate filters (#520)
-    if (minRate) params.set("minRate", minRate);
-    if (maxRate) params.set("maxRate", maxRate);
-    // Only write sort params when they differ from defaults to keep URLs clean.
-    if (sortField !== "created") params.set("sort", sortField);
-    if (sortOrder !== "desc") params.set("dir", sortOrder);
-    if (currentPage > 1) params.set("page", String(currentPage));
-
-    const queryString = params.toString();
-    const newPath = queryString ? `/dashboard?${queryString}` : "/dashboard";
-    router.replace(newPath);
-  }, [statusFilter, tokenFilter, search, sortField, sortOrder, dateFrom, dateTo, minRate, maxRate, currentPage, router]);
+    const sentinel = loadMoreRef.current;
+    if (!sentinel || typeof IntersectionObserver === "undefined") return;
+    if (sortedFiltered.length <= visibleCount) return;
+    const observer = new IntersectionObserver((entries) => {
+      if (entries.some((e) => e.isIntersecting)) {
+        setVisibleCount((c) => c + PAGE_SIZE);
+      }
+    });
+    observer.observe(sentinel);
+    return () => observer.disconnect();
+  }, [sortedFiltered.length, visibleCount]);
 
   const clearFilters = () => {
     setStatusFilter("");
@@ -460,11 +441,56 @@ function DashboardContent() {
     totalPages,
     pageStart,
     pageEnd,
+    setPage,
     nextPage,
     prevPage,
     hasPrev,
     hasNext,
   } = usePagination(paginatedCount, DASHBOARD_PAGE_SIZE);
+
+  // Restore the page from ?page= on mount only (subsequent filter/sort
+  // changes reset to page 1 via the effect below, not the URL).
+  const didRestorePageFromUrlRef = useRef(false);
+  useEffect(() => {
+    if (didRestorePageFromUrlRef.current) return;
+    didRestorePageFromUrlRef.current = true;
+    const p = parseInt(searchParams.get("page") || "1", 10);
+    if (Number.isFinite(p) && p > 0) setPage(p);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {
+    // Reset to page 1 when filters change (skip initial mount so ?page= survives refresh)
+    if (skipPageResetRef.current) {
+      skipPageResetRef.current = false;
+      return;
+    }
+    setPage(1);
+  }, [statusFilter, tokenFilter, search, bookmarksOnly, selectedTags, dateFrom, dateTo, minRate, maxRate, setPage]);
+
+  // Update URL params when filters or sort state change.
+  // Sort is stored in ?sort=<field>&dir=<order> so that browser back/forward
+  // navigation restores the previous sort state without touching localStorage.
+  useEffect(() => {
+    const params = new URLSearchParams();
+    if (statusFilter) params.set("status", statusFilter);
+    if (tokenFilter) params.set("token", tokenFilter);
+    if (search.trim()) params.set("search", search);
+    // Date range filters (#520)
+    if (dateFrom) params.set("dateFrom", dateFrom);
+    if (dateTo) params.set("dateTo", dateTo);
+    // Min/max rate filters (#520)
+    if (minRate) params.set("minRate", minRate);
+    if (maxRate) params.set("maxRate", maxRate);
+    // Only write sort params when they differ from defaults to keep URLs clean.
+    if (sortField !== "created") params.set("sort", sortField);
+    if (sortOrder !== "desc") params.set("dir", sortOrder);
+    if (currentPage > 1) params.set("page", String(currentPage));
+
+    const queryString = params.toString();
+    const newPath = queryString ? `/dashboard?${queryString}` : "/dashboard";
+    router.replace(newPath);
+  }, [statusFilter, tokenFilter, search, sortField, sortOrder, dateFrom, dateTo, minRate, maxRate, currentPage, router]);
 
   const pageStreams = useMemo(
     () => sortedFiltered.slice(pageStart, pageEnd),
@@ -1385,9 +1411,10 @@ function DashboardContent() {
                   optimisticOps={optimisticOps}
                 />
                 <div className="flex justify-between items-center p-4">
-                  <button 
-                    disabled={currentPage === 1}
-                    onClick={() => setCurrentPage(p => p - 1)}
+                  <button
+                    type="button"
+                    disabled={!hasPrev}
+                    onClick={prevPage}
                     className="px-4 py-2 bg-gray-800 text-white rounded disabled:opacity-50"
                   >
                     Previous
@@ -1403,7 +1430,7 @@ function DashboardContent() {
                   >
                     Next
                   </button>
-                </nav>
+                </div>
               </div>
             )}
             </PullToRefresh>

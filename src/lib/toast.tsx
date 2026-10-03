@@ -3,6 +3,12 @@ import { createContext, useContext, useState, useCallback, useRef, type ReactNod
 
 type ToastType = "success" | "error" | "info" | "warning";
 
+/**
+ * Auto-dismiss delay (issue #621). Long enough for screen readers to
+ * announce the toast before it's removed.
+ */
+const TOAST_AUTO_DISMISS_MS = 10_000;
+
 /** Optional inline action button rendered inside the toast. */
 interface ToastAction {
   label: string;

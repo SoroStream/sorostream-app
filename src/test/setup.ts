@@ -1,4 +1,22 @@
 import '@testing-library/jest-dom';
+import { vi } from 'vitest';
+
+/**
+ * @testing-library/dom's `waitFor` only switches to its fake-timer-aware
+ * polling path when a global `jest` is present (it checks
+ * `typeof jest !== 'undefined'`). Under Vitest there is no such global, so
+ * `waitFor` always assumes real timers — meaning as soon as a test calls
+ * `vi.useFakeTimers()`, `waitFor`'s own internal polling interval is
+ * registered against the now-fake clock and never fires, hanging until the
+ * outer (real) test timeout. Stubbing a minimal `jest` global with vitest's
+ * own mock-detection fields lets `waitFor` correctly detect fake timers and
+ * advance them itself instead of hanging.
+ */
+if (typeof (globalThis as { jest?: unknown }).jest === 'undefined') {
+  (globalThis as { jest?: unknown }).jest = {
+    advanceTimersByTime: (ms: number) => vi.advanceTimersByTime(ms),
+  };
+}
 
 class ResizeObserver {
   callback: ResizeObserverCallback;

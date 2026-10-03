@@ -59,13 +59,13 @@ function renderActions() {
 
 /**
  * Helper that advances the cancel flow past the confirmation dialog.
- * The Cancel button now opens a confirm dialog first; calling this helper
- * clicks "Cancel" → then "Cancel Stream" in the dialog to start the grace
+ * The "Cancel stream" button opens a confirm dialog first; calling this
+ * helper clicks it, then "Confirm Cancel" in the dialog to start the grace
  * period countdown.
  */
 function startCancelGracePeriod() {
-  fireEvent.click(screen.getByRole('button', { name: /^cancel$/i }));
-  fireEvent.click(screen.getByRole('button', { name: /cancel stream/i }));
+  fireEvent.click(screen.getByRole('button', { name: /^cancel stream$/i }));
+  fireEvent.click(screen.getByRole('button', { name: /confirm cancel/i }));
 }
 
 // ---------------------------------------------------------------------------
@@ -193,7 +193,7 @@ describe('StreamActions — cancel grace period', () => {
     };
     act(() => { undoAction(); });
 
-    expect(screen.getByRole('button', { name: /^cancel$/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /^cancel stream$/i })).toBeInTheDocument();
   });
 
   it('dismisses the countdown toast before submitting on-chain', async () => {

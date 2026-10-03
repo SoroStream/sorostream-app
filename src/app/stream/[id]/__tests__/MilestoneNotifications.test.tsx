@@ -43,6 +43,10 @@ vi.mock("@/src/context/SettingsContext", () => ({
   }),
 }));
 
+vi.mock("@/src/context/XlmPriceContext", () => ({
+  useSharedXlmPrice: () => ({ price: null, loading: false }),
+}));
+
 // Mock sorostream SDK
 vi.mock("@/src/lib/sorostream", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/src/lib/sorostream")>();

@@ -8,6 +8,10 @@ vi.mock("next/navigation", () => ({
   useSearchParams: () => new URLSearchParams(),
 }));
 
+vi.mock("@/src/context/XlmPriceContext", () => ({
+  useSharedXlmPrice: () => ({ price: null, loading: false }),
+}));
+
 // Mock wallet context
 vi.mock("@/src/context/WalletContext", () => ({
   useWallet: () => ({

@@ -48,6 +48,10 @@ vi.mock("@/src/context/SettingsContext", () => ({
   }),
 }));
 
+vi.mock("@/src/context/XlmPriceContext", () => ({
+  useSharedXlmPrice: () => ({ price: null, loading: false }),
+}));
+
 const getStreamMock = vi.fn();
 
 vi.mock("@/src/lib/sorostream", async (importOriginal) => {
@@ -55,7 +59,15 @@ vi.mock("@/src/lib/sorostream", async (importOriginal) => {
   return {
     ...actual,
     sorostream: {
+      ...actual.sorostream,
       getStream: (...args: unknown[]) => getStreamMock(...args),
+      // The page's initial load calls getStreamDetails, not getStream —
+      // route it through the same mock so both the initial fetch and the
+      // wallet-switch re-fetch are observable via getStreamMock.
+      getStreamDetails: async (...args: unknown[]) => {
+        const stream = await getStreamMock(...args);
+        return { stream, claimable: "0", history: [] };
+      },
     },
   };
 });

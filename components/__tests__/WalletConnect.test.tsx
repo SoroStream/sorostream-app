@@ -42,6 +42,7 @@ vi.mock('@/src/lib/wallets', () => {
     ledgerAdapter: mockLedgerAdapter,
     ServerKeypairAdapter: MockServerKeypairAdapter,
     WALLET_LABELS: { freighter: 'Freighter', ledger: 'Ledger', 'server-keypair': 'Server Keypair' },
+    isWebUsbSupported: vi.fn(() => true),
   };
 });
 

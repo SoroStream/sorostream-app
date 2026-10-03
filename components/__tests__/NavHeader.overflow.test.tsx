@@ -48,8 +48,11 @@ describe('NavHeader medium-width overflow (#542)', () => {
   });
 
   it('wraps the wallet/network control cluster so it can never overlap the nav', () => {
+    // GlobalSearch reads useSearchParams(), so it's wrapped in a Suspense
+    // boundary (required for static prerendering) — tolerate that and any
+    // comment between the container div and the control cluster's first child.
     expect(navSrc).toMatch(
-      /<div className="flex flex-wrap items-center justify-end[^"]*">\s*<GlobalSearch/,
+      /<div className="flex flex-wrap items-center justify-end[^"]*">[\s\S]*?<GlobalSearch/,
     );
   });
 

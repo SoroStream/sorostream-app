@@ -98,11 +98,13 @@ describe("ChangelogModal", () => {
       );
 
       // The dialog remains in the DOM rather than being removed...
-      const dialog = screen.getByRole("dialog", {
-        name: /What's new in SoroStream/i,
-        hidden: true,
-      });
+      // `aria-hidden="true"` makes dom-accessibility-api compute an empty
+      // accessible name for the element regardless of the `hidden` query
+      // option, so the dialog is found by role alone and its label is
+      // checked separately via the aria-label attribute.
+      const dialog = screen.getByRole("dialog", { hidden: true });
       expect(dialog).toBeInTheDocument();
+      expect(dialog).toHaveAttribute("aria-label", "What's new in SoroStream");
       // ...but is hidden from layout and the accessibility tree.
       expect(dialog).toHaveClass("hidden");
       expect(dialog).toHaveAttribute("aria-hidden", "true");

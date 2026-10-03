@@ -3,6 +3,7 @@
 import { useState, useCallback, useRef, useEffect } from "react";
 import LiveCounter from "@/components/LiveCounter";
 import WithdrawFeeBreakdownModal from "@/components/WithdrawFeeBreakdownModal";
+import StreamCloneModal from "@/components/StreamCloneModal";
 import {
   sorostream,
   claimableNow,

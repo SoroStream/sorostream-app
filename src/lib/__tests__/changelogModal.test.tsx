@@ -168,11 +168,16 @@ describe("ChangelogModal — entry rendering", () => {
     expect(screen.queryByText("Real-time Stream Polling")).not.toBeInTheDocument();
   });
 
-  it("renders nothing (null) when open is false", () => {
+  it("stays mounted but hidden when open is false (#615)", () => {
     mockFetchSuccess();
     const { container } = render(<ChangelogModal open={false} onClose={() => {}} />);
 
-    expect(container.firstChild).toBeNull();
+    // Kept in the DOM (not unmounted) so it doesn't lose state/remount on
+    // reopen, but hidden from layout and the accessibility tree.
+    expect(container.firstChild).not.toBeNull();
+    const dialog = screen.getByRole("dialog", { hidden: true });
+    expect(dialog).toHaveClass("hidden");
+    expect(dialog).toHaveAttribute("aria-hidden", "true");
   });
 
   it("does not fetch CHANGELOG.json when open is false", async () => {

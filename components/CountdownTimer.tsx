@@ -9,7 +9,7 @@ interface CountdownTimerProps {
   expiredLabel?: string;
 }
 
-export default function CountdownTimer({ endTime }: CountdownTimerProps) {
+export default function CountdownTimer({ endTime, expiredLabel = "Ended" }: CountdownTimerProps) {
   const [remaining, setRemaining] = useState(() => computeRemaining(endTime));
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 

@@ -3,11 +3,19 @@ import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import FlowRatePreview from "../FlowRatePreview";
 import DurationPicker from "../DurationPicker";
+import { XlmPriceProvider } from "@/src/context/XlmPriceContext";
+import { SettingsProvider } from "@/src/context/SettingsContext";
 
 describe("FlowRatePreview calculation logic (#47)", () => {
   it("computes per-second, per-hour, per-day, and per-month rates correctly", () => {
     // 100 USDC over 100 seconds
-    render(<FlowRatePreview amount="100" durationSeconds={100} />);
+    render(
+      <SettingsProvider>
+        <XlmPriceProvider>
+          <FlowRatePreview amount="100" durationSeconds={100} />
+        </XlmPriceProvider>
+      </SettingsProvider>,
+    );
 
     // Per second: 100 / 100 = 1.0000000 USDC
     expect(screen.getByText(/1.0000000 USDC/)).toBeInTheDocument();
@@ -24,7 +32,13 @@ describe("FlowRatePreview calculation logic (#47)", () => {
 
   it("handles fractional rates and 7 decimal precision correctly", () => {
     // 1 USDC over 86400 seconds (1 day)
-    render(<FlowRatePreview amount="1" durationSeconds={86400} />);
+    render(
+      <SettingsProvider>
+        <XlmPriceProvider>
+          <FlowRatePreview amount="1" durationSeconds={86400} />
+        </XlmPriceProvider>
+      </SettingsProvider>,
+    );
 
     // 1 / 86400 ≈ 0.00001157407... -> 0.0000116
     expect(screen.getByText(/0.0000116 USDC/)).toBeInTheDocument();
@@ -92,7 +106,7 @@ describe("DurationPicker conversion logic (#47)", () => {
     // 90060 seconds = 1 day (86400) + 1 hour (3600) + 1 minute (60)
     render(<DurationPicker onChange={handleChange} initialSeconds={90060} />);
 
-    expect(screen.getByLabelText("Days")).toHaveValue(1.0423611111111112);
+    expect(screen.getByLabelText("Days")).toHaveValue(1.042361111111111);
     expect(screen.getByLabelText("Hours")).toHaveValue(1);
     expect(screen.getByLabelText("Minutes")).toHaveValue(1);
     expect(handleChange).toHaveBeenCalledWith(90060);

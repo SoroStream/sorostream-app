@@ -52,27 +52,32 @@ export default function WalletBalanceDisplay({
       const tokenBalances: TokenBalance[] = [];
 
       for (const token of SUPPORTED_TOKENS) {
-        let balance: string | null = null;
-
         if (token.issuer === "native") {
+          // Every account has a native XLM balance — always show it, even
+          // when it's 0.
           const native = data.balances?.find((b) => b.asset_type === "native");
-          balance = native ? parseFloat(native.balance).toFixed(2) : "0.00";
+          tokenBalances.push({
+            symbol: token.symbol,
+            balance: native ? parseFloat(native.balance).toFixed(2) : "0.00",
+            issuer: token.issuer,
+          });
         } else {
+          // No trustline for this asset means the account doesn't hold it —
+          // omit it rather than showing a fabricated 0.00 balance, or every
+          // account would appear to hold every entry in SUPPORTED_TOKENS.
           const matching = data.balances?.find(
             (b) =>
               b.asset_type === "credit_alphanum12" &&
               b.asset_code === token.symbol &&
               b.asset_issuer === token.issuer
           );
-          balance = matching ? parseFloat(matching.balance).toFixed(2) : "0.00";
-        }
-
-        if (balance !== null) {
-          tokenBalances.push({
-            symbol: token.symbol,
-            balance,
-            issuer: token.issuer,
-          });
+          if (matching) {
+            tokenBalances.push({
+              symbol: token.symbol,
+              balance: parseFloat(matching.balance).toFixed(2),
+              issuer: token.issuer,
+            });
+          }
         }
       }
 

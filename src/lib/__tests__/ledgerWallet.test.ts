@@ -7,6 +7,7 @@ import {
   Operation,
   Asset,
   BASE_FEE,
+  hash,
 } from "@stellar/stellar-sdk";
 
 const keypair = Keypair.random();
@@ -59,8 +60,12 @@ describe("ledgerAdapter", () => {
     openConnected.mockResolvedValue(null);
     create.mockResolvedValue(transport);
     getPublicKey.mockResolvedValue({ rawPublicKey: keypair.rawPublicKey() });
+    // A real Ledger device hashes the signature base internally before
+    // signing (mirrors Transaction.sign()/tx.hash() in the SDK) — the mock
+    // must do the same or the returned signature won't verify against
+    // signed.hash().
     signTransaction.mockImplementation(async (_path: string, base: Buffer) => ({
-      signature: keypair.sign(base),
+      signature: keypair.sign(hash(base)),
     }));
   });
 
@@ -88,7 +93,10 @@ describe("ledgerAdapter", () => {
 
     const signedXdr = await ledgerAdapter.signTransaction(xdr);
 
-    expect(signTransaction).toHaveBeenCalledWith(LEDGER_STELLAR_PATH, expect.any(Uint8Array));
+    // tx.signatureBase() returns a Node Buffer; in this jsdom test
+    // environment Buffer is not `instanceof` the global Uint8Array, so match
+    // against Buffer directly instead.
+    expect(signTransaction).toHaveBeenCalledWith(LEDGER_STELLAR_PATH, expect.any(Buffer));
     const signed = TransactionBuilder.fromXDR(signedXdr, Networks.TESTNET);
     expect(signed.signatures).toHaveLength(1);
     expect(keypair.verify(signed.hash(), signed.signatures[0].signature())).toBe(true);

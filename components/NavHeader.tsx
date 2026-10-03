@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useRef, Suspense } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import NetworkSelector from "@/components/NetworkSelector";
@@ -165,7 +165,11 @@ export default function NavHeader() {
           </nav>
         </div>
         <div className="flex flex-wrap items-center justify-end gap-2 min-w-0 shrink-0">
-          <GlobalSearch />
+          {/* GlobalSearch reads useSearchParams(), which requires a Suspense
+              boundary or every page using NavHeader fails static prerendering. */}
+          <Suspense fallback={null}>
+            <GlobalSearch />
+          </Suspense>
           <NetworkSelector />
           <RpcHealthIndicator />
           {address && (

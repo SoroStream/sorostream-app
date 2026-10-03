@@ -51,13 +51,11 @@ vi.mock('@/src/lib/freighter', () => {
     APP_NETWORK,
     getActiveAddress: vi.fn(() => Promise.resolve('GAAAA_INITIAL')),
     checkNetworkMatch: vi.fn(() => Promise.resolve(true)),
-    getFreighterAdapter: vi.fn(() =>
-      Promise.resolve({
-        isConnected: vi.fn(() => Promise.resolve(true)),
-        getPublicKey: vi.fn(() => Promise.resolve('GAAAA_INITIAL')),
-        signTransaction: vi.fn(),
-      })
-    ),
+    getFreighterAdapter: vi.fn(() => ({
+      isConnected: vi.fn(() => Promise.resolve(true)),
+      getPublicKey: vi.fn(() => Promise.resolve('GAAAA_INITIAL')),
+      signTransaction: vi.fn(),
+    })),
     createWatchWalletChanges: vi.fn((interval?: number) => {
       lastWatcher = new MockWatchWalletChanges(interval);
       return lastWatcher;

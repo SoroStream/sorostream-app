@@ -1,6 +1,6 @@
 "use client";
 
-import { memo } from "react";
+import { memo, type ReactNode } from "react";
 
 import CopyButton from "@/components/CopyButton";
 import FiatDisplay from "@/components/FiatDisplay";
@@ -60,8 +60,6 @@ interface StreamCardProps {
   endTime?: string;
   /** ISO timestamp captured when the stream was paused (freezes remaining balance). */
   pausedAt?: string;
-  /** Total amount already withdrawn from the stream in stroops. */
-  withdrawnStroops?: number;
   /** Token type (XLM, USDC, etc.) for proper USD conversion display. */
   token?: string;
   /** True when an on-chain transaction is in-flight for this stream. */
@@ -102,7 +100,8 @@ function HighlightedText({ text, query }: { text: string; query: string }) {
  * card has actually changed. Polling ticks that leave `id`, `status`, and
  * `withdrawnStroops` unchanged will skip the render entirely.
  */
-function arePropsEqual(
+/** Exported for the #580 render-count guard unit tests. */
+export function arePropsEqual(
   prev: StreamCardProps,
   next: StreamCardProps,
 ): boolean {
@@ -126,7 +125,7 @@ function StreamCardInner({
   flowRate = 0,
   status = "Active",
   deposit = 0,
-  withdrawnStroops: _withdrawnStroops = 0,
+  withdrawnStroops = 0,
   selected = false,
   onToggle,
   loading = false,
@@ -135,7 +134,6 @@ function StreamCardInner({
   startTime,
   endTime,
   pausedAt,
-  withdrawnStroops,
   token = "XLM",
   optimisticPending = false,
   optimisticStatus,

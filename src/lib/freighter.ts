@@ -145,7 +145,7 @@ export async function signTransaction(
   }
 }
 
-export async function getFreighterAdapter() {
+export function getFreighterAdapter() {
   return {
     isConnected: async () => {
       if (typeof window === "undefined") return false;

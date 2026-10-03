@@ -5,7 +5,12 @@ import { FORM_DRAFT_KEY } from "@/src/lib/useFormPersist";
 
 const push = vi.fn();
 const triggerStreamRefresh = vi.fn();
-const createStream = vi.fn();
+// createStream is referenced inside vi.mock("@/src/lib/sorostream", ...)
+// below; vi.mock calls are hoisted above regular top-level statements, so a
+// plain `const createStream = vi.fn()` here would be accessed by that
+// factory before this line has run. vi.hoisted() is itself hoisted to the
+// very top, avoiding the TDZ violation.
+const { createStream } = vi.hoisted(() => ({ createStream: vi.fn() }));
 
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ push, replace: vi.fn() }),
@@ -31,6 +36,10 @@ vi.mock("@/src/context/PreferencesContext", () => ({
 
 vi.mock("@/src/context/SettingsContext", () => ({
   useSettings: () => ({ streamThreshold: 10000, language: "en" }),
+}));
+
+vi.mock("@/src/context/XlmPriceContext", () => ({
+  useSharedXlmPrice: () => ({ price: null, loading: false }),
 }));
 
 vi.mock("@/src/lib/addressVerification", () => ({
@@ -71,6 +80,8 @@ describe("Create stream happy path", () => {
   });
 
   it("clears the saved draft and navigates after a successful create-stream flow", async () => {
+    // Needs more than vitest's 5s default test timeout: handleCreateStream
+    // awaits a real 5s undo window before submitting (see waitFor below).
     const recipient = "GB7B2XS7YYUWVLXUYG6EWBEYHV4WTUY5VWFDOXWOITVNHAJBMMRV7ZGO";
     const draft = { recipient, amount: "100", duration: 3600, selectedToken: "USDC", customTokenAddress: "", endDate: "", cliffDate: "" };
     window.sessionStorage.setItem(FORM_DRAFT_KEY, JSON.stringify(draft));
@@ -93,9 +104,17 @@ describe("Create stream happy path", () => {
     await waitFor(() => expect(screen.getByTestId("confirm-sign-button")).toBeInTheDocument());
     fireEvent.click(screen.getByTestId("confirm-sign-button"));
 
-    await waitFor(() => expect(createStream).toHaveBeenCalledTimes(1));
-    await waitFor(() => expect(push).toHaveBeenCalledWith("/stream/new-stream-123?new=true"));
+    // handleCreateStream awaits a real 5s "undo window" (UNDO_WINDOW_SECONDS
+    // in page.tsx) before actually submitting, so these need a longer
+    // timeout than vitest's 1s default to observe the eventual call.
+    await waitFor(() => expect(createStream).toHaveBeenCalledTimes(1), { timeout: 10_000 });
+    // handleCreateStream also auto-closes 2s after a successful create
+    // before redirecting, so this needs extra time too.
+    await waitFor(
+      () => expect(push).toHaveBeenCalledWith("/stream/new-stream-123?new=true"),
+      { timeout: 5000 },
+    );
     await waitFor(() => expect(window.sessionStorage.getItem(FORM_DRAFT_KEY)).toBeNull());
     expect(triggerStreamRefresh).toHaveBeenCalledTimes(1);
-  });
+  }, 20_000);
 });

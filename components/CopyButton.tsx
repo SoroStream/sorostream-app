@@ -10,7 +10,7 @@ interface CopyButtonProps {
   showTooltip?: boolean;
 }
 
-export default function CopyButton({ value, label = "Copy" }: CopyButtonProps) {
+export default function CopyButton({ value, label = "Copy", showTooltip = false }: CopyButtonProps) {
   const [copied, setCopied] = useState(false);
   const [failed, setFailed] = useState(false);
 

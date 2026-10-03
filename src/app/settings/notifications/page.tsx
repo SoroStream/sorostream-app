@@ -33,7 +33,14 @@ import { useToast } from "@/src/lib/toast";
 import PerStreamNotificationSettings from "@/src/components/PerStreamNotificationSettings";
 import { checkStreamNotifications } from "@/src/lib/streamNotificationWatcher";
 
-const EVENT_LABELS: { key: keyof NotificationEventPrefs; label: string; description: string }[] = [
+// claimableThreshold (the numeric threshold value, not the "...Enabled" flag
+// that toggles it) is the one non-boolean field on NotificationEventPrefs,
+// so it's excluded here — every entry below renders as a boolean Toggle.
+const EVENT_LABELS: {
+  key: keyof Omit<NotificationEventPrefs, "claimableThreshold">;
+  label: string;
+  description: string;
+}[] = [
   {
     key: "expiring24h",
     label: "24h before expiry",

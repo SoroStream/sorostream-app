@@ -81,7 +81,10 @@ vi.mock("@/components/RecipientAutocomplete", () => ({
         onBlur={onBlur}
         data-testid="recipient-input"
       />
-      {error && <p role="alert">{error}</p>}
+      {/* The real RecipientAutocomplete doesn't render its own error text —
+          it only sets aria-invalid/aria-describedby; the parent form
+          renders the visible error — so this mock doesn't either, to avoid
+          duplicating that element. */}
     </div>
   ),
 }));
@@ -214,7 +217,7 @@ describe("StreamCreationForm — happy path (#577)", () => {
     await fillRecipientAndContinue(VALID_RECIPIENT);
 
     // Step 2 — Amount & Duration
-    await waitFor(() => expect(screen.getByText(/Amount/i)).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText(/Total amount/i)).toBeInTheDocument());
     // Fill amount via the plain text input the form renders
     const amountInput = screen.getByRole("textbox", { name: /total amount/i }) ??
       document.querySelector<HTMLInputElement>("#amount")!;

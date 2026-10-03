@@ -2,6 +2,7 @@ import { render, screen, fireEvent } from "@testing-library/react";
 import { describe, it, expect, vi } from "vitest";
 import StreamVirtualList from "@/components/StreamVirtualList";
 import { SettingsProvider } from "@/src/context/SettingsContext";
+import { XlmPriceProvider } from "@/src/context/XlmPriceContext";
 import type { StreamData } from "@/src/lib/sorostream";
 
 vi.mock("@/src/context/BookmarksContext", () => ({
@@ -28,9 +29,11 @@ describe("StreamVirtualList", () => {
     const streams = Array.from({ length: 30 }, (_, index) => createStream(index + 1));
 
     render(
-      <SettingsProvider>
-        <StreamVirtualList streams={streams} />
-      </SettingsProvider>,
+      <XlmPriceProvider>
+        <SettingsProvider>
+          <StreamVirtualList streams={streams} />
+        </SettingsProvider>
+      </XlmPriceProvider>,
     );
 
     const list = screen.getByRole("list", { name: /stream list/i });
@@ -49,9 +52,11 @@ describe("StreamVirtualList", () => {
 
     const start = performance.now();
     render(
-      <SettingsProvider>
-        <StreamVirtualList streams={streams} />
-      </SettingsProvider>,
+      <XlmPriceProvider>
+        <SettingsProvider>
+          <StreamVirtualList streams={streams} />
+        </SettingsProvider>
+      </XlmPriceProvider>,
     );
     const elapsed = performance.now() - start;
     vi.useRealTimers();

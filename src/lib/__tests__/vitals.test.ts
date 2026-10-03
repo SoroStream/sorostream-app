@@ -15,7 +15,15 @@ describe("registerVitals", () => {
   let fetchSpy: ReturnType<typeof vi.spyOn>;
 
   beforeEach(() => {
-    // Mock navigator.sendBeacon
+    // jsdom doesn't implement the Beacon API, so vi.spyOn has nothing to
+    // wrap until a stub is defined first.
+    if (!("sendBeacon" in navigator)) {
+      Object.defineProperty(navigator, "sendBeacon", {
+        value: () => true,
+        writable: true,
+        configurable: true,
+      });
+    }
     sendBeaconSpy = vi.spyOn(navigator, "sendBeacon");
     sendBeaconSpy.mockReturnValue(true);
 

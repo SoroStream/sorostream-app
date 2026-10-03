@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
+import { useLocaleDateFormat } from "@/src/lib/dateFormat";
 import {
   ResponsiveContainer,
   AreaChart,
