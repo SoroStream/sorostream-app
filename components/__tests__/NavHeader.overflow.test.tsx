@@ -62,7 +62,7 @@ describe('NavHeader medium-width overflow (#542)', () => {
 
   it('keeps the brand from shrinking so it never collides with the nav', () => {
     expect(navSrc).toMatch(
-      /<Link href="\/" className="shrink-0 text-lg font-bold text-green-400/,
+      /<Link\s[^>]*href="\/"[\s\S]*?className="shrink-0 text-lg font-bold text-green-400/,
     );
   });
 
