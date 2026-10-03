@@ -170,6 +170,16 @@ export default function OnboardingWizard({ onComplete }: OnboardingWizardProps =
     setStep(STEPS.length - 1);
   }, [step, current.id]);
 
+  // Clicking outside the dialog (on the backdrop) or pressing Escape should
+  // actually dismiss the wizard, not just fast-forward it — otherwise the
+  // full-screen backdrop stays mounted and keeps intercepting every click on
+  // the page behind it (nav header included) with no way out.
+  const dismiss = useCallback(() => {
+    trackEvent({ type: "onboarding_skip", step, stepId: current.id });
+    markComplete();
+    setOpen(false);
+  }, [step, current.id]);
+
   const advance = useCallback(async () => {
     setError(null);
 
@@ -205,15 +215,15 @@ export default function OnboardingWizard({ onComplete }: OnboardingWizardProps =
     setStep((s) => Math.min(s + 1, STEPS.length - 1));
   }, [current.id, address, connect, step, isLast, finish, router]);
 
-  // Keyboard handling: Escape skips/closes the wizard.
+  // Keyboard handling: Escape closes the wizard.
   const onKeyDown = useCallback(
     (e: React.KeyboardEvent) => {
       if (e.key === "Escape") {
         e.preventDefault();
-        skip();
+        dismiss();
       }
     },
-    [skip],
+    [dismiss],
   );
 
   if (!open) return null;
@@ -225,7 +235,7 @@ export default function OnboardingWizard({ onComplete }: OnboardingWizardProps =
       className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 p-4"
       role="presentation"
       onMouseDown={(e) => {
-        if (e.target === e.currentTarget) skip();
+        if (e.target === e.currentTarget) dismiss();
       }}
     >
       <div

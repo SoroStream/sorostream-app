@@ -314,7 +314,7 @@ function DashboardContent() {
     } finally {
       setIsRefreshing(false);
     }
-  }, [address, reloadLoadedStreams, addToast]);
+  }, [address, addToast, rpcFetch]);
 
   useEffect(() => {
     const handler = () => void refreshStreams();

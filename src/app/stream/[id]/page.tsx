@@ -430,7 +430,7 @@ export default function StreamDetail({ params }: { params: { id: string } }) {
     setOptimisticClaimable(null);
     setOptimisticDeposit(null);
     setFetchKey((k) => k + 1);
-  }, [address]);
+  }, [address, params.id]);
 
   // ── Load stream on mount ───────────────────────────────────────────────────
   useEffect(() => {
