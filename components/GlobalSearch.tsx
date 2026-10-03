@@ -8,7 +8,7 @@ import {
   useCallback,
   type ReactNode,
 } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import Fuse from "fuse.js";
 import { getMockStreams, getMockStreamHistory } from "@/src/lib/sorostream";
 
@@ -31,6 +31,7 @@ const SEARCH_PARAM_KEY = "q";
 export default function GlobalSearch() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const pathname = usePathname();
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [debouncedQuery, setDebouncedQuery] = useState("");
@@ -53,25 +54,25 @@ export default function GlobalSearch() {
     }
   }, [searchParams]);
 
-  // Debounce input
+  // Debounce input. Only navigate when the typed query actually differs from
+  // the URL; running on mount would otherwise push a route on every page load.
   useEffect(() => {
     debounceRef.current = setTimeout(() => {
       setDebouncedQuery(query);
       setSelectedIndex(-1);
-      // Update URL with search query
-      if (query.trim()) {
-        const newParams = new URLSearchParams(searchParams);
-        newParams.set(SEARCH_PARAM_KEY, query.trim());
-        router.push(`?${newParams.toString()}`, { scroll: false });
+      const term = query.trim();
+      if (term === (searchParams.get(SEARCH_PARAM_KEY) || "")) return;
+      const newParams = new URLSearchParams(searchParams);
+      if (term) {
+        newParams.set(SEARCH_PARAM_KEY, term);
       } else {
-        const newParams = new URLSearchParams(searchParams);
         newParams.delete(SEARCH_PARAM_KEY);
-        const newUrl = newParams.toString() ? `?${newParams.toString()}` : "/";
-        router.push(newUrl, { scroll: false });
       }
+      const qs = newParams.toString();
+      router.push(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
     }, DEBOUNCE_MS);
     return () => clearTimeout(debounceRef.current);
-  }, [query, router, searchParams]);
+  }, [query, router, searchParams, pathname]);
 
   // Build Fuse index from streams and history
   const fuse = useMemo(() => {
