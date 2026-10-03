@@ -37,6 +37,24 @@ const NAV_LINKS = [
 const BOTTOM_NAV_HREFS = ["/dashboard", "/stream/new", "/address-book", "/settings"];
 const DRAWER_LINKS = NAV_LINKS.filter((l) => !BOTTOM_NAV_HREFS.includes(l.href));
 
+/**
+ * Next.js App Router (14.2.5) has a known failure mode where a soft
+ * (client-side) navigation gets stuck — the router can't apply the fetched
+ * RSC payload and, unlike its documented behavior, doesn't fall back to a
+ * hard navigation either. The click just does nothing, with no error
+ * surfaced anywhere (vercel/next.js#57565). Since the header's nav links are
+ * the primary way users move through the app, force a real browser
+ * navigation if the soft nav demonstrably didn't go anywhere.
+ */
+function watchdogNav(href: string) {
+  const startPath = window.location.pathname;
+  window.setTimeout(() => {
+    if (window.location.pathname === startPath && startPath !== href) {
+      window.location.href = href;
+    }
+  }, 1200);
+}
+
 export default function NavHeader() {
   const t = useTranslations("nav");
   const pathname = usePathname();
@@ -137,7 +155,18 @@ export default function NavHeader() {
       >
       <div className="max-w-6xl mx-auto px-4 sm:px-6 min-h-14 py-1.5 flex flex-wrap items-center justify-between gap-x-3 gap-y-2 min-w-0">
         <div className="flex items-center gap-3 lg:gap-6 min-w-0 shrink-0">
-          <Link href="/" className="shrink-0 text-lg font-bold text-green-400 rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-500 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-900">
+          <Link
+            href="/"
+            // See watchdogNav above: this brand link is mounted on every
+            // single page and was found (via stack-traced history API
+            // calls) to be the actual source of the stuck-router bug — its
+            // background prefetch for "/" was later applied by Next's
+            // router over whatever page the user had actually navigated
+            // to, silently bouncing them back home a second or two after
+            // any navigation, click-driven or not.
+            prefetch={false}
+            className="shrink-0 text-lg font-bold text-green-400 rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-500 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-900"
+          >
             SoroStream
           </Link>
           {/* Nav wraps onto a second line instead of overflowing into the
@@ -151,14 +180,12 @@ export default function NavHeader() {
                 <Link
                   key={link.href}
                   href={link.href}
-                  // Disabled: Vercel's edge cache doesn't vary the cached RSC
-                  // response by the Next-Router-State-Tree header, so a
-                  // viewport-triggered prefetch (a different, partial tree)
-                  // gets cached under the same URL and served back for the
-                  // real click-navigation — which the router then silently
-                  // fails to apply. These links are permanently visible in
-                  // the header, so they'd otherwise prefetch on every mount.
+                  // Mitigates a known App Router bug (vercel/next.js#57565)
+                  // where soft navigation can get permanently stuck with no
+                  // error; prefetching these always-visible links increases
+                  // exposure to it, and watchdogNav (below) is the recovery.
                   prefetch={false}
+                  onClick={() => watchdogNav(link.href)}
                   aria-current={isActive ? "page" : undefined}
                   className={`text-sm whitespace-nowrap transition-colors rounded-md px-1 py-0.5 inline-flex items-center focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-500 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-900 dark:focus-visible:ring-offset-gray-900 ${
                     isActive ? "text-gray-900 dark:text-white font-medium" : "text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white"
@@ -307,7 +334,10 @@ export default function NavHeader() {
                     <Link
                       href={link.href}
                       prefetch={false}
-                      onClick={() => setMenuOpen(false)}
+                      onClick={() => {
+                        setMenuOpen(false);
+                        watchdogNav(link.href);
+                      }}
                       aria-current={isActive ? "page" : undefined}
                       className={`block rounded-md px-3 py-2 text-base focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-500 ${
                         isActive ? "bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-white font-medium" : "text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800"

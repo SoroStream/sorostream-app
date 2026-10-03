@@ -83,42 +83,44 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           Skip to main content
         </a>
         <SettingsProvider>
-          <WalletProvider>
-            <BookmarksProvider>
-              <ThemeProvider>
-                <NetworkProvider>
-                  <ToastProvider>
-                    <XlmPriceProvider>
-                      <NotificationProvider>
-                        <GlobalShortcutsProvider>
-                          <ContractVersionProvider>
-                            <RateLimitProvider>
-                              <NavHeader />
-                              <RpcUnreachableBanner />
-                              <RateLimitBanner />
-                              <ContractVersionBanner />
-                              <PageViewTracker />
-                              <WebVitalsReporter />
-                              <PwaInit />
-                              <InstallPrompt />
-                              <div className="flex-1">
-                                {children}
-                              </div>
-                              <AppFooter />
-                              <BottomNav />
-                              <OnboardingWizard />
-                              <SessionWarningToast />
-                              <SessionTimeoutModal />
-                            </RateLimitProvider>
-                          </ContractVersionProvider>
-                        </GlobalShortcutsProvider>
-                      </NotificationProvider>
-                    </XlmPriceProvider>
-                  </ToastProvider>
-                </NetworkProvider>
-              </ThemeProvider>
-            </BookmarksProvider>
-          </WalletProvider>
+          <PreferencesProvider>
+            <WalletProvider>
+              <BookmarksProvider>
+                <ThemeProvider>
+                  <NetworkProvider>
+                    <ToastProvider>
+                      <XlmPriceProvider>
+                        <NotificationProvider>
+                          <GlobalShortcutsProvider>
+                            <ContractVersionProvider>
+                              <RateLimitProvider>
+                                <NavHeader />
+                                <RpcUnreachableBanner />
+                                <RateLimitBanner />
+                                <ContractVersionBanner />
+                                <PageViewTracker />
+                                <WebVitalsReporter />
+                                <PwaInit />
+                                <InstallPrompt />
+                                <div className="flex-1">
+                                  {children}
+                                </div>
+                                <AppFooter />
+                                <BottomNav />
+                                <OnboardingWizard />
+                                <SessionWarningToast />
+                                <SessionTimeoutModal />
+                              </RateLimitProvider>
+                            </ContractVersionProvider>
+                          </GlobalShortcutsProvider>
+                        </NotificationProvider>
+                      </XlmPriceProvider>
+                    </ToastProvider>
+                  </NetworkProvider>
+                </ThemeProvider>
+              </BookmarksProvider>
+            </WalletProvider>
+          </PreferencesProvider>
         </SettingsProvider>
       </body>
     </html>
