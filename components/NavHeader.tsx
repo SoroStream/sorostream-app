@@ -151,6 +151,14 @@ export default function NavHeader() {
                 <Link
                   key={link.href}
                   href={link.href}
+                  // Disabled: Vercel's edge cache doesn't vary the cached RSC
+                  // response by the Next-Router-State-Tree header, so a
+                  // viewport-triggered prefetch (a different, partial tree)
+                  // gets cached under the same URL and served back for the
+                  // real click-navigation — which the router then silently
+                  // fails to apply. These links are permanently visible in
+                  // the header, so they'd otherwise prefetch on every mount.
+                  prefetch={false}
                   aria-current={isActive ? "page" : undefined}
                   className={`text-sm whitespace-nowrap transition-colors rounded-md px-1 py-0.5 inline-flex items-center focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-500 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-900 dark:focus-visible:ring-offset-gray-900 ${
                     isActive ? "text-gray-900 dark:text-white font-medium" : "text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white"
@@ -298,6 +306,7 @@ export default function NavHeader() {
                   <li key={link.href}>
                     <Link
                       href={link.href}
+                      prefetch={false}
                       onClick={() => setMenuOpen(false)}
                       aria-current={isActive ? "page" : undefined}
                       className={`block rounded-md px-3 py-2 text-base focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-500 ${
