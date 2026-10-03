@@ -7,7 +7,10 @@
  *   - Offline fallback: serve the cached fallback "/offline" or "/" when a navigation fails.
  */
 
-const CACHE_NAME = "sorostream-v1";
+// Bump this on any deploy that changes cached app-shell behavior so
+// `activate` purges every visitor's stale cache instead of leaving old
+// deploys stuck behind cache-first forever (#nav-stuck-on-onboarding).
+const CACHE_NAME = "sorostream-v2";
 
 const PRECACHE_URLS = [
   "/",
@@ -71,6 +74,17 @@ self.addEventListener("fetch", (event) => {
 
   // Never cache RPC/API calls.
   if (isNetworkOnly(url)) return;
+
+  // Next.js App Router client-side navigations (Link clicks, router.push)
+  // fetch an RSC data payload for the *same URL* as the page, distinguished
+  // only by request headers (not visible to Cache Storage's URL-based
+  // matching in all browsers). Treating these as cache-first risked serving
+  // a stale response for a path whose content has since changed on the
+  // server — always go to the network for these.
+  if (request.headers.has("RSC") || request.headers.has("Next-Router-State-Tree")) {
+    event.respondWith(fetch(request));
+    return;
+  }
 
   // Navigation requests: try network, fall back to cached "/offline" or "/".
   if (request.mode === "navigate") {
