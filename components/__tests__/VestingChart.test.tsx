@@ -2,6 +2,7 @@ import { render, cleanup } from "@testing-library/react";
 import VestingChart from "../VestingChart";
 import type { StreamData } from "@/src/lib/sorostream";
 import type { StreamHistoryEntry } from "@/src/lib/export";
+import { calculateVestingSchedule } from "@/src/lib/vestingSchedule";
 
 // ---------------------------------------------------------------------------
 // recharts is mocked so the chart renders as plain divs in jsdom — this avoids
@@ -50,7 +51,7 @@ vi.mock("@/src/lib/theme", () => ({
 }));
 
 const START_MS = Date.UTC(2026, 0, 1, 0, 0, 0); // 2026-01-01T00:00:00Z
-const END_MS = Date.UTC(2026, 1, 1, 0, 0, 0); // 2026-02-01T00:00:00Z
+const END_MS = Date.UTC(2026, 1, 1, 0, 0, 0);   // 2026-02-01T00:00:00Z
 
 const STREAM: StreamData = {
   id: "chart-test",
@@ -81,6 +82,31 @@ describe("VestingChart", () => {
     cleanup();
   });
 
+  // -------------------------------------------------------------------------
+  // Core: data points match calculateVestingSchedule output (#771)
+  // -------------------------------------------------------------------------
+
+  it("generates chart data points matching calculateVestingSchedule output", () => {
+    render(<VestingChart stream={STREAM} history={[]} />);
+
+    const lineChart = chartProps("LineChart")[0];
+    const data = (lineChart?.data as Array<{ time: number; vested: number }>) ?? [];
+
+    // VestingChart calls calculateVestingSchedule with sampleCount=30
+    const startSec = Math.floor(START_MS / 1000);
+    const endSec = Math.floor(END_MS / 1000);
+    const { points } = calculateVestingSchedule(STREAM.deposit as number, startSec, endSec, 0, 30);
+
+    expect(data).toHaveLength(points.length);
+
+    // Each chart point must exactly match the shared utility's output
+    // (time converted back to ms, claimable mapped to vested).
+    data.forEach((point, i) => {
+      expect(point.time).toBe(points[i].time * 1000);
+      expect(point.vested).toBe(points[i].claimable);
+    });
+  });
+
   it("generates 30 evenly-spaced chart data points from start to end", () => {
     render(<VestingChart stream={STREAM} history={[]} />);
 
@@ -89,15 +115,10 @@ describe("VestingChart", () => {
 
     expect(data).toHaveLength(30);
 
-    const numPoints = 30;
-    data.forEach((point, i) => {
-      const expectedTime = START_MS + (END_MS - START_MS) * (i / (numPoints - 1));
-      expect(point.time).toBeCloseTo(expectedTime, 6);
-    });
-
-    // First point sits exactly on startTime, last exactly on endTime.
-    expect(data[0].time).toBe(START_MS);
-    expect(data[29].time).toBe(END_MS);
+    // First point maps to startTime, last to endTime (within 1 second due to
+    // seconds-to-ms rounding inside calculateVestingSchedule).
+    expect(data[0].time).toBeCloseTo(START_MS, -3);
+    expect(data[29].time).toBeCloseTo(END_MS, -3);
   });
 
   it("caps vested amounts at the deposit", () => {
