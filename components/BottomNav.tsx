@@ -2,33 +2,11 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useState, useEffect } from "react";
 
-interface NavItem {
-  href: string;
-  label: string;
-  icon: React.ReactNode;
-}
-
-// SVG icons for each nav destination
-function HomeIcon({ active }: { active: boolean }) {
-  return (
-    <svg
-      xmlns="http://www.w3.org/2000/svg"
-      width="22"
-      height="22"
-      viewBox="0 0 24 24"
-      fill={active ? "currentColor" : "none"}
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden="true"
-    >
-      <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
-      <polyline points="9 22 9 12 15 12 15 22" />
-    </svg>
-  );
-}
+// ---------------------------------------------------------------------------
+// Icons
+// ---------------------------------------------------------------------------
 
 function DashboardIcon({ active }: { active: boolean }) {
   return (
@@ -116,15 +94,110 @@ function SettingsIcon({ active }: { active: boolean }) {
   );
 }
 
-const NAV_ITEMS: NavItem[] = [
-  { href: "/dashboard", label: "Dashboard", icon: null },
-  { href: "/stream/new", label: "Create", icon: null },
-  { href: "/address-book", label: "Contacts", icon: null },
-  { href: "/settings", label: "Settings", icon: null },
-];
+function MoreIcon() {
+  return (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      width="22"
+      height="22"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <circle cx="12" cy="12" r="1" fill="currentColor" />
+      <circle cx="19" cy="12" r="1" fill="currentColor" />
+      <circle cx="5" cy="12" r="1" fill="currentColor" />
+    </svg>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Secondary nav items (the ones not in the primary bar)
+// ---------------------------------------------------------------------------
+
+const SECONDARY_NAV_ITEMS = [
+  { href: "/analytics", label: "Analytics" },
+  { href: "/stats", label: "Stats" },
+  { href: "/stream/batch", label: "Batch Create" },
+  { href: "/activity", label: "Activity" },
+  { href: "/admin", label: "Admin" },
+  { href: "/archive", label: "Archive" },
+] as const;
+
+// ---------------------------------------------------------------------------
+// NavLink component (unchanged behaviour for primary items)
+// ---------------------------------------------------------------------------
+
+interface NavLinkProps {
+  href: string;
+  label: string;
+  isActive: boolean;
+  icon: (active: boolean) => React.ReactNode;
+  isCreate?: boolean;
+}
+
+function NavLink({ href, label, isActive, icon, isCreate }: NavLinkProps) {
+  return (
+    <Link
+      href={href}
+      aria-current={isActive ? "page" : undefined}
+      className={`
+        flex flex-col items-center justify-center gap-1 h-full w-full text-[10px] font-medium
+        transition-colors min-h-11 min-w-11
+        focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-500 focus-visible:ring-inset
+        ${
+          isCreate
+            ? "text-green-400"
+            : isActive
+            ? "text-green-400"
+            : "text-gray-400 hover:text-gray-200"
+        }
+      `}
+    >
+      <span
+        className={`
+          flex items-center justify-center rounded-full transition-colors
+          ${isCreate ? "bg-green-700 text-white w-11 h-11 -mt-5 shadow-lg shadow-green-900/50" : ""}
+        `}
+      >
+        {icon(isActive)}
+      </span>
+      <span className={isCreate ? "mt-1" : ""}>{label}</span>
+    </Link>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Main BottomNav component
+// ---------------------------------------------------------------------------
 
 export default function BottomNav() {
   const pathname = usePathname();
+  const [moreOpen, setMoreOpen] = useState(false);
+
+  // Close the "More" drawer whenever the user navigates to a new page
+  useEffect(() => {
+    setMoreOpen(false);
+  }, [pathname]);
+
+  // Close the "More" drawer on Escape key
+  useEffect(() => {
+    if (!moreOpen) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setMoreOpen(false);
+    };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [moreOpen]);
+
+  // True when the current path matches one of the secondary items
+  const moreIsActive = SECONDARY_NAV_ITEMS.some(
+    (item) => pathname === item.href || pathname.startsWith(item.href + "/"),
+  );
 
   return (
     <>
@@ -135,6 +208,57 @@ export default function BottomNav() {
        */}
       <div className="h-16 md:hidden" aria-hidden="true" />
 
+      {/* "More" drawer — slides up above the nav bar */}
+      {moreOpen && (
+        <>
+          {/* Backdrop */}
+          <div
+            className="fixed inset-0 z-40 md:hidden bg-black/50"
+            aria-hidden="true"
+            onClick={() => setMoreOpen(false)}
+          />
+
+          {/* Drawer panel */}
+          <div
+            id="more-nav-drawer"
+            role="dialog"
+            aria-modal="true"
+            aria-label="More navigation options"
+            className="fixed bottom-16 inset-x-0 z-50 md:hidden bg-gray-900 border-t border-gray-800 safe-bottom"
+          >
+            <nav aria-label="Secondary navigation">
+              <ul className="grid grid-cols-3 gap-0 py-2" role="list">
+                {SECONDARY_NAV_ITEMS.map((item) => {
+                  const isActive =
+                    pathname === item.href || pathname.startsWith(item.href + "/");
+                  return (
+                    <li key={item.href}>
+                      <Link
+                        href={item.href}
+                        aria-current={isActive ? "page" : undefined}
+                        onClick={() => setMoreOpen(false)}
+                        className={`
+                          flex flex-col items-center justify-center gap-1 py-3 text-[11px] font-medium
+                          transition-colors min-h-11
+                          focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-500 focus-visible:ring-inset
+                          ${isActive ? "text-green-400" : "text-gray-400 hover:text-gray-200"}
+                        `}
+                      >
+                        {isActive && (
+                          <span className="inline-block h-1 w-1 rounded-full bg-green-400 mb-0.5" aria-hidden="true" />
+                        )}
+                        {item.label}
+                      </Link>
+                    </li>
+                  );
+                })}
+              </ul>
+            </nav>
+          </div>
+        </>
+      )}
+
+      {/* Primary bottom nav bar — four core items + More button */}
       <nav
         aria-label="Mobile navigation"
         className="fixed bottom-0 inset-x-0 z-50 md:hidden bg-gray-900/95 backdrop-blur border-t border-gray-800 safe-bottom"
@@ -176,51 +300,32 @@ export default function BottomNav() {
             <NavLink
               href="/settings"
               label="Settings"
-              isActive={pathname === "/settings"}
+              isActive={pathname === "/settings" || pathname.startsWith("/settings/")}
               icon={(active) => <SettingsIcon active={active} />}
             />
+          </li>
+
+          {/* More — opens secondary nav drawer */}
+          <li className="flex-1">
+            <button
+              type="button"
+              aria-haspopup="dialog"
+              aria-expanded={moreOpen}
+              aria-controls="more-nav-drawer"
+              onClick={() => setMoreOpen((o) => !o)}
+              className={`
+                flex flex-col items-center justify-center gap-1 h-full w-full text-[10px] font-medium
+                transition-colors min-h-11 min-w-11
+                focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-500 focus-visible:ring-inset
+                ${moreIsActive || moreOpen ? "text-green-400" : "text-gray-400 hover:text-gray-200"}
+              `}
+            >
+              <MoreIcon />
+              <span>More</span>
+            </button>
           </li>
         </ul>
       </nav>
     </>
-  );
-}
-
-interface NavLinkProps {
-  href: string;
-  label: string;
-  isActive: boolean;
-  icon: (active: boolean) => React.ReactNode;
-  isCreate?: boolean;
-}
-
-function NavLink({ href, label, isActive, icon, isCreate }: NavLinkProps) {
-  return (
-    <Link
-      href={href}
-      aria-current={isActive ? "page" : undefined}
-      className={`
-        flex flex-col items-center justify-center gap-1 h-full w-full text-[10px] font-medium
-        transition-colors min-h-11 min-w-11
-        focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-500 focus-visible:ring-inset
-        ${
-          isCreate
-            ? "text-green-400"
-            : isActive
-            ? "text-green-400"
-            : "text-gray-400 hover:text-gray-200"
-        }
-      `}
-    >
-      <span
-        className={`
-          flex items-center justify-center rounded-full transition-colors
-          ${isCreate ? "bg-green-700 text-white w-11 h-11 -mt-5 shadow-lg shadow-green-900/50" : ""}
-        `}
-      >
-        {icon(isActive)}
-      </span>
-      <span className={isCreate ? "mt-1" : ""}>{label}</span>
-    </Link>
   );
 }
