@@ -11,10 +11,16 @@ interface RouteErrorFallbackProps {
 
 export function RouteErrorFallback({
   title = "Something went wrong",
-  description = "The page hit an unexpected error. You can retry this view without reloading the whole app.",
+  description,
   error,
   onRetry,
 }: RouteErrorFallbackProps) {
+  // Fetch/network failures are commonly surfaced as TypeError by fetch; offer
+  // connection guidance for these while keeping application errors actionable.
+  const isNetworkError = error instanceof TypeError || /fetch|network|load failed|failed to load/i.test(error?.message ?? "");
+  const guidance = description ?? (isNetworkError
+    ? "Check your internet connection, then try again."
+    : "Something went wrong. Please try again, and report the issue if it continues.");
   useEffect(() => {
     if (error) {
       console.error("[RouteErrorFallback]", error);
@@ -28,7 +34,7 @@ export function RouteErrorFallback({
     >
       <p className="text-sm font-semibold uppercase tracking-[0.2em] text-red-300">Route error</p>
       <h2 className="mt-3 text-2xl font-semibold text-white">{title}</h2>
-      <p className="mt-3 text-sm text-gray-300">{description}</p>
+      <p className="mt-3 text-sm text-gray-300">{guidance}</p>
       {error?.message ? (
         <p className="mt-3 max-w-md break-all rounded-lg bg-black/20 px-3 py-2 font-mono text-xs text-red-200">
           {error.message}
