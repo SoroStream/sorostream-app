@@ -161,7 +161,9 @@
     "keyboard_shortcuts": "Atajos de teclado (?)",
     "open_keyboard_shortcuts": "Abrir ayuda de atajos de teclado",
     "shortcuts": "Atajos",
-    "analytics": "Analíticas"
+    "analytics": "Analíticas",
+    "stats": "Estadísticas",
+    "batch": "Lote"
   },
   "common": {
     "price_unavailable": "Precio no disponible",

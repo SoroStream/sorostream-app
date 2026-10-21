@@ -27,6 +27,8 @@ const NAV_LINKS = [
   { href: "/dashboard", key: "dashboard" },
   { href: "/analytics", key: "analytics" },
   { href: "/stream/new", key: "create" },
+  { href: "/stream/batch", key: "batch" },
+  { href: "/stats", key: "stats" },
   { href: "/activity", key: "activity" },
   { href: "/admin", key: "admin" },
   { href: "/archive", key: "archive" },
@@ -34,7 +36,7 @@ const NAV_LINKS = [
 ] as const;
 
 // Routes already reachable from BottomNav on mobile; omitted from the drawer.
-const BOTTOM_NAV_HREFS = ["/dashboard", "/stream/new", "/address-book", "/settings"];
+const BOTTOM_NAV_HREFS = ["/dashboard", "/stream/new", "/stream/batch", "/stats", "/analytics", "/activity", "/admin", "/archive", "/address-book", "/settings"];
 const DRAWER_LINKS = NAV_LINKS.filter((l) => !BOTTOM_NAV_HREFS.includes(l.href));
 
 /**
