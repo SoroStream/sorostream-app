@@ -29,7 +29,7 @@ interface StreamActionsProps {
 function Spinner() {
   return (
     <svg
-      className="animate-spin h-4 w-4 inline-block mr-1.5 align-middle"
+      className="animate-spin h-4 w-4 inline-block me-1.5 align-middle"
       xmlns="http://www.w3.org/2000/svg"
       fill="none"
       viewBox="0 0 24 24"
@@ -395,14 +395,14 @@ export default function StreamActions({
             <div
               role="menu"
               aria-label="Stream actions"
-              className="absolute right-0 top-full mt-2 w-44 rounded-lg border border-gray-700 bg-gray-800 py-1 shadow-xl z-40"
+              className="absolute end-0 top-full mt-2 w-44 rounded-lg border border-gray-700 bg-gray-800 py-1 shadow-xl z-40"
             >
               <button
                 type="button"
                 role="menuitem"
                 onClick={handleDuplicate}
                 disabled={!getMockStream(streamId)}
-                className="flex w-full items-center gap-2 px-4 py-2 text-left text-sm text-gray-200 hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:bg-gray-700"
+                className="flex w-full items-center gap-2 px-4 py-2 text-start text-sm text-gray-200 hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:bg-gray-700"
               >
                 <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                   <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />

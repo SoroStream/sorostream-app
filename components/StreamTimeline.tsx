@@ -62,7 +62,7 @@ export default function StreamTimeline({
           {/* Animated Fund Flow Streamer */}
           {!isInactive && (
             <div
-              className={`absolute top-0 bottom-0 left-0 right-0 pointer-events-none ${
+              className={`absolute top-0 bottom-0 start-0 end-0 pointer-events-none ${
                 isPaused ? "opacity-50" : "opacity-100"
               }`}
               style={{

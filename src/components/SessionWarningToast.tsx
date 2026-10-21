@@ -24,7 +24,7 @@ export function SessionWarningToast() {
       <div
         role="alert"
         aria-live="assertive"
-        className="fixed top-6 right-6 z-40 max-w-sm animate-slide-in-right"
+        className="fixed top-6 end-6 z-40 max-w-sm animate-slide-in-right"
       >
         <div className="bg-red-900/80 border border-red-700 rounded-lg shadow-lg p-4 backdrop-blur-sm">
           <div className="flex gap-3">
@@ -99,7 +99,7 @@ export function SessionWarningToast() {
     <div
       role="alert"
       aria-live="polite"
-      className="fixed top-6 right-6 z-40 max-w-sm animate-slide-in-right"
+      className="fixed top-6 end-6 z-40 max-w-sm animate-slide-in-right"
     >
       <div className="bg-amber-900/80 border border-amber-700 rounded-lg shadow-lg p-4 backdrop-blur-sm">
         <div className="flex gap-3">

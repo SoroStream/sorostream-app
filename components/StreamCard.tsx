@@ -425,7 +425,7 @@ function StreamCardInner({
               title={`Estimated time when this stream will be fully dripped (${formatTimeUntil(estimatedCompletion)})`}
             >
               {formatDateWithTimezone(estimatedCompletion)}
-              <span className="text-green-600 dark:text-green-400 ml-1">
+              <span className="text-green-600 dark:text-green-400 ms-1">
                 ({formatTimeUntil(estimatedCompletion)})
               </span>
             </span>

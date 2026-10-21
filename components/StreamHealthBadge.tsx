@@ -133,7 +133,7 @@ export default function StreamHealthBadge({
       {tooltipOpen && (
         <div
           role="tooltip"
-          className="absolute bottom-full left-0 mb-2 w-64 bg-gray-800 border border-gray-700 rounded-lg p-3 text-xs text-gray-300 leading-relaxed z-20 shadow-xl"
+          className="absolute bottom-full start-0 mb-2 w-64 bg-gray-800 border border-gray-700 rounded-lg p-3 text-xs text-gray-300 leading-relaxed z-20 shadow-xl"
         >
           <p className="font-medium text-white mb-1.5">Health Score Breakdown</p>
           <div className="space-y-1.5">

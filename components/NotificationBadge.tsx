@@ -17,7 +17,7 @@ export default function NotificationBadge({ count, label }: NotificationBadgePro
   const display = count > BADGE_CAP ? `${BADGE_CAP}+` : String(count);
   return (
     <span
-      className="ml-1 inline-flex min-w-[1.1rem] h-[1.1rem] items-center justify-center rounded-full bg-red-600 px-1 text-[10px] font-semibold leading-none text-white"
+      className="ms-1 inline-flex min-w-[1.1rem] h-[1.1rem] items-center justify-center rounded-full bg-red-600 px-1 text-[10px] font-semibold leading-none text-white"
       role="status"
       aria-label={`${count} unread ${label ?? "notification"}${count === 1 ? "" : "s"}`}
     >

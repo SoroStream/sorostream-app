@@ -58,7 +58,7 @@ export default function PortfolioSummaryCard({ streams, walletAddress }: Portfol
         {/* Outflow */}
         <button
           onClick={() => applyFilter("outflow")}
-          className="flex flex-col items-start p-3 rounded-lg bg-gray-700/50 hover:bg-red-900/20 border border-transparent hover:border-red-700/40 transition-colors text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500"
+          className="flex flex-col items-start p-3 rounded-lg bg-gray-700/50 hover:bg-red-900/20 border border-transparent hover:border-red-700/40 transition-colors text-start focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500"
           title="Click to filter outgoing streams"
         >
           <span className="text-xs text-gray-400 mb-1">Monthly Outflow</span>
@@ -70,7 +70,7 @@ export default function PortfolioSummaryCard({ streams, walletAddress }: Portfol
         {/* Inflow */}
         <button
           onClick={() => applyFilter("inflow")}
-          className="flex flex-col items-start p-3 rounded-lg bg-gray-700/50 hover:bg-green-900/20 border border-transparent hover:border-green-700/40 transition-colors text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-500"
+          className="flex flex-col items-start p-3 rounded-lg bg-gray-700/50 hover:bg-green-900/20 border border-transparent hover:border-green-700/40 transition-colors text-start focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-500"
           title="Click to filter incoming streams"
         >
           <span className="text-xs text-gray-400 mb-1">Monthly Inflow</span>
@@ -82,7 +82,7 @@ export default function PortfolioSummaryCard({ streams, walletAddress }: Portfol
         {/* Net */}
         <button
           onClick={() => applyFilter("net")}
-          className="flex flex-col items-start p-3 rounded-lg bg-gray-700/50 hover:bg-blue-900/20 border border-transparent hover:border-blue-700/40 transition-colors text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
+          className="flex flex-col items-start p-3 rounded-lg bg-gray-700/50 hover:bg-blue-900/20 border border-transparent hover:border-blue-700/40 transition-colors text-start focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
           title="Click to see net flow"
         >
           <span className="text-xs text-gray-400 mb-1">Net Monthly</span>

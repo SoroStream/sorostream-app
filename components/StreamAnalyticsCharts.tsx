@@ -167,7 +167,7 @@ export default function StreamAnalyticsCharts({
     <div className="space-y-6">
       {/* Date range selector */}
       <div className="flex items-center gap-2" role="group" aria-label="Date range filter">
-        <span className="text-xs text-gray-500 mr-1">Range:</span>
+        <span className="text-xs text-gray-500 me-1">Range:</span>
         {DATE_RANGE_OPTIONS.map((opt) => (
           <button
             key={opt.value}

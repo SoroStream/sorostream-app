@@ -26,6 +26,8 @@ export const PREFERRED_THEMES = ["light", "dark", "high-contrast", "system"] as 
 export type PreferredTheme = (typeof PREFERRED_THEMES)[number];
 
 export interface StreamPreferences {
+  rpcDegradedMs: number | null;
+  rpcUnreachableBannerSeconds: number | null;
   defaultToken: string;
   defaultDuration: number;
   defaultCliffDuration: number;
@@ -47,11 +49,17 @@ interface PreferencesContextValue extends StreamPreferences {
 }
 
 export const DEFAULT_PREFERENCES: StreamPreferences = {
+  rpcDegradedMs: null,
+  rpcUnreachableBannerSeconds: null,
   defaultToken: "",
   defaultDuration: 0,
   defaultCliffDuration: 0,
   preferredTheme: "system",
 };
+
+function positiveThreshold(value: unknown): number | null {
+  return typeof value === "number" && Number.isFinite(value) && value > 0 ? value : null;
+}
 
 const PreferencesContext = createContext<PreferencesContextValue | undefined>(undefined);
 
@@ -62,6 +70,8 @@ function loadPreferences(): StreamPreferences {
     if (!raw) return DEFAULT_PREFERENCES;
     const parsed = JSON.parse(raw) as Partial<StreamPreferences>;
     return {
+      rpcDegradedMs: positiveThreshold(parsed.rpcDegradedMs),
+      rpcUnreachableBannerSeconds: positiveThreshold(parsed.rpcUnreachableBannerSeconds),
       defaultToken: parsed.defaultToken ?? DEFAULT_PREFERENCES.defaultToken,
       defaultDuration: parsed.defaultDuration ?? DEFAULT_PREFERENCES.defaultDuration,
       defaultCliffDuration: parsed.defaultCliffDuration ?? DEFAULT_PREFERENCES.defaultCliffDuration,
@@ -125,7 +135,10 @@ export function PreferencesProvider({ children }: { children: ReactNode }) {
 
   const saveAll = useCallback((partial: Partial<StreamPreferences>) => {
     setPrefs((prev) => {
-      const next = { ...prev, ...partial };
+      const next = { ...prev, ...partial,
+        rpcDegradedMs: positiveThreshold(partial.rpcDegradedMs === undefined ? prev.rpcDegradedMs : partial.rpcDegradedMs),
+        rpcUnreachableBannerSeconds: positiveThreshold(partial.rpcUnreachableBannerSeconds === undefined ? prev.rpcUnreachableBannerSeconds : partial.rpcUnreachableBannerSeconds),
+      };
       persist(next);
       return next;
     });
@@ -168,4 +181,9 @@ export function usePreferences() {
   const ctx = useContext(PreferencesContext);
   if (!ctx) throw new Error("usePreferences must be used within PreferencesProvider");
   return ctx;
+}
+
+export function useRpcThresholdPreferences() {
+  const ctx = useContext(PreferencesContext);
+  return { rpcDegradedMs: ctx?.rpcDegradedMs ?? null, rpcUnreachableBannerSeconds: ctx?.rpcUnreachableBannerSeconds ?? null };
 }

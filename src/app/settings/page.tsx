@@ -17,6 +17,7 @@ import { useTheme } from "@/src/lib/theme";
 import TwoFactorSetup from "@/components/TwoFactorSetup";
 import DelegatesSection from "@/components/DelegatesSection";
 import { useWallet } from "@/src/context/WalletContext";
+import RpcThresholdSettings from "@/src/components/RpcThresholdSettings";
 import PerStreamNotificationSettings from "@/src/components/PerStreamNotificationSettings";
 
 function truncateAddress(address: string): string {
@@ -259,6 +260,8 @@ export default function SettingsPage() {
           </div>
         </div>
 
+        <RpcThresholdSettings />
+
         {/* Language Selection */}
         <div className="bg-gray-800 rounded-xl p-6 space-y-4 mb-8">
           <h2 className="text-lg font-semibold">{t("language_title")}</h2>
@@ -278,6 +281,8 @@ export default function SettingsPage() {
               <option value="en">{t("language_en")}</option>
               <option value="pt">{t("language_pt")}</option>
               <option value="es">{t("language_es")}</option>
+              <option value="ar">العربية</option>
+              <option value="he">עברית</option>
             </select>
           </div>
         </div>

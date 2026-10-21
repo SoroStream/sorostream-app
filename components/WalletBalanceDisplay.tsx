@@ -144,7 +144,7 @@ export default function WalletBalanceDisplay({
       </button>
 
       {showDropdown && otherBalances.length > 0 && (
-        <div className="absolute right-0 mt-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-lg shadow-lg p-3 z-50 min-w-48">
+        <div className="absolute end-0 mt-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-lg shadow-lg p-3 z-50 min-w-48">
           <div className="text-xs font-semibold text-gray-700 dark:text-gray-300 mb-2">
             {t("wallet_balance") || "Wallet Balance"}
           </div>

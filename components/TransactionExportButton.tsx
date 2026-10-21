@@ -130,7 +130,7 @@ export default function TransactionExportButton({
         {open && (
           <ul
             role="listbox"
-            className="absolute right-0 z-20 mt-1 w-32 rounded-lg border border-gray-700 bg-gray-800 py-1 shadow-lg"
+            className="absolute end-0 z-20 mt-1 w-32 rounded-lg border border-gray-700 bg-gray-800 py-1 shadow-lg"
           >
             {FORMATS.map((f) => (
               <li key={f.value} role="option" aria-selected={format === f.value}>
@@ -140,7 +140,7 @@ export default function TransactionExportButton({
                     setFormat(f.value);
                     setOpen(false);
                   }}
-                  className={`block w-full px-3 py-1.5 text-left text-sm hover:bg-gray-700 transition-colors ${
+                  className={`block w-full px-3 py-1.5 text-start text-sm hover:bg-gray-700 transition-colors ${
                     format === f.value ? "text-green-400" : "text-gray-200"
                   }`}
                 >

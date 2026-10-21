@@ -58,9 +58,9 @@ function Row({
           : "border-t border-gray-700"
       }
     >
-      <td className="py-2.5 pr-4 text-sm text-gray-400 whitespace-nowrap">{label}</td>
+      <td className="py-2.5 pe-4 text-sm text-gray-400 whitespace-nowrap">{label}</td>
       <td
-        className={`py-2.5 text-right font-mono text-sm font-medium ${
+        className={`py-2.5 text-end font-mono text-sm font-medium ${
           highlight ? "text-green-300" : "text-white"
         }`}
       >

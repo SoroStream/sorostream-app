@@ -97,7 +97,7 @@ export default function RpcHealthIndicator() {
         <div
           id={tooltipId}
           role="tooltip"
-          className="pointer-events-none absolute right-0 top-8 z-50 hidden group-hover:block group-focus-within:block min-w-max rounded-lg bg-gray-700 px-3 py-2 shadow-xl text-xs text-gray-100 space-y-0.5 border border-gray-600"
+          className="pointer-events-none absolute end-0 top-8 z-50 hidden group-hover:block group-focus-within:block min-w-max rounded-lg bg-gray-700 px-3 py-2 shadow-xl text-xs text-gray-100 space-y-0.5 border border-gray-600"
         >
           <p className="font-semibold text-white capitalize">{status}</p>
           {tooltipLines.map((line) => (

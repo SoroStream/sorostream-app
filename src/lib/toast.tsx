@@ -119,7 +119,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
     <ToastContext.Provider value={{ addToast, upsertPersistentToast, removeToast }}>
       {children}
       <div
-        className="fixed bottom-4 right-4 z-50 flex flex-col gap-2"
+        className="fixed bottom-4 end-4 z-50 flex flex-col gap-2"
         aria-live="polite"
         aria-atomic="false"
       >
@@ -151,7 +151,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
               </span>
               <button
                 onClick={() => removeToast(toast.id)}
-                className="text-white/70 hover:text-white ml-2 text-lg leading-none flex-shrink-0"
+                className="text-white/70 hover:text-white ms-2 text-lg leading-none flex-shrink-0"
                 aria-label="Dismiss notification"
               >
                 &times;

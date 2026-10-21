@@ -93,7 +93,7 @@ function isValidStreamId(id: string): boolean {
 function Spinner() {
   return (
     <svg
-      className="animate-spin h-4 w-4 inline-block mr-1.5 align-middle"
+      className="animate-spin h-4 w-4 inline-block me-1.5 align-middle"
       xmlns="http://www.w3.org/2000/svg"
       fill="none"
       viewBox="0 0 24 24"
@@ -1211,7 +1211,7 @@ export default function StreamDetail({ params }: { params: { id: string } }) {
                     addToast("Deep link copied to clipboard!", "success");
                     setShowShareMenu(false);
                   }}
-                  className="w-full text-left flex items-center gap-2 px-4 py-2 text-sm text-gray-200 hover:bg-gray-700 hover:text-white transition-colors"
+                  className="w-full text-start flex items-center gap-2 px-4 py-2 text-sm text-gray-200 hover:bg-gray-700 hover:text-white transition-colors"
                 >
                   <svg className="w-4 h-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                     <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
@@ -1226,7 +1226,7 @@ export default function StreamDetail({ params }: { params: { id: string } }) {
                     addToast("Read-only link copied to clipboard!", "success");
                     setShowShareMenu(false);
                   }}
-                  className="w-full text-left flex items-center gap-2 px-4 py-2 text-sm text-gray-200 hover:bg-gray-700 hover:text-white transition-colors"
+                  className="w-full text-start flex items-center gap-2 px-4 py-2 text-sm text-gray-200 hover:bg-gray-700 hover:text-white transition-colors"
                 >
                   <svg className="w-4 h-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                     <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
@@ -1412,7 +1412,7 @@ export default function StreamDetail({ params }: { params: { id: string } }) {
             >
               {formatUSDC(displayDeposit)} {stream.token}
               {isDepositOptimistic && (
-                <span className="ml-2 text-xs font-normal text-yellow-400/80 italic">
+                <span className="ms-2 text-xs font-normal text-yellow-400/80 italic">
                   (pending…)
                 </span>
               )}

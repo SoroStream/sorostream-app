@@ -120,7 +120,7 @@ export default function ArchivePage() {
               Clear filter
             </button>
           )}
-          <p className="text-xs text-gray-500 self-end ml-auto">
+          <p className="text-xs text-gray-500 self-end ms-auto">
             {filtered.length} stream{filtered.length !== 1 ? "s" : ""}
           </p>
         </div>
@@ -174,7 +174,7 @@ export default function ArchivePage() {
             <div className="hidden md:block overflow-x-auto rounded-xl border border-gray-700">
               <table className="w-full text-sm">
                 <thead>
-                  <tr className="bg-gray-800 text-gray-400 text-left">
+                  <tr className="bg-gray-800 text-gray-400 text-start">
                     <th className="px-4 py-3 font-medium">ID</th>
                     <th className="px-4 py-3 font-medium">Token</th>
                     <th className="px-4 py-3 font-medium">Sender</th>
