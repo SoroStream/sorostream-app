@@ -55,6 +55,25 @@ describe('useFocusTrap', () => {
 
     expect(document.activeElement).toBe(button);
   });
+
+  it('falls back to the document body when the previously focused element is removed', () => {
+    const trigger = document.createElement('button');
+    document.body.appendChild(trigger);
+    trigger.focus();
+    const focusSpy = vi.spyOn(trigger, 'focus');
+    const bodyFocusSpy = vi.spyOn(document.body, 'focus');
+    const ref = { current: container as HTMLDivElement | null };
+    const hook = renderHook(({ active }) => useFocusTrap(ref, active), {
+      initialProps: { active: true },
+    });
+
+    trigger.remove();
+    hook.rerender({ active: false });
+
+    expect(focusSpy).not.toHaveBeenCalled();
+    expect(bodyFocusSpy).toHaveBeenCalled();
+    expect(document.activeElement).toBe(document.body);
+  });
 });
 
 describe('getFocusableElements', () => {
