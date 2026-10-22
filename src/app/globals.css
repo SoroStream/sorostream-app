@@ -2,12 +2,357 @@
 @tailwind components;
 @tailwind utilities;
 
-:root {
-  --foreground-rgb: 15, 23, 42;
-  --background-rgb: 248, 250, 252;
+/*
+ * Colorblind-safe links (#633): inline text links must not rely on colour
+ * alone. Underline unstyled links and any link styled as a coloured text link.
+ */
+@layer base {
+  a:not([class]),
+  a[class*="hover:underline"],
+  a[class*="text-blue-"] {
+    text-decoration-line: underline;
+    text-underline-offset: 2px;
+  }
+}
+
+/*
+ * Theme tokens (#192). The app's components are authored against Tailwind's
+ * dark gray palette, so the dark theme is the default token set on :root. The
+ * `.light` class (set on <html> by ThemeProvider) remaps those tokens, and the
+ * utility overrides further down remap the most common gray utilities so the
+ * whole UI — modals, cards, tooltips, charts — follows the active theme.
+ */
+:root,
+.dark {
+  --foreground-rgb: 243, 244, 246;
+  --background-rgb: 17, 24, 39;
+
+  --color-bg: #111827; /* gray-900 */
+  --color-surface: #1f2937; /* gray-800 */
+  --color-surface-2: #374151; /* gray-700 */
+  --color-border: #374151; /* gray-700 */
+  --color-border-strong: #1f2937; /* gray-800 */
+  --color-text: #f3f4f6; /* gray-100 */
+  --color-text-muted: #9ca3af; /* gray-400 */
+  --color-text-subtle: #6b7280; /* gray-500 */
+}
+
+.light {
+  --foreground-rgb: 17, 24, 39;
+  --background-rgb: 249, 250, 251;
+
+  --color-bg: #f9fafb; /* gray-50 */
+  --color-surface: #ffffff; /* white */
+  --color-surface-2: #f3f4f6; /* gray-100 */
+  --color-border: #e5e7eb; /* gray-200 */
+  --color-border-strong: #d1d5db; /* gray-300 */
+  --color-text: #111827; /* gray-900 */
+  --color-text-muted: #4b5563; /* gray-600 */
+  --color-text-subtle: #6b7280; /* gray-500 */
+}
+
+/*
+ * High-contrast theme (#238). Increases text-to-background luminance
+ * ratio to ≥ 7:1 (WCAG AAA). Strips decorative gradients and strengthens
+ * focus outlines for users with low vision.
+ */
+.high-contrast {
+  --foreground-rgb: 255, 255, 255;
+  --background-rgb: 0, 0, 0;
+
+  --color-bg: #000000;
+  --color-surface: #1a1a1a;
+  --color-surface-2: #2a2a2a;
+  --color-border: #555555;
+  --color-border-strong: #777777;
+  --color-text: #ffffff;
+  --color-text-muted: #d1d5db; /* gray-300 — ≥7:1 on black */
+  --color-text-subtle: #9ca3af; /* gray-400 — ≥7:1 on black */
 }
 
 body {
-  color: rgb(var(--foreground-rgb));
-  background: rgb(var(--background-rgb));
+  transition: background 200ms ease-in-out, color 200ms ease-in-out;
+  /* Keep content clear of notches / rounded corners (requires viewport-fit=cover) */
+  padding-top: env(safe-area-inset-top, 0px);
+  padding-left: env(safe-area-inset-left, 0px);
+  padding-right: env(safe-area-inset-right, 0px);
+}
+
+/* Safe area bottom inset for iOS devices with home indicator */
+.safe-bottom {
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+/*
+ * Light-theme utility remaps. Selectors are scoped under `html.light` so they
+ * carry higher specificity than the base Tailwind utilities and win without
+ * `!important`. This lets existing components keep their gray-* classes while
+ * still responding to the theme toggle.
+ */
+.light .bg-gray-900,
+.light .bg-gray-900\/95,
+.light .bg-gray-900\/50 {
+  background-color: var(--color-bg);
+}
+.light .bg-gray-800,
+.light .bg-gray-800\/50 {
+  background-color: var(--color-surface);
+}
+.light .bg-gray-700,
+.light .bg-gray-700\/50 {
+  background-color: var(--color-surface-2);
+}
+.light .text-white {
+  color: var(--color-text);
+}
+.light .text-gray-300,
+.light .text-gray-200 {
+  color: var(--color-text-muted);
+}
+.light .text-gray-400,
+.light .text-gray-500 {
+  color: var(--color-text-subtle);
+}
+.light .border-gray-700,
+.light .border-gray-800 {
+  border-color: var(--color-border);
+}
+.light .placeholder-gray-500::placeholder {
+  color: var(--color-text-subtle);
+}
+.light .hover\:bg-gray-700:hover,
+.light .hover\:bg-gray-600:hover {
+  background-color: var(--color-surface-2);
+}
+.light .hover\:text-white:hover {
+  color: var(--color-text);
+}
+
+/*
+ * High-contrast utility remaps. Overrides the Tailwind gray palette used
+ * by existing components so every text element achieves ≥ 7:1 contrast
+ * on the high-contrast black background.
+ */
+.high-contrast .bg-gray-900,
+.high-contrast .bg-gray-900\/95,
+.high-contrast .bg-gray-900\/50 {
+  background-color: var(--color-bg);
+}
+.high-contrast .bg-gray-800,
+.high-contrast .bg-gray-800\/50 {
+  background-color: var(--color-surface);
+}
+.high-contrast .bg-gray-700,
+.high-contrast .bg-gray-700\/50 {
+  background-color: var(--color-surface-2);
+}
+.high-contrast .text-white {
+  color: var(--color-text);
+}
+.high-contrast .text-gray-300,
+.high-contrast .text-gray-200 {
+  color: var(--color-text-muted);
+}
+.high-contrast .text-gray-400,
+.high-contrast .text-gray-500 {
+  color: var(--color-text-subtle);
+}
+.high-contrast .border-gray-700,
+.high-contrast .border-gray-800 {
+  border-color: var(--color-border);
+}
+.high-contrast .placeholder-gray-500::placeholder {
+  color: var(--color-text-subtle);
+}
+.high-contrast .hover\:bg-gray-700:hover,
+.high-contrast .hover\:bg-gray-600:hover {
+  background-color: var(--color-surface-2);
+}
+.high-contrast .hover\:text-white:hover {
+  color: var(--color-text);
+}
+
+/*
+ * High-contrast focus styles: thicker outline for visibility.
+ */
+.high-contrast :focus-visible {
+  outline-width: 3px;
+  outline-color: #22c55e;
+}
+
+/*
+ * Accessibility: ensure browser-default focus outline is never silently hidden.
+ * Components use focus-visible:ring-* for styled rings; this rule is a safety
+ * net for any element that escapes the component-level styles.
+ */
+:focus-visible {
+  outline: 2px solid #22c55e; /* green-500 */
+  outline-offset: 2px;
+}
+
+/*
+ * Skip-to-content link: visually hidden by default, visible when focused.
+ * Must be the first focusable element in the document for keyboard users.
+ */
+.skip-link {
+  position: absolute;
+  top: -100%;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 9999;
+  background-color: #16a34a;
+  color: #ffffff;
+  padding: 0.75rem 1.5rem;
+  border-radius: 0 0 0.5rem 0.5rem;
+  font-weight: 600;
+  font-size: 0.875rem;
+  text-decoration: none;
+  transition: top 0.15s ease-in-out;
+}
+
+.skip-link:focus {
+  top: 0;
+  outline: 2px solid #ffffff;
+  outline-offset: 2px;
+}
+
+@keyframes slide-up {
+  from {
+    opacity: 0;
+    transform: translateY(1rem);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-slide-up {
+  animation: slide-up 0.3s ease-out;
+}
+
+@keyframes fade-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+.animate-fade-in {
+  animation: fade-in 0.3s ease-out;
+}
+
+@keyframes stream-success-in {
+  from { opacity: 0; transform: scale(0.8); }
+  to   { opacity: 1; transform: scale(1); }
+}
+
+@keyframes stream-success-out {
+  from { opacity: 1; transform: scale(1); }
+  to   { opacity: 0; transform: scale(0.9); }
+}
+
+.animate-stream-success-in {
+  animation: stream-success-in 0.35s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+}
+
+.animate-stream-success-out {
+  animation: stream-success-out 0.3s ease-in forwards;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-fade-in,
+  .animate-stream-success-in,
+  .animate-stream-success-out {
+    animation: none;
+    opacity: 1;
+  }
+}
+
+/* Always-visible horizontal scrollbar for wide tables/lists (#611). */
+.history-scroll {
+  scrollbar-width: auto;
+  scrollbar-color: #4b5563 #1f2937;
+}
+.history-scroll::-webkit-scrollbar {
+  height: 10px;
+}
+.history-scroll::-webkit-scrollbar-track {
+  background: #1f2937;
+  border-radius: 9999px;
+}
+.history-scroll::-webkit-scrollbar-thumb {
+  background: #4b5563;
+  border-radius: 9999px;
+}
+
+/*
+ * Mobile accessibility: Ensure minimum 44px tap targets (#638).
+ * Interactive elements should have at least 44x44px of clickable area
+ * on mobile devices per WCAG 2.5.5 level AAA guidelines.
+ * Applied to buttons, links, and other interactive elements.
+ */
+@media (max-width: 768px) {
+  /* Ensure buttons and interactive elements have minimum 44px touch target */
+  button,
+  a[href],
+  [role="button"],
+  [role="link"],
+  [role="option"],
+  [role="menuitem"],
+  input[type="checkbox"],
+  input[type="radio"],
+  select {
+    min-height: 2.75rem; /* 44px */
+    min-width: 2.75rem; /* 44px */
+  }
+
+  /* Icons/small elements should still allow pointer interaction */
+  svg {
+    pointer-events: none;
+  }
+}
+
+/*
+ * Landscape orientation on mobile (#635).
+ * Fixes layout issues in landscape mode on mobile devices by:
+ * 1. Reducing bottom padding/nav height to preserve vertical space
+ * 2. Making modals scrollable if they exceed viewport height
+ * 3. Adjusting fixed nav positioning
+ */
+@media (max-height: 500px) and (orientation: landscape) {
+  /* Reduce spacing for landscape mode to preserve vertical space */
+  .pb-24 {
+    padding-bottom: 1rem; /* Reduce from 6rem */
+  }
+
+  /* Make bottom nav less obtrusive in landscape */
+  nav[aria-label="Mobile navigation"] {
+    height: 3.5rem; /* Reduce from 4rem (64px) to 56px */
+  }
+
+  nav[aria-label="Mobile navigation"] ul {
+    height: 3.5rem;
+  }
+
+  /* Spacer should match new nav height */
+  nav[aria-label="Mobile navigation"] + div,
+  .md\:hidden + div {
+    height: 3.5rem;
+  }
+
+  /* Reduce padding on pages in landscape */
+  main > div[class*="space-y"] > div:first-child {
+    padding-top: 0.5rem;
+  }
+
+  /* Make modals scrollable in landscape to prevent overflow */
+  [role="dialog"],
+  [class*="modal"] {
+    max-height: calc(100vh - 2rem);
+    overflow-y: auto;
+  }
+
+  /* Adjust main content max-height for modals like GlobalSearch */
+  .fixed.inset-0 .max-h-\[70vh\] {
+    max-height: calc(100vh - 2rem);
+  }
 }

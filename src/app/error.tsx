@@ -1,5 +1,7 @@
 "use client";
 
+import { RouteErrorFallback } from "@/components/RouteErrorFallback";
+
 export default function GlobalError({
   error,
   reset,
@@ -9,15 +11,13 @@ export default function GlobalError({
 }) {
   return (
     <html>
-      <body className="flex min-h-screen flex-col items-center justify-center bg-slate-50 p-6 text-center">
-        <h2 className="text-2xl font-bold text-slate-900 mb-2">Something went wrong</h2>
-        <p className="text-slate-500 mb-6 max-w-md">{error.message}</p>
-        <button
-          onClick={reset}
-          className="rounded-lg bg-sky-600 px-5 py-2 font-medium text-white hover:bg-sky-700 transition-colors"
-        >
-          Try again
-        </button>
+      <body className="flex min-h-screen flex-col items-center justify-center bg-gray-900 p-6 text-center">
+        <RouteErrorFallback
+          title="Something went wrong"
+          description="The app hit an unexpected error. You can retry this view without reloading the browser."
+          error={error}
+          onRetry={reset}
+        />
       </body>
     </html>
   );
