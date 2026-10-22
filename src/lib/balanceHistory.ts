@@ -1,6 +1,20 @@
 /**
  * IndexedDB utility for storing and retrieving balance history snapshots
  *
+ * ## Status: DEAD CODE — zero production callers
+ *
+ * This module has **no production callers**. No component or page in the app
+ * imports it. It is retained pending the dead-code removal/consolidation
+ * decision tracked in issue #775.
+ *
+ * The dashboard's portfolio chart is powered by `src/lib/balanceCache.ts`,
+ * not this module. New balance-related UI work should build on
+ * `balanceCache.ts`. See the header of that file for the full explanation.
+ *
+ * > **Cleanup note:** If this file is deleted, remove the "balanceCache vs.
+ * > balanceHistory" section and the status note from `balanceCache.ts`'s
+ * > header so the cross-reference stays in sync.
+ *
  * ## Purpose
  * This store holds aggregate portfolio history: total balance, token balances,
  * and stream count. Callers use it for period changes and filters such as
