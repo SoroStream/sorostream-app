@@ -1,0 +1,8 @@
+{
+  "extends": "../tsconfig.json",
+  "compilerOptions": {
+    "jsx": "react-jsx"
+  },
+  "include": ["../components/**/*.stories.tsx", "../components/**/*.stories.ts", "./*.ts", "./*.tsx"],
+  "exclude": ["../node_modules", "../storybook-static"]
+}

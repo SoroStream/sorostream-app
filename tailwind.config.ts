@@ -1,6 +1,7 @@
 import type { Config } from "tailwindcss";
 
 const config: Config = {
+  darkMode: "class",
   content: [
     "./src/pages/**/*.{js,ts,jsx,tsx,mdx}",
     "./src/components/**/*.{js,ts,jsx,tsx,mdx}",
@@ -16,6 +17,9 @@ const config: Config = {
           600: "#0284c7",
           900: "#0c4a6e",
         },
+      },
+      screens: {
+        "landscape": { "raw": "(max-height: 500px) and (orientation: landscape)" },
       },
     },
   },
