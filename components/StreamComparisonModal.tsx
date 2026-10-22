@@ -347,8 +347,8 @@ export default function StreamComparisonModal({
 
                     <ComparisonRow
                       label={t("compare_amount")}
-                      current={formatStellarAmount(currentStream.deposit)}
-                      compared={formatStellarAmount(selectedStream.deposit)}
+                      current={`${formatStellarAmount(currentStream.deposit)} ${currentStream.token}`}
+                      compared={`${formatStellarAmount(selectedStream.deposit)} ${selectedStream.token}`}
                       highlighted={getDifference(
                         currentStream.deposit,
                         selectedStream.deposit
@@ -378,12 +378,12 @@ export default function StreamComparisonModal({
                       label={t("compare_flow_rate")}
                       current={
                         <div className="text-sm">
-                          {formatStellarAmount(currentStream.flowRate)} / sec
+                          {formatStellarAmount(currentStream.flowRate)} {currentStream.token} / sec
                         </div>
                       }
                       compared={
                         <div className="text-sm">
-                          {formatStellarAmount(selectedStream.flowRate)} / sec
+                          {formatStellarAmount(selectedStream.flowRate)} {selectedStream.token} / sec
                         </div>
                       }
                       highlighted={getDifference(

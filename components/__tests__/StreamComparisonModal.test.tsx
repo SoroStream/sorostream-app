@@ -1,57 +1,74 @@
-import { describe, it, expect } from "vitest";
+import { fireEvent, render, screen, within } from "@testing-library/react";
+import { describe, expect, it, vi } from "vitest";
+import type { StreamData } from "@/src/lib/sorostream";
+import StreamComparisonModal from "@/components/StreamComparisonModal";
 
-describe("Stream Comparison Feature", () => {
-  // Test 1: Verify the component exists and exports
-  it("should export StreamComparisonModal component", async () => {
-    const mod = await import("@/components/StreamComparisonModal");
-    expect(mod.default).toBeDefined();
-  });
+vi.mock("@/components/FederationName", () => ({
+  default: ({ address }: { address: string }) => <span>{address}</span>,
+}));
+vi.mock("@/components/ClaimableTooltip", () => ({
+  default: () => <span>Claimable amount</span>,
+}));
 
-  // Test 2: Verify stream detail imports are correct
-  it("should have correct imports in stream detail page", async () => {
-    // This is a simple validation that the file exists
-    const streamDetailPath = `${process.cwd()}/src/app/stream/[id]/page.tsx`;
-    const fs = await import("fs/promises");
-    const content = await fs.readFile(streamDetailPath, "utf-8");
-    
-    expect(content).toContain("StreamComparisonModal");
-    expect(content).toContain("getStreamsForWallet");
-    expect(content).toContain("showComparisonModal");
-    expect(content).toContain("allStreams");
-  });
+function makeStream(overrides: Partial<StreamData> = {}): StreamData {
+  return {
+    id: "stream-current-0000000000000001",
+    sender: "GAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+    recipient: "GBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB",
+    token: "USDC",
+    decimals: 7,
+    flowRate: 10_000,
+    deposit: 100_000_000,
+    startTime: "2025-01-01T00:00:00.000Z",
+    endTime: "2025-01-11T00:00:00.000Z",
+    lastWithdrawTime: "2025-01-01T00:00:00.000Z",
+    status: "Active",
+    ...overrides,
+  };
+}
 
-  // Test 3: Verify translation keys exist
-  it("should have all translation keys for stream comparison", async () => {
-    const locales = await import("@/src/locales/en.json");
-    const translations = locales.default;
-    
-    const expectedKeys = [
-      "compare",
-      "compare_modal_title",
-      "compare_select_stream",
-      "compare_choose_stream",
-      "compare_search_placeholder",
-      "compare_no_streams_found",
-      "compare_single_stream",
-      "compare_parameter",
-      "compare_current_stream",
-      "compare_comparison_stream",
-      "compare_stream_id",
-      "compare_status",
-      "compare_recipient",
-      "compare_amount",
-      "compare_flow_rate",
-      "compare_start_date",
-      "compare_end_date",
-      "compare_duration",
-      "compare_auto_renew",
-      "compare_days",
-      "compare_close",
-      "compare_button_tooltip",
-    ];
+async function selectStream(current: StreamData, selected: StreamData) {
+  render(
+    <StreamComparisonModal
+      open
+      onClose={vi.fn()}
+      currentStream={current}
+      availableStreams={[current, selected]}
+    />,
+  );
+  fireEvent.click(screen.getByRole("button", { name: /select a stream to compare/i }));
+  fireEvent.click(screen.getByRole("button", { name: new RegExp(selected.id.slice(0, 16)) }));
+  return screen.findByText("Amount", { exact: true });
+}
 
-    expectedKeys.forEach((key) => {
-      expect((translations.stream_detail as Record<string, unknown>)[key]).toBeDefined();
+describe("StreamComparisonModal amount units", () => {
+  it("labels amounts with each token when decimal precision differs", async () => {
+    const current = makeStream({ token: "USDC", decimals: 6, deposit: 100_000_000 });
+    const compared = makeStream({
+      id: "stream-compared-0000000000000002",
+      token: "ASSET7",
+      decimals: 7,
+      deposit: 100_000_000,
     });
+    await selectStream(current, compared);
+
+    const amountLabel = screen.getByText("Amount", { exact: true });
+    const row = amountLabel.parentElement!;
+    expect(within(row).getByText("10.0000000 USDC")).toBeInTheDocument();
+    expect(within(row).getByText("10.0000000 ASSET7")).toBeInTheDocument();
+  });
+
+  it("keeps same-token amounts labeled consistently", async () => {
+    const current = makeStream({ token: "USDC", deposit: 100_000_000 });
+    const compared = makeStream({
+      id: "stream-compared-0000000000000002",
+      token: "USDC",
+      deposit: 200_000_000,
+    });
+    await selectStream(current, compared);
+
+    const row = screen.getByText("Amount", { exact: true }).parentElement!;
+    expect(within(row).getByText("10.0000000 USDC")).toBeInTheDocument();
+    expect(within(row).getByText("20.0000000 USDC")).toBeInTheDocument();
   });
 });

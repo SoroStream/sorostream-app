@@ -65,7 +65,7 @@
     "compare_stream_id": "Stream ID",
     "compare_status": "Status",
     "compare_recipient": "Recipient",
-    "compare_amount": "Amount (USDC)",
+    "compare_amount": "Amount",
     "compare_claimable": "Claimable",
     "compare_flow_rate": "Flow Rate",
     "compare_start_date": "Start Date",
