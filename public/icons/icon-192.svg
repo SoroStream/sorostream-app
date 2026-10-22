@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 192 192" width="192" height="192">
+  <!-- Background circle -->
+  <rect width="192" height="192" rx="40" fill="#111827"/>
+  <!-- Outer ring -->
+  <circle cx="96" cy="96" r="80" fill="none" stroke="#16a34a" stroke-width="6"/>
+  <!-- Stream flow arcs — three arcs suggesting continuous streaming -->
+  <path d="M 56 96 Q 56 60 96 56" stroke="#16a34a" stroke-width="7" fill="none" stroke-linecap="round"/>
+  <path d="M 56 96 Q 56 132 96 136" stroke="#22c55e" stroke-width="7" fill="none" stroke-linecap="round"/>
+  <path d="M 96 56 Q 136 56 136 96" stroke="#16a34a" stroke-width="7" fill="none" stroke-linecap="round"/>
+  <path d="M 96 136 Q 136 136 136 96" stroke="#22c55e" stroke-width="7" fill="none" stroke-linecap="round"/>
+  <!-- "S" letterform -->
+  <text x="96" y="116" font-family="system-ui, -apple-system, sans-serif" font-size="72" font-weight="700" fill="#4ade80" text-anchor="middle">S</text>
+</svg>

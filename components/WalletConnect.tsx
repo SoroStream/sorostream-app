@@ -1,72 +1,476 @@
 "use client";
 
-import { useState } from "react";
-import { getFreighterAdapter } from "@/src/lib/freighter";
+import { useState, useEffect, useCallback, useRef } from "react";
+import {
+  WalletType,
+  WalletAdapter,
+  WALLET_LABELS,
+  freighterAdapter,
+  ledgerAdapter,
+  isWebUsbSupported,
+  ServerKeypairAdapter,
+} from "@/src/lib/wallets";
+import { useTranslations } from "@/src/lib/i18n";
+import { useFocusTrap } from "@/src/lib/useFocusTrap";
+import CopyButton from "@/components/CopyButton";
+import { trackEvent } from "@/src/lib/analytics";
+import { useWallet } from "@/src/context/WalletContext";
+import FreighterInstallPrompt from "@/components/FreighterInstallPrompt";
+import { isFreighterInstalled } from "@/src/lib/freighter";
 
 interface WalletConnectProps {
-  onConnect?: (publicKey: string) => void;
+  onConnect?: (publicKey: string, walletType: WalletType) => void;
+  /** When true, the disconnected state renders as a compact dropdown button (for use in the nav header). */
+  compact?: boolean;
 }
 
+const WALLET_TYPES: WalletType[] = ["freighter", "ledger", "server-keypair"];
+
 /**
- * Freighter wallet connect/disconnect button.
- * Shows a truncated public key when connected.
+ * Multi-wallet connect button.
+ * Supports Freighter, Ledger, and Server Keypair adapters.
+ *
+ * The displayed address is driven by WalletContext so it automatically updates
+ * when the user switches accounts inside Freighter (handled by the context
+ * watcher) — no page reload required.
  */
-export default function WalletConnect({ onConnect }: WalletConnectProps) {
-  const [publicKey, setPublicKey] = useState<string | null>(null);
+export default function WalletConnect({ onConnect, compact = false }: WalletConnectProps) {
+  const t = useTranslations("wallet");
+  const tCommon = useTranslations("common");
+  const {
+    address: contextAddress,
+    connect: contextConnect,
+    connectWithAddress: contextConnectWithAddress,
+    disconnect: contextDisconnect,
+    activeStreamCount,
+  } = useWallet();
+
+  const [walletType, setWalletType] = useState<WalletType>("freighter");
+  const [secretInput, setSecretInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [adapter, setAdapter] = useState<WalletAdapter | null>(null);
+  const [dropdownOpen, setDropdownOpen] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+  /** When true, shows a warning before disconnecting while streams are active. */
+  const [showDisconnectConfirm, setShowDisconnectConfirm] = useState(false);
+  /** Whether the browser exposes WebUSB (required for Ledger). Checked after mount to stay SSR-safe. */
+  const [usbSupported, setUsbSupported] = useState(false);
+  useEffect(() => {
+    setUsbSupported(isWebUsbSupported());
+  }, []);
+
+  // Ref for disconnect confirmation modal focus trapping
+  const disconnectModalRef = useRef<HTMLDivElement>(null);
+  useFocusTrap(disconnectModalRef, showDisconnectConfirm, () => setShowDisconnectConfirm(false));
+
+  // ── Freighter extension detection ──────────────────────────────────────
+  // Start as `null` (unknown) so we don't flash the install prompt during SSR
+  // or before the first check completes. Once determined, it stays stable
+  // unless the user installs the extension while the page is open (we poll
+  // every 2 s for that case).
+  const [freighterPresent, setFreighterPresent] = useState<boolean | null>(null);
+  const freighterCheckRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function check() {
+      const present = await isFreighterInstalled();
+      if (!cancelled) {
+        setFreighterPresent(present);
+        // Once installed, stop polling — no need to keep checking.
+        if (present && freighterCheckRef.current !== null) {
+          clearInterval(freighterCheckRef.current);
+          freighterCheckRef.current = null;
+        }
+      }
+    }
+
+    // Run immediately, then poll every 2 s so the CTA swaps as soon as the
+    // user finishes the extension install without requiring a manual refresh.
+    check();
+    freighterCheckRef.current = setInterval(check, 2000);
+
+    return () => {
+      cancelled = true;
+      if (freighterCheckRef.current !== null) {
+        clearInterval(freighterCheckRef.current);
+        freighterCheckRef.current = null;
+      }
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!dropdownOpen) return;
+    function handleClickOutside(e: MouseEvent) {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
+        setDropdownOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [dropdownOpen]);
+
+  // "w" keyboard shortcut (GlobalShortcuts) opens the connect dropdown
+  useEffect(() => {
+    const open = () => setDropdownOpen(true);
+    window.addEventListener("sorostream:open-wallet", open);
+    return () => window.removeEventListener("sorostream:open-wallet", open);
+  }, []);
+
+  /**
+   * Keep local adapter state aligned with the context address.
+   * When the context detects an account switch (via WatchWalletChanges) and
+   * contextAddress changes, this fires onConnect so consumers stay in sync.
+   */
+  useEffect(() => {
+    if (contextAddress && adapter) {
+      onConnect?.(contextAddress, walletType);
+    }
+  // We intentionally only react to contextAddress changes here, not every
+  // render of the other deps.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [contextAddress]);
+
+  const handleDisconnect = useCallback(() => {
+    adapter?.disconnect();
+    setAdapter(null);
+    setSecretInput("");
+    setShowDisconnectConfirm(false);
+    contextDisconnect();
+    localStorage.removeItem("sorostream_wallet_connected");
+    localStorage.removeItem("sorostream_wallet_type");
+    localStorage.removeItem("sorostream_wallet_secret");
+  }, [adapter, contextDisconnect]);
+
+  const handleDisconnectClick = useCallback(() => {
+    if (activeStreamCount > 0) {
+      setShowDisconnectConfirm(true);
+    } else {
+      handleDisconnect();
+    }
+  }, [activeStreamCount, handleDisconnect]);
+
+  useEffect(() => {
+    async function autoReconnect() {
+      const isConnected = localStorage.getItem("sorostream_wallet_connected");
+      if (isConnected !== "true") return;
+
+      const storedType = localStorage.getItem("sorostream_wallet_type") as WalletType;
+      if (!storedType) return;
+
+      try {
+        let selected: WalletAdapter;
+        if (storedType === "freighter") {
+          selected = freighterAdapter;
+        } else if (storedType === "ledger") {
+          // Ledger needs a user gesture to open the USB transport — the user
+          // reconnects manually via "Connect via USB".
+          return;
+        } else if (storedType === "server-keypair") {
+          const secret = localStorage.getItem("sorostream_wallet_secret") || "";
+          selected = new ServerKeypairAdapter(secret);
+          setSecretInput(secret);
+        } else {
+          return;
+        }
+
+        const available = await selected.isAvailable();
+        if (!available) {
+          handleDisconnect();
+          return;
+        }
+
+        const key = await selected.getPublicKey();
+        if (key) {
+          setWalletType(storedType);
+          setAdapter(selected);
+          // Sync to context so the watcher takes over from here
+          await contextConnect();
+          onConnect?.(key, storedType);
+        } else {
+          handleDisconnect();
+        }
+      } catch (err) {
+        console.error("Auto-reconnect failed:", err);
+        handleDisconnect();
+      }
+    }
+
+    autoReconnect();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   async function handleConnect() {
     setLoading(true);
     setError(null);
     try {
-      const adapter = await getFreighterAdapter();
-      const connected = await adapter.isConnected();
-      if (!connected) {
-        setError("Freighter extension not found. Please install it.");
+      let selected: WalletAdapter;
+      if (walletType === "freighter") selected = freighterAdapter;
+      else if (walletType === "ledger") selected = ledgerAdapter;
+      else selected = new ServerKeypairAdapter(secretInput);
+
+      const available = await selected.isAvailable();
+      if (!available) {
+        setError(
+          walletType === "freighter"
+            ? t("error_freighter")
+            : walletType === "ledger"
+            ? t("error_ledger")
+            : t("error_server_keypair")
+        );
         return;
       }
-      const key = await adapter.getPublicKey();
-      setPublicKey(key);
-      onConnect?.(key);
+
+      setAdapter(selected);
+
+      let key: string | null;
+      if (walletType === "ledger") {
+        // Read the Stellar public key from the device over WebUSB.
+        key = await selected.getPublicKey();
+        if (key) contextConnectWithAddress(key, "ledger");
+      } else {
+        // Delegate the actual address retrieval + context update to WalletContext
+        key = await contextConnect();
+      }
+
+      if (key) {
+        localStorage.setItem("sorostream_wallet_connected", "true");
+        localStorage.setItem("sorostream_wallet_type", walletType);
+        if (walletType === "server-keypair") {
+          localStorage.setItem("sorostream_wallet_secret", secretInput);
+        } else {
+          localStorage.removeItem("sorostream_wallet_secret");
+        }
+        onConnect?.(key, walletType);
+        trackEvent({ type: "wallet_connect", success: true });
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Connection failed");
+      trackEvent({ type: "wallet_connect", success: false });
     } finally {
       setLoading(false);
     }
   }
 
-  function handleDisconnect() {
-    setPublicKey(null);
-  }
+  // Derive displayed key from context (stays current after account switches)
+  const publicKey = contextAddress;
 
-  if (publicKey) {
+  const connectLabel =
+    walletType === "ledger" && usbSupported
+      ? t("connect_usb")
+      : t("connect", { wallet: WALLET_LABELS[walletType] });
+
+  const ledgerUnsupportedHint =
+    walletType === "ledger" && !usbSupported ? (
+      <p className="text-xs text-amber-500" role="note">
+        {t("ledger_webusb_unsupported")}
+      </p>
+    ) : null;
+
+  // Compact mode: disconnected state renders as a dropdown button for use in the nav header
+  if (compact && !publicKey) {
+    // Show install prompt while we know Freighter is absent.
+    // While still checking (null) we render the normal Connect button so there
+    // is no flash of the install prompt on first paint.
+    if (freighterPresent === false) {
+      return (
+        <FreighterInstallPrompt compact />
+      );
+    }
+
     return (
-      <div className="flex items-center gap-3">
-        <span className="text-sm text-slate-600 font-mono">
-          {publicKey.slice(0, 4)}…{publicKey.slice(-4)}
-        </span>
+      <div className="relative" ref={dropdownRef}>
         <button
-          onClick={handleDisconnect}
-          className="rounded-lg border border-slate-300 px-3 py-1.5 text-sm text-slate-700 hover:bg-slate-100 transition-colors"
+          onClick={() => setDropdownOpen((o) => !o)}
+          className="rounded-lg bg-sky-600 dark:bg-sky-700 px-3 py-1.5 text-sm font-medium text-white hover:bg-sky-700 dark:hover:bg-sky-800 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-500 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-900 dark:focus-visible:ring-offset-gray-900"
+          aria-expanded={dropdownOpen}
+          aria-haspopup="true"
+          aria-label="Connect wallet"
         >
-          Disconnect
+          Connect
         </button>
+        {dropdownOpen && (
+          <div className="absolute right-0 top-full mt-2 w-72 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-4 z-50 shadow-xl">
+            <div className="space-y-2">
+              <div className="flex gap-2">
+                {WALLET_TYPES.map((w) => (
+                  <button
+                    key={w}
+                    onClick={() => setWalletType(w)}
+                    aria-pressed={walletType === w}
+                    className={`rounded-lg px-3 py-1.5 text-xs font-medium border transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-500 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-900 dark:focus-visible:ring-offset-gray-900 ${
+                      walletType === w
+                        ? "bg-sky-600 dark:bg-sky-700 text-white border-sky-600 dark:border-sky-700"
+                        : "border-gray-300 dark:border-slate-500 text-gray-700 dark:text-slate-300 hover:bg-gray-100 dark:hover:bg-slate-700"
+                    }`}
+                  >
+                    {WALLET_LABELS[w]}
+                  </button>
+                ))}
+              </div>
+              {walletType === "server-keypair" && (
+                <input
+                  type="password"
+                  placeholder={t("secret_placeholder")}
+                  value={secretInput}
+                  onChange={(e) => setSecretInput(e.target.value)}
+                  className="w-full rounded-lg border border-gray-300 dark:border-slate-500 bg-gray-100 dark:bg-gray-900 px-3 py-2 text-sm text-gray-900 dark:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-500 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-900 dark:focus-visible:ring-offset-gray-900"
+                  aria-label="Server keypair secret key"
+                />
+              )}
+              {ledgerUnsupportedHint}
+              <button
+                onClick={async () => { await handleConnect(); setDropdownOpen(false); }}
+                disabled={loading || (walletType === "ledger" && !usbSupported)}
+                className="w-full rounded-lg bg-sky-600 dark:bg-sky-700 px-4 py-2 text-sm font-medium text-white hover:bg-sky-700 dark:hover:bg-sky-800 disabled:opacity-50 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-500"
+                aria-label={walletType === "ledger" ? "Connect Ledger wallet via USB" : `Connect ${WALLET_LABELS[walletType]} wallet`}
+              >
+                {loading ? t("connecting") : connectLabel}
+              </button>
+              {error && (
+                <p className="text-xs text-red-400" role="alert">{error}</p>
+              )}
+            </div>
+          </div>
+        )}
       </div>
     );
   }
 
+  if (publicKey) {
+    return (
+      <div className="flex items-center gap-2 min-w-0 overflow-hidden">
+        <span
+          className="text-sm text-slate-300 font-mono flex items-center min-w-0"
+          aria-label={`Connected wallet: ${publicKey}`}
+        >
+          {publicKey.slice(0, 4)}…{publicKey.slice(-4)}
+          <CopyButton value={publicKey} label="Copy wallet address" />
+        </span>
+        <button
+          onClick={handleDisconnectClick}
+          className="shrink-0 rounded-lg border border-slate-500 px-3 py-1.5 text-sm text-slate-200 hover:bg-slate-700 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-500 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-900"
+          aria-label="Disconnect wallet"
+        >
+          {t("disconnect")}
+        </button>
+
+        {showDisconnectConfirm && (
+          <div
+            className="fixed inset-0 bg-black/70 flex items-center justify-center z-[60] p-4"
+            onClick={(e) => {
+              if (e.target === e.currentTarget) setShowDisconnectConfirm(false);
+            }}
+          >
+            <div
+              ref={disconnectModalRef}
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="disconnect-confirm-title"
+              className="bg-gray-800 rounded-xl shadow-2xl max-w-sm w-full border border-amber-700"
+            >
+              <div className="p-6 space-y-4">
+                <h2
+                  id="disconnect-confirm-title"
+                  className="text-lg font-semibold text-white flex items-center gap-2"
+                >
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    width="20"
+                    height="20"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    className="text-amber-400"
+                    aria-hidden="true"
+                  >
+                    <path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
+                    <line x1="12" y1="9" x2="12" y2="13" />
+                    <line x1="12" y1="17" x2="12.01" y2="17" />
+                  </svg>
+                  Disconnect wallet?
+                </h2>
+                <p className="text-sm text-gray-300">
+                  {tCommon(activeStreamCount === 1 ? "active_stream_singular" : "active_stream_plural", { count: String(activeStreamCount) })}
+                </p>
+                <div className="flex gap-3 pt-2">
+                  <button
+                    onClick={() => setShowDisconnectConfirm(false)}
+                    className="flex-1 border border-gray-600 text-gray-300 py-2 rounded-lg text-sm hover:bg-gray-700 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-500"
+                  >
+                    Keep Connected
+                  </button>
+                  <button
+                    onClick={handleDisconnect}
+                    className="flex-1 bg-red-700 text-white py-2 rounded-lg text-sm font-medium hover:bg-red-800 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500"
+                  >
+                    Disconnect
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  // Full (non-compact) disconnected state — show install prompt when Freighter is absent.
+  if (freighterPresent === false) {
+    return <FreighterInstallPrompt />;
+  }
+
   return (
-    <div>
+    <div className="space-y-2">
+      <div className="flex gap-2">
+        {WALLET_TYPES.map((w) => (
+          <button
+            key={w}
+            onClick={() => setWalletType(w)}
+            aria-pressed={walletType === w}
+            className={`rounded-lg px-3 py-1.5 text-xs font-medium border transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-500 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-900 ${
+              walletType === w
+                ? "bg-sky-700 text-white border-sky-700"
+                : "border-slate-500 text-slate-300 hover:bg-slate-700"
+            }`}
+          >
+            {WALLET_LABELS[w]}
+          </button>
+        ))}
+      </div>
+
+      {walletType === "server-keypair" && (
+        <input
+          type="password"
+          placeholder={t("secret_placeholder")}
+          value={secretInput}
+          onChange={(e) => setSecretInput(e.target.value)}
+          className="w-full rounded-lg border border-slate-500 bg-gray-800 px-3 py-2 text-sm text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-500 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-900"
+          aria-label="Server keypair secret key"
+        />
+      )}
+
+      {ledgerUnsupportedHint}
+
       <button
         onClick={handleConnect}
-        disabled={loading}
-        className="rounded-lg bg-sky-600 px-4 py-2 text-sm font-medium text-white hover:bg-sky-700 disabled:opacity-50 transition-colors"
-        aria-label="Connect Freighter wallet"
+        disabled={loading || (walletType === "ledger" && !usbSupported)}
+        className="rounded-lg bg-sky-700 px-4 py-2 text-sm font-medium text-white hover:bg-sky-800 disabled:opacity-50 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-500 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-900"
+        aria-label={walletType === "ledger" ? "Connect Ledger wallet via USB" : `Connect ${WALLET_LABELS[walletType]} wallet`}
       >
-        {loading ? "Connecting…" : "Connect Wallet"}
+        {loading ? t("connecting") : connectLabel}
       </button>
-      {error && <p className="mt-1 text-xs text-red-600" role="alert">{error}</p>}
+
+      {error && (
+        <p className="text-xs text-red-600" role="alert">
+          {error}
+        </p>
+      )}
     </div>
   );
 }

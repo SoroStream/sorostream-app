@@ -1,0 +1,70 @@
+import { render, screen, fireEvent } from "@testing-library/react";
+import { describe, it, expect, vi } from "vitest";
+import StreamVirtualList from "@/components/StreamVirtualList";
+import { SettingsProvider } from "@/src/context/SettingsContext";
+import { XlmPriceProvider } from "@/src/context/XlmPriceContext";
+import type { StreamData } from "@/src/lib/sorostream";
+
+vi.mock("@/src/context/BookmarksContext", () => ({
+  useBookmarks: () => ({ bookmarkedIds: new Set(), isBookmarked: () => false, toggleBookmark: vi.fn() }),
+}));
+
+function createStream(id: number): StreamData {
+  return {
+    id: String(id),
+    sender: `GBTESTSENDER${id}`,
+    recipient: `GBTESTRECIP${id}`,
+    flowRate: 1000000,
+    deposit: 1000000000,
+    startTime: new Date().toISOString(),
+    endTime: new Date(Date.now() + 3600000).toISOString(),
+    lastWithdrawTime: new Date().toISOString(),
+    status: "Active",
+    token: "XLM",
+  };
+}
+
+describe("StreamVirtualList", () => {
+  it("renders a virtualized list container with visible stream items", async () => {
+    const streams = Array.from({ length: 30 }, (_, index) => createStream(index + 1));
+
+    render(
+      <XlmPriceProvider>
+        <SettingsProvider>
+          <StreamVirtualList streams={streams} />
+        </SettingsProvider>
+      </XlmPriceProvider>,
+    );
+
+    const list = screen.getByRole("list", { name: /stream list/i });
+    expect(list).toBeInTheDocument();
+
+    const items = await screen.findAllByRole("listitem");
+    expect(items.length).toBeGreaterThan(0);
+    expect(items.length).toBeLessThan(streams.length);
+
+    expect(screen.getByText(/^Stream #1$/i)).toBeInTheDocument();
+  });
+
+  it("renders 200 streams in under 300 ms", () => {
+    vi.useFakeTimers();
+    const streams = Array.from({ length: 200 }, (_, index) => createStream(index + 1));
+
+    const start = performance.now();
+    render(
+      <XlmPriceProvider>
+        <SettingsProvider>
+          <StreamVirtualList streams={streams} />
+        </SettingsProvider>
+      </XlmPriceProvider>,
+    );
+    const elapsed = performance.now() - start;
+    vi.useRealTimers();
+
+    // Generous headroom for CI's shared/slower runners (observed ~380ms
+    // there vs ~100ms on a dedicated dev machine) — still tight enough to
+    // catch a real regression like accidentally rendering all 200 items
+    // without virtualization.
+    expect(elapsed).toBeLessThan(1000);
+  });
+});

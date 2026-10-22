@@ -1,0 +1,38 @@
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        # NEXT_PUBLIC_ vars must be provided at build time.
+        # Either export them in your shell or set them in a .env file
+        # at the root of this project (not committed to version control).
+        NEXT_PUBLIC_STELLAR_NETWORK: ${NEXT_PUBLIC_STELLAR_NETWORK:-testnet}
+        NEXT_PUBLIC_CONTRACT_ID: ${NEXT_PUBLIC_CONTRACT_ID}
+        NEXT_PUBLIC_RPC_URL: ${NEXT_PUBLIC_RPC_URL:-https://soroban-testnet.stellar.org}
+    image: sorostream-app:latest
+    container_name: sorostream-app
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      NODE_ENV: production
+    # Uncomment to use a pre-built image instead of building locally:
+    # image: ghcr.io/your-org/sorostream-app:latest
+
+  # ---- Optional: nginx reverse proxy ----------------------
+  # Uncomment this service to add TLS termination and
+  # HTTP→HTTPS redirection in front of the Next.js server.
+  #
+  # nginx:
+  #   image: nginx:1.27-alpine
+  #   container_name: sorostream-nginx
+  #   restart: unless-stopped
+  #   ports:
+  #     - "80:80"
+  #     - "443:443"
+  #   volumes:
+  #     - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+  #     - ./nginx/certs:/etc/nginx/certs:ro
+  #   depends_on:
+  #     - app
