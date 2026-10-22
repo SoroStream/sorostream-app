@@ -69,7 +69,7 @@
     "compare_stream_id": "ID del Flujo",
     "compare_status": "Estado",
     "compare_recipient": "Destinatario",
-    "compare_amount": "Cantidad (USDC)",
+    "compare_amount": "Cantidad",
     "compare_claimable": "Reclamable",
     "compare_flow_rate": "Tasa de Flujo",
     "compare_start_date": "Fecha de Inicio",
