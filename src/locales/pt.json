@@ -27,6 +27,7 @@
     "address_active": "Ativo",
     "address_unverified": "Não Verificado",
     "address_verifying": "Verificando…",
+    "address_unknown": "Desconhecido",
     "address_unverified_warning_title": "Endereço Não Verificado",
     "address_unverified_warning_desc": "Este endereço não pôde ser verificado na rede Stellar. Por favor, verifique o endereço novamente antes de criar o fluxo.",
     "address_verification_error": "Erro de verificação",

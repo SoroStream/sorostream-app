@@ -27,6 +27,7 @@
     "address_active": "Active",
     "address_unverified": "Unverified",
     "address_verifying": "Verifying…",
+    "address_unknown": "Unknown",
     "address_unverified_warning_title": "Unverified Address",
     "address_unverified_warning_desc": "This address could not be verified on the Stellar network. Please double-check the address before creating the stream.",
     "address_verification_error": "Verification error",

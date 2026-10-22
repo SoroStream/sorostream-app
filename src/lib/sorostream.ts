@@ -427,6 +427,9 @@ export function simulateNewEvent(): StreamEvent {
   const asset = Math.random() < 0.5 ? "USDC" : "XLM";
   const amount = type !== "creation" && type !== "alert" ? String(Math.floor(Math.random() * 5000000000) + 1000000000) : undefined;
   const message = type === "alert" ? `Stream #${streamId} expires in 24 hours` : undefined;
+  const hashBytes = new Uint8Array(32);
+  crypto.getRandomValues(hashBytes);
+  const txHash = Array.from(hashBytes, (byte) => byte.toString(16).padStart(2, "0")).join("");
   return addStreamEvent({
     type,
     streamId,
@@ -434,7 +437,7 @@ export function simulateNewEvent(): StreamEvent {
     asset,
     message,
     timestamp: new Date().toISOString(),
-    txHash: `0x${Math.random().toString(36).slice(2, 8)}`,
+    txHash,
   });
 }
 
