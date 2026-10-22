@@ -148,6 +148,23 @@ function writeCache(address: string, result: string | null): void {
 }
 
 /**
+ * Invalidate a federation result and any cached forward aliases pointing to it
+ * (issue #698). Used when background account verification fails (#785).
+ */
+export function invalidateFederationCache(address: string): void {
+  if (typeof sessionStorage === "undefined") return;
+  try {
+    const keys = Object.keys(sessionStorage).filter((key) =>
+      key.startsWith(SESSION_PREFIX) &&
+      (key === SESSION_PREFIX + address || sessionStorage.getItem(key) === address),
+    );
+    for (const key of keys) sessionStorage.removeItem(key);
+  } catch {
+    // Storage may be unavailable in privacy mode.
+  }
+}
+
+/**
  * Resolve a Stellar federation address (e.g. alice*stellar.org) to a G-address.
  * This is the forward lookup.
  *
