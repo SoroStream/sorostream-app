@@ -16,6 +16,8 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run lint
+      - name: Dead-code detection
+        run: npm run detect-dead-code
       - name: Unit tests
         run: npm run test:run
       - name: Build
