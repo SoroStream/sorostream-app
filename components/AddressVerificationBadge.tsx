@@ -49,7 +49,7 @@ export default function AddressVerificationBadge({
       case "pending":
         return t("address_verifying");
       default:
-        return "Unknown";
+        return t("address_unknown");
     }
   };
 
