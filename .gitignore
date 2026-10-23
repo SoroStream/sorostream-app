@@ -74,6 +74,7 @@ storybook-static/
 **/__snapshots__/
 *.snap
 coverage/
+.nyc_output/
 playwright-report/
 playwright-report-a11y/
 test-results/
@@ -96,3 +97,8 @@ Thumbs.db
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+pnpm-debug.log*
+.pnpm-debug.log*
+
+# Build caches
+.turbo/

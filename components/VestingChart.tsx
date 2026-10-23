@@ -15,6 +15,7 @@ import {
 } from "recharts";
 import type { StreamData } from "@/src/lib/sorostream";
 import type { StreamHistoryEntry } from "@/src/lib/export";
+import { calculateVestingSchedule } from "@/src/lib/vestingSchedule";
 
 interface VestingChartProps {
   stream: StreamData;
@@ -52,20 +53,33 @@ function VestingChart({ stream, history }: VestingChartProps) {
   const isDark = theme === "dark";
 
   const { chartData, nowTime, deposit, flowRate, startTime, endTime } = useMemo(() => {
-    const start = new Date(stream.startTime).getTime();
-    const end = new Date(stream.endTime).getTime();
+    const startMs = new Date(stream.startTime).getTime();
+    const endMs = new Date(stream.endTime).getTime();
     const flow = Number(stream.flowRate);
     const dep = Number(stream.deposit);
     const now = Date.now();
-    const numPoints = 30;
-    const points: ChartPoint[] = [];
-    for (let i = 0; i < numPoints; i++) {
-      const t = start + (end - start) * (i / (numPoints - 1));
-      const elapsedSeconds = Math.max(0, (t - start) / 1000);
-      const vested = Math.min(flow * elapsedSeconds, dep);
-      points.push({ time: t, vested });
-    }
-    return { chartData: points, nowTime: now, deposit: dep, flowRate: flow, startTime: start, endTime: end };
+
+    // calculateVestingSchedule operates in seconds; deposit in stroops
+    const startSec = Math.floor(startMs / 1000);
+    const endSec = Math.floor(endMs / 1000);
+
+    const { points } = calculateVestingSchedule(dep, startSec, endSec, 0, 30);
+
+    // Convert seconds-based VestingPoints back to ms-based ChartPoints so the
+    // XAxis tick formatter (which expects millisecond timestamps) keeps working.
+    const chartPoints: ChartPoint[] = points.map((p) => ({
+      time: p.time * 1000,
+      vested: p.claimable,
+    }));
+
+    return {
+      chartData: chartPoints,
+      nowTime: now,
+      deposit: dep,
+      flowRate: flow,
+      startTime: startMs,
+      endTime: endMs,
+    };
   }, [stream]);
 
   const fmtDate = (ms: number) =>
