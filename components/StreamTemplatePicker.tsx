@@ -2,28 +2,13 @@
 
 import { useState, useEffect, useCallback } from "react";
 import {
+  BUILT_IN_TEMPLATES,
   getSavedTemplates,
   saveTemplate,
   deleteTemplate,
   templateToSeconds,
   type SavedTemplate,
 } from "@/src/lib/streamTemplates";
-
-interface BuiltInTemplate {
-  label: string;
-  description: string;
-  days: number;
-  hours: number;
-  minutes: number;
-  suggestedAmount?: string;
-}
-
-const BUILT_IN_TEMPLATES: BuiltInTemplate[] = [
-  { label: "Biweekly payroll", description: "14 days", days: 14, hours: 0, minutes: 0, suggestedAmount: "5000" },
-  { label: "Monthly salary", description: "30 days", days: 30, hours: 0, minutes: 0, suggestedAmount: "10000" },
-  { label: "1-year vesting", description: "365 days", days: 365, hours: 0, minutes: 0, suggestedAmount: "100000" },
-  { label: "Weekly stipend", description: "7 days", days: 7, hours: 0, minutes: 0, suggestedAmount: "500" },
-];
 
 interface StreamTemplatePickerProps {
   onSelect: (seconds: number, amount?: string, recipient?: string, token?: string, cliffDate?: string) => void;

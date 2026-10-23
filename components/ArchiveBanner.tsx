@@ -2,6 +2,11 @@
 /**
  * ArchiveBanner — shown on the dashboard when there are archived streams.
  * Displays the count and links to /archive.
+ *
+ * Messaging is split with the /archive page: this banner only points at the
+ * archive and renders nothing when it is empty, while the page owns the
+ * "No archived streams yet" empty state. Keep it that way so an empty
+ * archive never gets two messages (see ArchiveBanner.archivePage.test.tsx).
  */
 import Link from "next/link";
 import { useEffect, useState } from "react";
