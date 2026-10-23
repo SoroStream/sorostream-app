@@ -6,14 +6,16 @@
  *  - getMockStreamHistory always returns entries tagged isMock:true
  *  - StreamHistoryEntry.isMock is honoured by downstream filtering
  *  - StreamHistory renders an honest empty state when entries are empty
- *  - generateMockBalanceHistory lives in the test helper, not the production lib
+ *
+ * Note: generateMockBalanceHistory (balanceHistoryTestHelpers) and
+ * balanceHistory.ts have been removed — both were confirmed dead code
+ * with no live consumer (see issue #770).
  */
 
 import { describe, expect, it, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
 import { getMockStreamHistory } from "@/src/lib/sorostream";
 import type { StreamHistoryEntry } from "@/src/lib/export";
-import { generateMockBalanceHistory } from "@/src/test/balanceHistoryTestHelpers";
 
 vi.mock("@/src/lib/network", () => ({
   useNetwork: () => ({ network: "testnet", isTestnet: true, isMainnet: false, networkUrl: "https://testnet.stellar.org" }),
@@ -141,34 +143,4 @@ describe("StreamHistory — empty state", () => {
   });
 });
 
-// ---------------------------------------------------------------------------
-// generateMockBalanceHistory — test helper only, not in production lib
-// ---------------------------------------------------------------------------
 
-describe("generateMockBalanceHistory (test helper)", () => {
-  it("is importable from the test helper module", () => {
-    expect(typeof generateMockBalanceHistory).toBe("function");
-  });
-
-  it("returns the requested number of day snapshots (+1 for day-0 boundary)", () => {
-    const snapshots = generateMockBalanceHistory(7);
-    // i goes from days down to 0 inclusive → days+1 entries
-    expect(snapshots).toHaveLength(8);
-  });
-
-  it("returns snapshots with expected shape", () => {
-    const [first] = generateMockBalanceHistory(1);
-    expect(first).toMatchObject({
-      id: expect.stringMatching(/^mock-/),
-      timestamp: expect.any(Number),
-      totalBalance: expect.any(Number),
-      tokenBalances: expect.objectContaining({ USDC: expect.any(Number), XLM: expect.any(Number) }),
-      streamCount: expect.any(Number),
-    });
-  });
-
-  it("is NOT exported from the production balanceHistory module", async () => {
-    const mod = await import("@/src/lib/balanceHistory");
-    expect((mod as Record<string, unknown>)["generateMockBalanceHistory"]).toBeUndefined();
-  });
-});
