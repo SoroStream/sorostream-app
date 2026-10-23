@@ -147,6 +147,16 @@ function writeCache(address: string, result: string | null): void {
   }
 }
 
+/** Remove a federation lookup result from this session's cache. */
+export function invalidateFederationCache(address: string): void {
+  if (typeof sessionStorage === "undefined") return;
+  try {
+    sessionStorage.removeItem(SESSION_PREFIX + address);
+  } catch {
+    // Ignore storage errors; the next lookup will still be attempted.
+  }
+}
+
 /**
  * Resolve a Stellar federation address (e.g. alice*stellar.org) to a G-address.
  * This is the forward lookup.

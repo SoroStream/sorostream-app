@@ -34,6 +34,7 @@ const HORIZON_URL = process.env.NEXT_PUBLIC_RPC_URL
 // Cache verification results in sessionStorage
 const VERIFICATION_CACHE_PREFIX = "sorostream-addr-verify-";
 const CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
+const VERIFICATION_TIMEOUT_MS = 10_000;
 
 /**
  * Read verification result from cache if still valid.
@@ -131,6 +132,37 @@ export interface VerifyAddressOptions {
  * - "pending": Should not be returned (only internal state)
  */
 export async function verifyAddress(
+  address: string,
+  options: VerifyAddressOptions = {},
+): Promise<AddressVerification> {
+  let timedOut = false;
+  let timeoutId: ReturnType<typeof setTimeout> | undefined;
+  const work = verifyAddressUnbounded(address, {
+    ...options,
+    isCurrentTarget: () => !timedOut && options.isCurrentTarget?.() !== false,
+  });
+  const timeout = new Promise<AddressVerification>((resolve) => {
+    timeoutId = setTimeout(() => {
+      timedOut = true;
+      resolve({
+        status: "unverified",
+        address,
+        federationName: null,
+        accountExists: null,
+        error: "Address verification timed out",
+        lastCheckedAt: Date.now(),
+      });
+    }, VERIFICATION_TIMEOUT_MS);
+  });
+
+  try {
+    return await Promise.race([work, timeout]);
+  } finally {
+    if (timeoutId !== undefined) clearTimeout(timeoutId);
+  }
+}
+
+async function verifyAddressUnbounded(
   address: string,
   options: VerifyAddressOptions = {},
 ): Promise<AddressVerification> {

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { sorostream, simulateNewEvent, truncateAddress, type StreamEvent } from "@/src/lib/sorostream";
+import { sorostream, truncateAddress, type StreamEvent } from "@/src/lib/sorostream";
 
 const typeConfig: Record<StreamEvent["type"], { label: string; icon: string; color: string }> = {
   creation: { label: "New Stream", icon: "◉", color: "text-gray-400" },
@@ -40,14 +40,6 @@ export default function StreamEventFeed() {
       }
     }
     void load();
-  }, []);
-
-  useEffect(() => {
-    const interval = setInterval(() => {
-      const newEvent = simulateNewEvent();
-      setEvents((prev) => [newEvent, ...prev].slice(0, 50));
-    }, 15000);
-    return () => clearInterval(interval);
   }, []);
 
   useEffect(() => {
