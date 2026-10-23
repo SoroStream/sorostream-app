@@ -12,7 +12,7 @@
  * - "pending" (gray): Verification in progress
  */
 
-import { isLookupAborted, LookupAbortedError, resolveFederationName } from "./federation";
+import { invalidateFederationCache, isLookupAborted, LookupAbortedError, resolveFederationName } from "./federation";
 import { invalidateTomlDisplayName } from "./stellarToml";
 
 export type VerificationStatus = "pending" | "verified" | "active" | "unverified";
@@ -256,11 +256,13 @@ async function verifyAddressUnbounded(
     return verification;
   }
 
-  // Failed or unverified verification (issue #725): any [[ACCOUNTS]] alias a
-  // domain published for this address earlier is no longer trustworthy —
-  // invalidate the cached TOML display name so the UI cannot keep showing a
-  // friendly label for an address that just failed verification.
+  // Failed verification invalidates federation identities (#698/#785) and
+  // TOML aliases (#725), including forward aliases of the resolved G-address.
+  // Keep this after the stale-target guard so an obsolete run cannot clear
+  // identity data belonging to a newer verification.
   if (status === "unverified") {
+    invalidateFederationCache(resolvedAddress);
+    if (address !== resolvedAddress) invalidateFederationCache(address);
     if (isGAddress(resolvedAddress)) invalidateTomlDisplayName(resolvedAddress);
     if (isGAddress(address) && address !== resolvedAddress) {
       invalidateTomlDisplayName(address);
