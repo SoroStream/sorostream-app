@@ -86,7 +86,7 @@ export function SessionTimeoutModal() {
           <p className="text-sm text-gray-300">
             To continue using SoroStream, you can either:
           </p>
-          <ul className="text-sm text-gray-300 space-y-2 ml-4">
+          <ul className="text-sm text-gray-300 space-y-2 ms-4">
             <li className="flex gap-2">
               <span className="text-green-400 font-bold">•</span>
               <span>

@@ -207,7 +207,7 @@ export default function NavHeader() {
                 >
                   {label}
                   <NotificationBadge count={unread} label={`${label} update`} />
-                  {isActive && <span className="ml-1 inline-block h-1 w-1 rounded-full bg-green-600 dark:bg-green-400" aria-hidden="true" />}
+                  {isActive && <span className="ms-1 inline-block h-1 w-1 rounded-full bg-green-600 dark:bg-green-400" aria-hidden="true" />}
                 </Link>
               );
             })}
@@ -273,7 +273,7 @@ export default function NavHeader() {
               <path d="M13.73 21a2 2 0 0 1-3.46 0" />
             </svg>
             {changelogUnread && (
-              <span className="absolute top-0.5 right-0.5 w-2 h-2 bg-green-600 dark:bg-green-400 rounded-full" aria-hidden="true" />
+              <span className="absolute top-0.5 end-0.5 w-2 h-2 bg-green-600 dark:bg-green-400 rounded-full" aria-hidden="true" />
             )}
           </button>
           <button
@@ -322,7 +322,7 @@ export default function NavHeader() {
           role="dialog"
           aria-modal="true"
           aria-label={t("main_navigation")}
-          className="absolute inset-y-0 left-0 w-full bg-white dark:bg-gray-900 p-4 shadow-xl animate-nav-drawer-in"
+          className="absolute inset-y-0 start-0 w-full bg-white dark:bg-gray-900 p-4 shadow-xl animate-nav-drawer-in"
         >
           <div className="flex items-center justify-between mb-4">
             <span className="text-lg font-bold text-green-400">SoroStream</span>

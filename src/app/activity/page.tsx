@@ -51,7 +51,7 @@ const typeConfig: Record<StreamEvent["type"], { label: string; icon: string; col
 };
 
 const SORT_COLUMNS: { field: ActivitySortField; label: string; className: string }[] = [
-  { field: "type", label: "Type", className: "flex-1 justify-start pl-12" },
+  { field: "type", label: "Type", className: "flex-1 justify-start ps-12" },
   { field: "date", label: "Date", className: "justify-start" },
   { field: "amount", label: "Amount", className: "justify-end w-32" },
 ];
@@ -448,7 +448,7 @@ function ActivityPageContent() {
                           {event.message && ` · ${formatDateTime(event.timestamp)}`}
                         </p>
                       </div>
-                      <div className="text-right shrink-0">
+                      <div className="text-end shrink-0">
                         {event.amount && (
                           <p className="text-sm font-semibold text-white font-mono">
                             {formatUSDC(BigInt(event.amount))} {event.asset}

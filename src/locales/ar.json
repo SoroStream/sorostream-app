@@ -1,0 +1,19 @@
+{
+  "settings": {
+    "title": "دفتر العناوين",
+    "language_title": "اللغة",
+    "language_label": "اختر اللغة",
+    "language_desc": "اختر لغة العرض"
+  },
+  "nav": {
+    "home": "الرئيسية",
+    "dashboard": "لوحة التحكم",
+    "create": "إنشاء",
+    "activity": "النشاط",
+    "admin": "الإدارة",
+    "archive": "الأرشيف",
+    "settings": "الإعدادات",
+    "help": "المساعدة",
+    "analytics": "التحليلات"
+  }
+}

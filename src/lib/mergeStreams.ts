@@ -3,13 +3,18 @@
  * object reference for every item whose fields are unchanged. Memoized rows
  * then skip re-rendering and only the changed sections update.
  * Returns `prev` itself when nothing changed.
+ * Supply `equal` to compare nested fields; the default compares shallow fields (and Date values).
  */
-export function mergeById<T extends { id: string }>(prev: T[], next: T[]): T[] {
+export function mergeById<T extends { id: string }>(
+  prev: T[],
+  next: T[],
+  equal: (previous: T, next: T) => boolean = shallowEqual,
+): T[] {
   const prevById = new Map(prev.map((item) => [item.id, item]));
   let changed = prev.length !== next.length;
   const merged = next.map((item, i) => {
     const old = prevById.get(item.id);
-    if (old && shallowEqual(old, item)) {
+    if (old && equal(old, item)) {
       if (prev[i] !== old) changed = true;
       return old;
     }

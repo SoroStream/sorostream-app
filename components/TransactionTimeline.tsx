@@ -126,7 +126,7 @@ export default function TransactionTimeline({ entries }: TransactionTimelineProp
                     </p>
                   </div>
                   {entry.amount && (
-                    <div className="text-right">
+                    <div className="text-end">
                       <p className={`font-mono text-sm ${config.color}`}>
                         {entry.type === "withdrawal" ? "-" : "+"}
                         {formatUSDC(BigInt(entry.amount))}

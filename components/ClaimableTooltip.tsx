@@ -42,7 +42,7 @@ export default function ClaimableTooltip({
         id={tooltipId}
         role="tooltip"
         data-testid={`claimable-tooltip-${stream.id}`}
-        className="hidden group-hover:block group-focus-within:block absolute left-0 bottom-6 w-56 bg-gray-700 border border-gray-600 rounded-lg p-2 text-xs text-gray-300 z-10 shadow-lg"
+        className="hidden group-hover:block group-focus-within:block absolute start-0 bottom-6 w-56 bg-gray-700 border border-gray-600 rounded-lg p-2 text-xs text-gray-300 z-10 shadow-lg"
       >
         {label}: <span className="font-mono">{display}</span>
       </span>

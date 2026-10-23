@@ -361,7 +361,7 @@ export default function GiftStreamModal({ onClose }: GiftStreamModalProps) {
                 id="gift-message-counter"
                 data-testid="gift-message-counter"
                 aria-live="polite"
-                className={`text-xs mt-1 text-right ${
+                className={`text-xs mt-1 text-end ${
                   messageTooLong ? "text-red-400" : "text-gray-500"
                 }`}
               >

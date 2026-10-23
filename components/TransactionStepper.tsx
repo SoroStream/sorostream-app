@@ -146,7 +146,7 @@ export default function TransactionStepper({
         <p className="text-center text-xs text-gray-400 mt-3">
           {STAGE_META[currentStage].description}
           {currentStage !== TxStage.Done && (
-            <span className="ml-1 animate-pulse">…</span>
+            <span className="ms-1 animate-pulse">…</span>
           )}
         </p>
       )}

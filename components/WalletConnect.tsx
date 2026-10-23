@@ -292,7 +292,7 @@ export default function WalletConnect({ onConnect, compact = false }: WalletConn
           Connect
         </button>
         {dropdownOpen && (
-          <div className="absolute right-0 top-full mt-2 w-72 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-4 z-50 shadow-xl">
+          <div className="absolute end-0 top-full mt-2 w-72 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-4 z-50 shadow-xl">
             <div className="space-y-2">
               <div className="flex gap-2">
                 {WALLET_TYPES.map((w) => (

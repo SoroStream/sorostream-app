@@ -3,7 +3,7 @@
  * useRpcHealth — polls the active RPC endpoint every 30 seconds
  * and exposes the current health status, latency, and last-checked timestamp.
  *
- * Status thresholds are configurable via env vars:
+ * Settings can override thresholds at runtime. Env defaults are:
  *   NEXT_PUBLIC_RPC_DEGRADED_MS  — latency (ms) above which status → "degraded"  (default: 2000)
  *   NEXT_PUBLIC_RPC_UNREACHABLE_BANNER_S — seconds unreachable before banner shows (default: 60)
  *
@@ -12,6 +12,8 @@
  */
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useNetwork } from "@/src/lib/network";
+
+import { useRpcThresholdPreferences } from "@/src/context/PreferencesContext";
 
 export type RpcStatus = "unknown" | "healthy" | "degraded" | "unreachable";
 
@@ -101,6 +103,9 @@ function getBannerThreshold(): number {
  */
 export function useRpcHealth(): RpcHealthState {
   const { rpcUrl } = useNetwork();
+  const thresholds = useRpcThresholdPreferences();
+  const thresholdsRef = useRef(thresholds);
+  thresholdsRef.current = thresholds;
   const [status, setStatus] = useState<RpcStatus>("unknown");
   const [latencyMs, setLatencyMs] = useState<number | null>(null);
   const [lastChecked, setLastChecked] = useState<Date | null>(null);
@@ -112,8 +117,8 @@ export function useRpcHealth(): RpcHealthState {
   const samplesRef = useRef<HealthSample[]>([]);
 
   const checkHealth = useCallback(async () => {
-    const degradedThreshold = getDegradedThreshold();
-    const bannerThresholdMs = getBannerThreshold() * 1_000;
+    const degradedThreshold = thresholdsRef.current.rpcDegradedMs ?? getDegradedThreshold();
+    const bannerThresholdMs = (thresholdsRef.current.rpcUnreachableBannerSeconds ?? getBannerThreshold()) * 1_000;
 
     const start = performance.now();
     let sample: HealthSample;

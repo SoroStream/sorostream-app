@@ -157,7 +157,7 @@ export default function PublicStreamViewerPage() {
             </div>
             <p className="text-gray-600 dark:text-gray-400 text-sm">Public stream viewer (read-only)</p>
           </div>
-          <div className="text-right">
+          <div className="text-end">
             <p className="text-sm text-gray-600 dark:text-gray-400">Stream ID</p>
             <code className="text-xs font-mono text-gray-900 dark:text-white break-all">{stream.id}</code>
           </div>

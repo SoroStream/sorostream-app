@@ -53,7 +53,7 @@ export default function Tooltip({
         <span
           id={id}
           role="tooltip"
-          className={`absolute ${align === "right" ? "right-0" : "left-0"} bottom-6 block w-64 bg-gray-700 border border-gray-600 rounded-lg p-3 text-xs text-gray-300 leading-relaxed z-10 shadow-lg`}
+          className={`absolute ${align === "right" ? "end-0" : "start-0"} bottom-6 block w-64 bg-gray-700 border border-gray-600 rounded-lg p-3 text-xs text-gray-300 leading-relaxed z-10 shadow-lg`}
         >
           {children}
         </span>

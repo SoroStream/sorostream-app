@@ -133,7 +133,7 @@ export default function StreamTemplatePicker({
             key={t.label}
             type="button"
             onClick={() => onSelect(t.days * 86400 + t.hours * 3600 + t.minutes * 60, t.suggestedAmount)}
-            className="text-left bg-gray-800 border border-gray-600 rounded-lg px-3 py-2 hover:border-green-500 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-500 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-900"
+            className="text-start bg-gray-800 border border-gray-600 rounded-lg px-3 py-2 hover:border-green-500 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-500 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-900"
           >
             <p className="text-white text-sm font-medium">{t.label}</p>
             <p className="text-gray-300 text-xs">{t.description}</p>
@@ -144,7 +144,7 @@ export default function StreamTemplatePicker({
             key={t.id}
             type="button"
             onClick={() => onSelect(templateToSeconds(t), t.suggestedAmount, t.recipient, t.token, t.cliffDate)}
-            className="text-left bg-gray-800 border border-green-500/40 rounded-lg px-3 py-2 hover:border-green-500 transition-colors group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-500 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-900"
+            className="text-start bg-gray-800 border border-green-500/40 rounded-lg px-3 py-2 hover:border-green-500 transition-colors group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-500 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-900"
           >
             <div className="flex items-center justify-between">
               <p className="text-white text-sm font-medium">{t.label}</p>

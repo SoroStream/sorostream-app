@@ -185,7 +185,7 @@ export default function ReceiptPage({ params }: { params: { id: string } }) {
               Stellar Soroban · {stream.token} payment stream
             </p>
           </div>
-          <div className="text-right">
+          <div className="text-end">
             <span
               className={`inline-block text-xs font-semibold uppercase tracking-wide px-3 py-1 rounded-full ${
                 stream.status === "Ended"
@@ -331,7 +331,7 @@ function Row({
     <div className="flex justify-between items-baseline gap-4">
       <dt className="text-sm text-gray-500 shrink-0">{label}</dt>
       <dd
-        className={`text-sm text-gray-900 text-right ${mono ? "font-mono" : ""}`}
+        className={`text-sm text-gray-900 text-end ${mono ? "font-mono" : ""}`}
       >
         {value}
       </dd>

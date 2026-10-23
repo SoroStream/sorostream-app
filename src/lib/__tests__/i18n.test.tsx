@@ -1,5 +1,5 @@
 import { render, screen, fireEvent } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it } from "vitest";
 import { useTranslations } from "@/src/lib/i18n";
 import { SettingsProvider, useSettings } from "@/src/context/SettingsContext";
 
@@ -53,5 +53,37 @@ describe("useTranslations (#613 memoization)", () => {
     // (the `t` function reference stays the same across renders).
     expect(renderCount).toBeGreaterThanOrEqual(initialRenders);
     expect(screen.getByTestId("greeting").textContent).toBeTruthy();
+  });
+});
+
+
+describe("RTL locales", () => {
+  afterEach(() => { localStorage.clear(); document.documentElement.dir = "ltr"; document.documentElement.lang = "en"; });
+  function LocaleControls() {
+    const { setLanguage } = useSettings();
+    const t = useTranslations("settings");
+    const detail = useTranslations("stream_detail");
+    return <><span data-testid="title">{t("title")}</span><span data-testid="fallback">{detail("title", { id: "42" })}</span>
+      <button onClick={() => setLanguage("ar")}>Arabic</button>
+      <button onClick={() => setLanguage("he")}>Hebrew</button>
+      <button onClick={() => setLanguage("en")}>LTR</button></>;
+  }
+  it("changes direction and next-intl translations live, restores LTR, and persists locale", () => {
+    const view = render(<SettingsProvider><LocaleControls /></SettingsProvider>);
+    fireEvent.click(screen.getByText("Arabic"));
+    expect(document.documentElement.dir).toBe("rtl");
+    expect(document.documentElement.lang).toBe("ar");
+    expect(screen.getByTestId("title")).toHaveTextContent("دفتر العناوين");
+    expect(screen.getByTestId("fallback")).toHaveTextContent("Stream #42");
+    fireEvent.click(screen.getByText("Hebrew"));
+    expect(document.documentElement.lang).toBe("he");
+    expect(screen.getByTestId("title")).toHaveTextContent("פנקס כתובות");
+    view.unmount();
+    render(<SettingsProvider><LocaleControls /></SettingsProvider>);
+    expect(document.documentElement.dir).toBe("rtl");
+    expect(document.documentElement.lang).toBe("he");
+    fireEvent.click(screen.getByText("LTR"));
+    expect(document.documentElement.dir).toBe("ltr");
+    expect(screen.getByTestId("title")).toHaveTextContent("Address Book");
   });
 });
