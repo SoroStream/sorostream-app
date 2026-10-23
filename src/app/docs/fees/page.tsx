@@ -56,7 +56,7 @@ export default function FeesDocsPage() {
             contract. It is deducted from the <span className="text-white font-medium">recipient&apos;s</span> vested
             balance — senders never pay extra.
           </p>
-          <ul className="list-disc list-inside space-y-1.5 text-gray-400 text-sm pl-1">
+          <ul className="list-disc list-inside space-y-1.5 text-gray-400 text-sm ps-1">
             <li>Charged in the same token as the stream.</li>
             <li>Applied at withdrawal time on the amount being withdrawn, not upfront at creation.</li>
             <li>Accrues to the on-chain treasury and is distributed per governance policy.</li>
@@ -110,7 +110,7 @@ export default function FeesDocsPage() {
             <span className="text-white font-medium">gross</span> — calculated from the full
             deposit divided by duration. What a recipient actually keeps depends on when they withdraw:
           </p>
-          <ol className="list-decimal list-inside space-y-1.5 text-gray-400 text-sm pl-1">
+          <ol className="list-decimal list-inside space-y-1.5 text-gray-400 text-sm ps-1">
             <li>Vesting accrues gross tokens continuously over the stream duration.</li>
             <li>The protocol fee is applied only to amounts actually withdrawn.</li>
             <li>The XLM transaction fee applies once per withdrawal transaction, regardless of size — so fewer, larger withdrawals are cheaper.</li>

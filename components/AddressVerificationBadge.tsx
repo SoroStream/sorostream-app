@@ -49,7 +49,7 @@ export default function AddressVerificationBadge({
       case "pending":
         return t("address_verifying");
       default:
-        return "Unknown";
+        return t("address_unknown");
     }
   };
 
@@ -132,7 +132,7 @@ export default function AddressVerificationBadge({
       <span>
         {getStatusLabel(status)}
         {status === "verified" && federationName && (
-          <span className="ml-1 text-xs opacity-75">({federationName})</span>
+          <span className="ms-1 text-xs opacity-75">({federationName})</span>
         )}
       </span>
     </div>

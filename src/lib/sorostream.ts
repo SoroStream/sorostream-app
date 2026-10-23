@@ -14,6 +14,8 @@ export interface StreamData {
   status: "Active" | "Cancelled" | "Ended" | "Paused";
   /** ISO timestamp captured when the stream was paused. Frozen balances use this. */
   pausedAt?: string;
+  /** Total seconds spent paused before the current pause, excluded from active-time metrics. */
+  totalPausedSeconds?: number;
   /** Unix timestamp (seconds) when the stream was cancelled. Set on cancel. */
   cancelledAt?: number;
   /** Unix timestamp (seconds) when the stream is scheduled to auto-pause. */
@@ -427,6 +429,9 @@ export function simulateNewEvent(): StreamEvent {
   const asset = Math.random() < 0.5 ? "USDC" : "XLM";
   const amount = type !== "creation" && type !== "alert" ? String(Math.floor(Math.random() * 5000000000) + 1000000000) : undefined;
   const message = type === "alert" ? `Stream #${streamId} expires in 24 hours` : undefined;
+  const hashBytes = new Uint8Array(32);
+  crypto.getRandomValues(hashBytes);
+  const txHash = Array.from(hashBytes, (byte) => byte.toString(16).padStart(2, "0")).join("");
   return addStreamEvent({
     type,
     streamId,
@@ -434,7 +439,7 @@ export function simulateNewEvent(): StreamEvent {
     asset,
     message,
     timestamp: new Date().toISOString(),
-    txHash: `0x${Math.random().toString(36).slice(2, 8)}`,
+    txHash,
   });
 }
 
@@ -517,7 +522,10 @@ export const sorostream = {
   pauseStream: async (id?: string) => {
     if (id) {
       const stream = MOCK_STREAMS.find((s) => s.id === id);
-      if (stream && stream.status === "Active") stream.status = "Paused";
+      if (stream && stream.status === "Active") {
+        stream.status = "Paused";
+        stream.pausedAt = new Date().toISOString();
+      }
       void dispatchWebhook({
         type: "stream.paused",
         streamId: id,
@@ -531,7 +539,14 @@ export const sorostream = {
   resumeStream: async (id?: string) => {
     if (id) {
       const stream = MOCK_STREAMS.find((s) => s.id === id);
-      if (stream && stream.status === "Paused") stream.status = "Active";
+      if (stream && stream.status === "Paused") {
+        const pausedAtMs = stream.pausedAt ? new Date(stream.pausedAt).getTime() : NaN;
+        if (Number.isFinite(pausedAtMs)) {
+          stream.totalPausedSeconds = (stream.totalPausedSeconds ?? 0) + Math.max(0, (Date.now() - pausedAtMs) / 1000);
+        }
+        stream.pausedAt = undefined;
+        stream.status = "Active";
+      }
       void dispatchWebhook({
         type: "stream.resumed",
         streamId: id,
@@ -639,6 +654,7 @@ export function applyScheduledPauses(): void {
   for (const s of MOCK_STREAMS) {
     if (s.status === "Active" && s.pauseAt && s.pauseAt > 0 && s.pauseAt <= nowSec) {
       s.status = "Paused";
+      s.pausedAt = new Date(nowSec * 1000).toISOString();
       s.pauseAt = undefined;
     }
   }

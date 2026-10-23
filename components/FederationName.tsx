@@ -12,8 +12,8 @@
  *   address  — Stellar public key (G…)
  *   truncate — when true, truncates the address to GBAM…XDRL format (default: false)
  */
-import { useEffect, useState } from "react";
-import { resolveFederationName } from "@/src/lib/federation";
+import { useCallback, useEffect, useState } from "react";
+import { invalidateFederationCache, resolveFederationName } from "@/src/lib/federation";
 import { resolveTomlDisplayName } from "@/src/lib/stellarToml";
 
 interface FederationNameProps {
@@ -33,6 +33,13 @@ export default function FederationName({
 }: FederationNameProps) {
   const [fedName, setFedName] = useState<string | null>(null);
   const [tomlName, setTomlName] = useState<string | null>(null);
+  const [lookupVersion, setLookupVersion] = useState(0);
+
+  const reverify = useCallback(() => {
+    invalidateFederationCache(address);
+    setFedName(null);
+    setLookupVersion((version) => version + 1);
+  }, [address]);
 
   useEffect(() => {
     if (!address) return;
@@ -57,7 +64,7 @@ export default function FederationName({
       cancelled = true;
       controller.abort();
     };
-  }, [address]);
+  }, [address, lookupVersion]);
 
   const displayAddress = truncate ? truncateAddress(address) : address;
 
@@ -73,6 +80,15 @@ export default function FederationName({
           {tomlName ?? fedName}
         </span>
       )}
+      <button
+        type="button"
+        onClick={reverify}
+        className="text-xs text-gray-500 hover:text-gray-300"
+        aria-label="Re-verify federation name"
+        title="Re-verify federation name"
+      >
+        ↻
+      </button>
     </span>
   );
 }

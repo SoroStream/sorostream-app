@@ -157,7 +157,15 @@ export function useFocusTrap(
   // saved previousFocusRef, correctly restoring focus.
   useEffect(() => {
     return () => {
-      previousFocusRef.current?.focus();
+      const previous = previousFocusRef.current;
+      if (previous?.isConnected) {
+        previous.focus();
+      } else if (typeof document !== "undefined") {
+        if (!document.body.hasAttribute("tabindex")) {
+          document.body.setAttribute("tabindex", "-1");
+        }
+        document.body.focus();
+      }
       previousFocusRef.current = null;
     };
   }, [active]);

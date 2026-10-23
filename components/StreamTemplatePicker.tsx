@@ -2,28 +2,13 @@
 
 import { useState, useEffect, useCallback } from "react";
 import {
+  BUILT_IN_TEMPLATES,
   getSavedTemplates,
   saveTemplate,
   deleteTemplate,
   templateToSeconds,
   type SavedTemplate,
 } from "@/src/lib/streamTemplates";
-
-interface BuiltInTemplate {
-  label: string;
-  description: string;
-  days: number;
-  hours: number;
-  minutes: number;
-  suggestedAmount?: string;
-}
-
-const BUILT_IN_TEMPLATES: BuiltInTemplate[] = [
-  { label: "Biweekly payroll", description: "14 days", days: 14, hours: 0, minutes: 0, suggestedAmount: "5000" },
-  { label: "Monthly salary", description: "30 days", days: 30, hours: 0, minutes: 0, suggestedAmount: "10000" },
-  { label: "1-year vesting", description: "365 days", days: 365, hours: 0, minutes: 0, suggestedAmount: "100000" },
-  { label: "Weekly stipend", description: "7 days", days: 7, hours: 0, minutes: 0, suggestedAmount: "500" },
-];
 
 interface StreamTemplatePickerProps {
   onSelect: (seconds: number, amount?: string, recipient?: string, token?: string, cliffDate?: string) => void;
@@ -133,7 +118,7 @@ export default function StreamTemplatePicker({
             key={t.label}
             type="button"
             onClick={() => onSelect(t.days * 86400 + t.hours * 3600 + t.minutes * 60, t.suggestedAmount)}
-            className="text-left bg-gray-800 border border-gray-600 rounded-lg px-3 py-2 hover:border-green-500 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-500 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-900"
+            className="text-start bg-gray-800 border border-gray-600 rounded-lg px-3 py-2 hover:border-green-500 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-500 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-900"
           >
             <p className="text-white text-sm font-medium">{t.label}</p>
             <p className="text-gray-300 text-xs">{t.description}</p>
@@ -144,7 +129,7 @@ export default function StreamTemplatePicker({
             key={t.id}
             type="button"
             onClick={() => onSelect(templateToSeconds(t), t.suggestedAmount, t.recipient, t.token, t.cliffDate)}
-            className="text-left bg-gray-800 border border-green-500/40 rounded-lg px-3 py-2 hover:border-green-500 transition-colors group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-500 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-900"
+            className="text-start bg-gray-800 border border-green-500/40 rounded-lg px-3 py-2 hover:border-green-500 transition-colors group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-500 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-900"
           >
             <div className="flex items-center justify-between">
               <p className="text-white text-sm font-medium">{t.label}</p>

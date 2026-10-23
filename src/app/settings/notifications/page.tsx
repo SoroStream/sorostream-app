@@ -442,7 +442,7 @@ export default function NotificationSettingsPage() {
                   />
                 </div>
                 {key === "claimableThresholdEnabled" && (prefs.events.claimableThresholdEnabled ?? true) && (
-                  <div className="pt-2 pl-4 border-l-2 border-green-600/50 mt-1 flex items-center gap-3">
+                  <div className="pt-2 ps-4 border-s-2 border-green-600/50 mt-1 flex items-center gap-3">
                     <label htmlFor="global-claimable-threshold" className="text-gray-300 text-xs font-medium">
                       Threshold amount (tokens/XLM):
                     </label>

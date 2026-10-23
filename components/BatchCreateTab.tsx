@@ -340,7 +340,7 @@ export default function BatchCreateTab() {
       {/* Preview table */}
       {rows.length > 0 && !headerError && (
         <div className="overflow-x-auto rounded-xl border border-gray-700">
-          <table className="w-full text-xs text-left min-w-[640px]">
+          <table className="w-full text-xs text-start min-w-[640px]">
             <thead>
               <tr className="bg-gray-800 text-gray-400 uppercase tracking-wider">
                 <th className="px-3 py-2.5 w-8">#</th>

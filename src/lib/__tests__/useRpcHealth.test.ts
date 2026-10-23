@@ -1,9 +1,11 @@
 import { describe, it, expect, vi, afterEach } from "vitest";
-import { renderHook, waitFor } from "@testing-library/react";
+import { act, renderHook, waitFor } from "@testing-library/react";
 
 vi.mock("@/src/lib/network", () => ({
   useNetwork: () => ({ rpcUrl: "https://rpc.test" }),
 }));
+
+import { PreferencesProvider, usePreferences } from "@/src/context/PreferencesContext";
 
 import {
   averageLatency,
@@ -86,5 +88,35 @@ describe("useRpcHealth hook (#710)", () => {
     const { result } = renderHook(() => useRpcHealth());
 
     await waitFor(() => expect(result.current.status).toBe("unreachable"));
+  });
+});
+
+
+describe("runtime health thresholds", () => {
+  afterEach(() => { vi.useRealTimers(); vi.restoreAllMocks(); vi.unstubAllGlobals(); localStorage.clear(); });
+  it("uses updated degraded thresholds on the next poll without resetting samples", async () => {
+    vi.useFakeTimers();
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: true, status: 200 }));
+    let clock = 0;
+    vi.spyOn(performance, "now").mockImplementation(() => (clock += 500));
+    const { result } = renderHook(() => ({ health: useRpcHealth(), prefs: usePreferences() }), { wrapper: PreferencesProvider });
+    await act(async () => {});
+    expect(result.current.health.status).toBe("healthy");
+    act(() => result.current.prefs.saveAll({ rpcDegradedMs: 100 }));
+    await act(async () => { await vi.advanceTimersByTimeAsync(30000); });
+    expect(result.current.health.status).toBe("degraded");
+    act(() => result.current.prefs.saveAll({ rpcDegradedMs: null }));
+    await act(async () => { await vi.advanceTimersByTimeAsync(30000); });
+    expect(result.current.health.status).toBe("healthy");
+  });
+  it("changes the banner delay during an ongoing outage", async () => {
+    vi.useFakeTimers();
+    vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("offline")));
+    const { result } = renderHook(() => ({ health: useRpcHealth(), prefs: usePreferences() }), { wrapper: PreferencesProvider });
+    await act(async () => {});
+    expect(result.current.health.showBanner).toBe(false);
+    act(() => result.current.prefs.saveAll({ rpcUnreachableBannerSeconds: 10 }));
+    await act(async () => { await vi.advanceTimersByTimeAsync(30000); });
+    expect(result.current.health.showBanner).toBe(true);
   });
 });

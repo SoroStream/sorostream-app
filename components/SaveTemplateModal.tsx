@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { saveTemplate } from "@/src/lib/streamTemplates";
+import { findBuiltInTemplateByLabel, saveTemplate } from "@/src/lib/streamTemplates";
 import { useToast } from "@/src/lib/toast";
 
 interface SaveTemplateModalProps {
@@ -30,9 +30,13 @@ export default function SaveTemplateModal({
 
   if (!open) return null;
 
+  // A saved template may not reuse a built-in template's name: the picker
+  // would show two identical entries with different contents.
+  const builtInClash = findBuiltInTemplateByLabel(label);
+
   const handleSave = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!label.trim()) return;
+    if (!label.trim() || builtInClash) return;
 
     const days = Math.floor(durationSeconds / 86400);
     const hours = Math.floor((durationSeconds % 86400) / 3600);
@@ -81,8 +85,15 @@ export default function SaveTemplateModal({
               value={label}
               onChange={(e) => setLabel(e.target.value)}
               placeholder="e.g. Weekly Contributor Payout"
+              aria-invalid={builtInClash ? true : undefined}
+              aria-describedby={builtInClash ? "template-label-error" : undefined}
               className="w-full bg-gray-900 border border-gray-700 rounded-lg px-4 py-2 text-white placeholder-gray-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-500"
             />
+            {builtInClash && (
+              <p id="template-label-error" role="alert" className="mt-1 text-xs text-red-400">
+                &ldquo;{builtInClash.label}&rdquo; is a built-in template. Choose a different name.
+              </p>
+            )}
           </div>
           <div>
             <label htmlFor="template-desc" className="block text-sm font-medium text-gray-300 mb-1">
@@ -108,7 +119,7 @@ export default function SaveTemplateModal({
             </button>
             <button
               type="submit"
-              disabled={!label.trim()}
+              disabled={!label.trim() || Boolean(builtInClash)}
               className="px-4 py-2 text-sm font-medium bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-500 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-800"
             >
               Save

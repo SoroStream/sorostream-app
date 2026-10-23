@@ -9,6 +9,10 @@ const STORAGE_KEY = "sorostream-stream-tags";
 
 type TagMap = Record<string, string[]>;
 
+/** Per-stream storage bounds: 32 characters per tag and at most 20 tags. */
+export const MAX_TAG_LENGTH = 32;
+export const MAX_TAGS_PER_STREAM = 20;
+
 function load(): TagMap {
   if (typeof window === "undefined") return {};
   try {
@@ -48,10 +52,11 @@ export function setTagsForStream(streamId: string, tags: string[]): void {
 /** Add a single tag to a stream (no-op if already present). */
 export function addTagToStream(streamId: string, tag: string): void {
   const trimmed = tag.trim();
-  if (!trimmed) return;
+  if (!trimmed || trimmed.length > MAX_TAG_LENGTH) return;
   const map = load();
   const existing = map[streamId] ?? [];
   if (existing.includes(trimmed)) return;
+  if (existing.length >= MAX_TAGS_PER_STREAM) return;
   map[streamId] = [...existing, trimmed];
   save(map);
 }

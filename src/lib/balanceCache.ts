@@ -1,6 +1,19 @@
 /**
  * balanceCache — IndexedDB-backed balance snapshot store.
  *
+ * **This is the LIVE store that powers the dashboard's portfolio chart.**
+ * `PortfolioChart.tsx` imports `getSnapshots`, `saveSnapshot`, and
+ * `shouldSnapshot` from this module to render the balance trend chart.
+ *
+ * In contrast, `src/lib/balanceHistory.ts` has **zero production callers** —
+ * no component or page in the app imports it. It is dead code pending the
+ * related cleanup/consolidation decision (see issue #775). New balance-related
+ * UI work should build on `balanceCache.ts`, not `balanceHistory.ts`.
+ *
+ * > **Cleanup note:** If `balanceHistory.ts` is deleted, remove this
+ * > paragraph and the "balanceCache vs. balanceHistory" section below,
+ * > since the cross-reference would no longer be needed.
+ *
  * Stores periodic balance snapshots (hourly) so the portfolio chart can show
  * historical balance trends without hitting the Horizon API on every visit.
  *
@@ -30,6 +43,9 @@
  * The overlap in shape (both expose a `BalanceSnapshot`-like record) is
  * intentional: their records answer different questions. Keep this distinction
  * clear when changing either interface.
+ *
+ * **Note:** `balanceHistory.ts` currently has no production callers (see issue
+ * #775). It is retained pending the dead-code removal/consolidation decision.
  */
 
 const DB_NAME = "sorostream_balance_cache";

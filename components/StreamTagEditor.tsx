@@ -5,6 +5,7 @@ import {
   getTagsForStream,
   addTagToStream,
   removeTagFromStream,
+  MAX_TAGS_PER_STREAM,
 } from "@/src/lib/streamTags";
 
 interface StreamTagEditorProps {
@@ -31,6 +32,10 @@ export default function StreamTagEditor({ streamId }: StreamTagEditorProps) {
     }
     if (tags.includes(tag)) {
       setError(`Tag "${tag}" already exists.`);
+      return;
+    }
+    if (tags.length >= MAX_TAGS_PER_STREAM) {
+      setError(`A stream can have at most ${MAX_TAGS_PER_STREAM} tags.`);
       return;
     }
     addTagToStream(streamId, tag);

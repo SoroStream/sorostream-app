@@ -247,7 +247,7 @@ export default function PerStreamNotificationSettings() {
 
                 {/* Expanded configuration options */}
                 {isExpanded && (
-                  <div className="mt-4 pt-4 border-t border-gray-700/80 space-y-3.5 pl-1 sm:pl-2">
+                  <div className="mt-4 pt-4 border-t border-gray-700/80 space-y-3.5 ps-1 sm:ps-2">
                     <p className="text-xs font-medium text-gray-300">
                       Alert triggers for Stream #{stream.id}:
                     </p>

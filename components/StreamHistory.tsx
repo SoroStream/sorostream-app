@@ -274,7 +274,7 @@ export default function StreamHistory({ entries, loading, streamId = "stream" }:
                   </p>
                 </div>
               </div>
-              <div className="text-right">
+              <div className="text-end">
                 <p className="text-sm font-semibold text-white">
                   {entry.type === "creation"
                     ? formatUSDC(BigInt(entry.amount))

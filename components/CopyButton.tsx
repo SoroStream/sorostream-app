@@ -32,7 +32,7 @@ export default function CopyButton({ value, label = "Copy", showTooltip = false 
   return (
     <button
       onClick={handleCopy}
-      className="relative ml-1.5 inline-flex items-center text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 transition-colors shrink-0"
+      className="relative ms-1.5 inline-flex items-center text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 transition-colors shrink-0"
       aria-label={ariaLabel}
       title={failed ? `Copy manually: ${value}` : undefined}
     >

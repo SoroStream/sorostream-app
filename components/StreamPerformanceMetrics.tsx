@@ -24,7 +24,11 @@ const STROOPS_PER_UNIT = 10_000_000;
 /**
  * Aggregate lifetime performance metrics for the connected wallet (#419).
  * Mirrors PortfolioSummaryCard's wallet matching (mock addresses are
- * truncated prefixes) and only considers Active streams.
+ * truncated prefixes). Flow-rate averages use active seconds, excluding
+ * `totalPausedSeconds` and any current pause interval (`pausedAt`). This uses
+ * the same pause boundary as `getStreamHealth` in `src/lib/streamHealth.ts`:
+ * a currently Paused stream is not counted as active, but its lifetime rate
+ * remains represented in the rate.
  */
 export function calculatePerformanceMetrics(
   streams: StreamData[],
@@ -42,32 +46,41 @@ export function calculatePerformanceMetrics(
   const prefix = walletAddress.slice(0, 5);
   let totalStreamed = 0;
   let totalReceived = 0;
-  let rateSum = 0;
-  let count = 0;
+  let activeSecondsSum = 0;
+  let activeStreamCount = 0;
+  let lifetimeRateAmount = 0;
 
   for (const s of streams) {
-    if (s.status !== "Active") continue;
+    if (s.status !== "Active" && s.status !== "Paused") continue;
 
     const isSender = s.sender.includes(prefix);
     const isRecipient = s.recipient.includes(prefix);
     if (!isSender && !isRecipient) continue;
 
     // Amount dripped so far: flow rate × elapsed seconds, capped at deposit.
-    const elapsedSeconds = Math.max(0, (now.getTime() - new Date(s.startTime).getTime()) / 1000);
+    const startMs = new Date(s.startTime).getTime();
+    const stopMs = s.status === "Paused" && s.pausedAt
+      ? Math.min(now.getTime(), new Date(s.pausedAt).getTime())
+      : now.getTime();
+    const elapsedSeconds = Math.max(0, (stopMs - startMs) / 1000 - (s.totalPausedSeconds ?? 0));
     const streamedSoFar = Math.min(s.deposit, s.flowRate * elapsedSeconds);
 
     if (isSender) totalStreamed += streamedSoFar;
     else totalReceived += streamedSoFar;
 
-    rateSum += s.flowRate;
-    count += 1;
+    if (s.status === "Active") activeStreamCount += 1;
+    activeSecondsSum += elapsedSeconds;
+    // A paused stream has no active time since pausedAt; accumulated pause
+    // time is subtracted above. The current pause interval is already excluded
+    // by stopping the active clock at pausedAt.
+    lifetimeRateAmount += streamedSoFar;
   }
 
   return {
     totalStreamedStroops: totalStreamed,
     totalReceivedStroops: totalReceived,
-    activeStreams: count,
-    averageRateStroopsPerSec: count > 0 ? rateSum / count : 0,
+    activeStreams: activeStreamCount,
+    averageRateStroopsPerSec: activeSecondsSum > 0 ? lifetimeRateAmount / activeSecondsSum : 0,
   };
 }
 

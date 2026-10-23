@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   LookupAbortedError,
   isLookupAborted,
+  invalidateFederationCache,
   resolveFederationName,
 } from "../federation";
 
@@ -130,5 +131,25 @@ describe("federation lookup cancellation (issue #724)", () => {
     expect(isLookupAborted(new LookupAbortedError())).toBe(true);
     expect(isLookupAborted(new DOMException("x", "AbortError"))).toBe(true);
     expect(isLookupAborted(new Error("boom"))).toBe(false);
+  });
+
+  it("invalidating an address makes the next resolution query the network again", async () => {
+    const fedAddress = "alice*example.org";
+    const fetchMock = vi.fn(async (url: string) => {
+      if (url.includes(".well-known")) {
+        return response(200, undefined, 'FEDERATION_SERVER = "https://fed.example"');
+      }
+      return response(200, { account_id: G_ADDRESS });
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    expect(await resolveFederationName(fedAddress)).toBe(G_ADDRESS);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(await resolveFederationName(fedAddress)).toBe(G_ADDRESS);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+
+    invalidateFederationCache(fedAddress);
+    expect(await resolveFederationName(fedAddress)).toBe(G_ADDRESS);
+    expect(fetchMock).toHaveBeenCalledTimes(4);
   });
 });

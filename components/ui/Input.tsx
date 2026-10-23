@@ -17,10 +17,10 @@ export default function Input({ label, id, className = "", suffix, ...props }: I
         <input
           id={id}
           {...props}
-          className={`w-full bg-gray-800 border border-gray-600 roundled-lg px-4 py-3 text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-500 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-900 ${suffix ? "pr-12" : ""} ${className}`}
+          className={`w-full bg-gray-800 border border-gray-600 roundled-lg px-4 py-3 text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-500 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-900 ${suffix ? "pe-12 rtl:pl-12 rtl:pr-4" : ""} ${className}`}
         />
         {suffix && (
-          <div className="absolute inset-y-0 right-0 flex items-center pr-3">
+          <div className="absolute inset-y-0 end-0 flex items-center pe-3">
             {suffix}
           </div>
         )}

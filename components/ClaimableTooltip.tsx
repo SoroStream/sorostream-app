@@ -16,6 +16,11 @@ interface ClaimableTooltipProps {
  * Info trigger with a tooltip showing the stream's claimable amount.
  * The value is recomputed every 5 seconds while `active` is true so it
  * reflects real-time balance growth instead of a cached snapshot.
+ *
+ * This is the **only production consumer** of `useLiveClaimable`. The hook is
+ * designed to support multiple concurrent instances (see its JSDoc), but no
+ * second consumer exists yet. See `src/lib/__tests__/useLiveClaimable.test.tsx`
+ * for the multi-instance concurrency test.
  */
 export default function ClaimableTooltip({
   stream,
@@ -42,7 +47,7 @@ export default function ClaimableTooltip({
         id={tooltipId}
         role="tooltip"
         data-testid={`claimable-tooltip-${stream.id}`}
-        className="hidden group-hover:block group-focus-within:block absolute left-0 bottom-6 w-56 bg-gray-700 border border-gray-600 rounded-lg p-2 text-xs text-gray-300 z-10 shadow-lg"
+        className="hidden group-hover:block group-focus-within:block absolute start-0 bottom-6 w-56 bg-gray-700 border border-gray-600 rounded-lg p-2 text-xs text-gray-300 z-10 shadow-lg"
       >
         {label}: <span className="font-mono">{display}</span>
       </span>

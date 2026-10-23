@@ -827,7 +827,7 @@ function DashboardContent() {
                       ▶
                     </span>
                     Wallet Analytics
-                    <span className="ml-1 text-xs font-normal text-gray-500">(last 30 days)</span>
+                    <span className="ms-1 text-xs font-normal text-gray-500">(last 30 days)</span>
                   </summary>
                   <div className="mt-3">
                     <StreamErrorBoundary section="Wallet Analytics">
@@ -908,11 +908,11 @@ function DashboardContent() {
                   </span>
                   Filters
                   {hasActiveFilters && (
-                    <span className="ml-1 bg-green-800 text-green-300 rounded-full px-1.5 py-0.5 text-[10px] font-semibold">
+                    <span className="ms-1 bg-green-800 text-green-300 rounded-full px-1.5 py-0.5 text-[10px] font-semibold">
                       active
                     </span>
                   )}
-                  <kbd className="hidden sm:inline-flex ml-1 bg-gray-700 text-gray-400 text-[10px] px-1 rounded font-mono">F</kbd>
+                  <kbd className="hidden sm:inline-flex ms-1 bg-gray-700 text-gray-400 text-[10px] px-1 rounded font-mono">F</kbd>
                 </button>
               </div>
               {showFilterBar && (
@@ -1129,7 +1129,7 @@ function DashboardContent() {
             {/* Sort controls */}
             <div className="mb-4 overflow-x-auto">
             <div className="flex flex-wrap items-center gap-2 min-w-0">
-              <span className="text-xs text-gray-400 mr-1 whitespace-nowrap">Sort by:</span>
+              <span className="text-xs text-gray-400 me-1 whitespace-nowrap">Sort by:</span>
               {(
                 [
                   { value: "created", label: "Date Created" },
@@ -1154,14 +1154,14 @@ function DashboardContent() {
               <button
                 onClick={toggleSortOrder}
                 aria-label={`Sort order: ${sortOrder === "asc" ? "ascending" : "descending"}`}
-                className="ml-1 px-3 py-1.5 rounded-lg text-xs border border-gray-700 text-gray-300 hover:bg-gray-800 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-500 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-900"
+                className="ms-1 px-3 py-1.5 rounded-lg text-xs border border-gray-700 text-gray-300 hover:bg-gray-800 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-500 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-900"
               >
                 {sortOrder === "asc" ? "↑ Asc" : "↓ Desc"}
               </button>
               <button
                 onClick={() => setGroupBy((g) => (g === "asset" ? "none" : "asset"))}
                 aria-pressed={groupBy === "asset"}
-                className={`ml-1 px-3 py-1.5 rounded-lg text-xs border transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-500 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-900 ${
+                className={`ms-1 px-3 py-1.5 rounded-lg text-xs border transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-500 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-900 ${
                   groupBy === "asset"
                     ? "bg-green-700 border-green-600 text-white"
                     : "border-gray-700 text-gray-400 hover:bg-gray-800"
@@ -1172,7 +1172,7 @@ function DashboardContent() {
               <button
                 onClick={() => setGroupBy((g) => (g === "tag" ? "none" : "tag"))}
                 aria-pressed={groupBy === "tag"}
-                className={`ml-1 px-3 py-1.5 rounded-lg text-xs border transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-500 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-900 ${
+                className={`ms-1 px-3 py-1.5 rounded-lg text-xs border transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-500 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-900 ${
                   groupBy === "tag"
                     ? "bg-green-700 border-green-600 text-white"
                     : "border-gray-700 text-gray-400 hover:bg-gray-800"
@@ -1205,7 +1205,7 @@ function DashboardContent() {
                   />
                   {selectedIds.size} selected
                 </label>
-                <div className="flex gap-2 ml-auto">
+                <div className="flex gap-2 ms-auto">
                   <button
                     onClick={handleBulkExport}
                     disabled={bulkLoading}
@@ -1340,7 +1340,7 @@ function DashboardContent() {
                       <button
                         type="button"
                         onClick={() => toggleGroupCollapse(label)}
-                        className="flex items-center gap-2 mb-3 w-full text-left group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-500 rounded"
+                        className="flex items-center gap-2 mb-3 w-full text-start group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-500 rounded"
                         aria-expanded={!isCollapsed}
                       >
                         <span
