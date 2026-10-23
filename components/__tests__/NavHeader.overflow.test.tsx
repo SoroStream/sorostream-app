@@ -66,8 +66,8 @@ describe('NavHeader medium-width overflow (#542)', () => {
     );
   });
 
-  it('keeps all 8 nav links mounted at 1024px, 1280px and 1440px (wrapping, not hiding)', () => {
-    expect((navLinksBlock.match(/\{ href:/g) ?? []).length).toBe(8);
+  it('keeps all 10 nav links mounted at 1024px, 1280px and 1440px (wrapping, not hiding)', () => {
+    expect((navLinksBlock.match(/\{ href:/g) ?? []).length).toBe(10);
 
     // Nothing in the nav is breakpoint-hidden, so every link is reachable at
     // 1024px, 1280px and 1440px — the row simply reflows.

@@ -35,8 +35,11 @@ const NAV_LINKS = [
   { href: "/settings", key: "settings" },
 ] as const;
 
-// Routes already reachable from BottomNav on mobile; omitted from the drawer.
-const BOTTOM_NAV_HREFS = ["/dashboard", "/stream/new", "/stream/batch", "/stats", "/analytics", "/activity", "/admin", "/archive", "/address-book", "/settings"];
+// Routes already reachable from BottomNav's primary tabs on mobile; omitted from
+// the hamburger drawer to avoid duplication. Secondary items (analytics, stats,
+// batch, activity, admin, archive) live in BottomNav's "More" drawer but are
+// still surfaced here so the hamburger menu remains useful.
+const BOTTOM_NAV_HREFS = ["/dashboard", "/stream/new", "/address-book", "/settings"];
 const DRAWER_LINKS = NAV_LINKS.filter((l) => !BOTTOM_NAV_HREFS.includes(l.href));
 
 /**
