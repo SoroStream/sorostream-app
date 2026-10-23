@@ -19,6 +19,9 @@ import {
   shouldSnapshot,
   type BalanceSnapshot,
 } from "@/src/lib/balanceCache";
+// NOTE: This is the LIVE balance-history store that powers the portfolio chart.
+// Do not confuse with src/lib/balanceHistory.ts, which has zero production
+// callers and is dead code pending the cleanup decision (issue #775).
 
 type TimeRange = "1D" | "7D" | "30D" | "90D" | "ALL";
 
