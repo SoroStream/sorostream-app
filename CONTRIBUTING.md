@@ -55,8 +55,4 @@ notification trigger and whether it is user-configurable today.
    preference from `notificationPrefs.ts` when applicable.
 4. Update the table above so this document stays accurate.
 
-### Related work
-
-The configurable-thresholds enhancement will make the expiry thresholds
-user-configurable. Once that lands, update the table above to mark the 24h and
-1h expiry triggers as configurable and point them at `notificationPrefs.ts`.
+on
