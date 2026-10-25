@@ -118,15 +118,28 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
   });
 import { type NextRequest, NextResponse } from "next/server";
 
+function escapeXml(value: string): string {
+  return value.replace(/[&<>"']/g, (character) => {
+    const entities: Record<string, string> = {
+      "&": "&amp;",
+      "<": "&lt;",
+      ">": "&gt;",
+      '"': "&quot;",
+      "'": "&apos;",
+    };
+    return entities[character];
+  });
+}
+
 /**
  * Dynamic OG image generation endpoint.
  * Generates a simple text-based OG image for stream sharing.
  */
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
-  const streamId = searchParams.get("streamId") || "Stream";
-  const amount = searchParams.get("amount") || "0.00";
-  const token = searchParams.get("token") || "USDC";
+  const streamId = escapeXml(searchParams.get("streamId") || "Stream");
+  const amount = escapeXml(searchParams.get("amount") || "0.00");
+  const token = escapeXml(searchParams.get("token") || "USDC");
 
   try {
     // Create a simple SVG-based OG image

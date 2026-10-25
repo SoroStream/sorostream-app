@@ -70,7 +70,7 @@
     "compare_stream_id": "ID do Fluxo",
     "compare_status": "Status",
     "compare_recipient": "Destinatário",
-    "compare_amount": "Valor (USDC)",
+    "compare_amount": "Valor",
     "compare_claimable": "Resgatável",
     "compare_flow_rate": "Taxa de Fluxo",
     "compare_start_date": "Data de Início",
