@@ -27,6 +27,8 @@ const NAV_LINKS = [
   { href: "/dashboard", key: "dashboard" },
   { href: "/analytics", key: "analytics" },
   { href: "/stream/new", key: "create" },
+  { href: "/stream/batch", key: "batch" },
+  { href: "/stats", key: "stats" },
   { href: "/activity", key: "activity" },
   { href: "/admin", key: "admin" },
   { href: "/archive", key: "archive" },

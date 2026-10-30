@@ -157,7 +157,9 @@
     "keyboard_shortcuts": "Keyboard shortcuts (?)",
     "open_keyboard_shortcuts": "Open keyboard shortcuts help",
     "shortcuts": "Shortcuts",
-    "analytics": "Analytics"
+    "analytics": "Analytics",
+    "stats": "Stats",
+    "batch": "Batch Streams"
   },
   "common": {
     "price_unavailable": "Price unavailable",

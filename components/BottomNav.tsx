@@ -2,34 +2,9 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-
-interface NavItem {
-  href: string;
-  label: string;
-  icon: React.ReactNode;
-}
+import { useState, useEffect } from "react";
 
 // SVG icons for each nav destination
-function HomeIcon({ active }: { active: boolean }) {
-  return (
-    <svg
-      xmlns="http://www.w3.org/2000/svg"
-      width="22"
-      height="22"
-      viewBox="0 0 24 24"
-      fill={active ? "currentColor" : "none"}
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden="true"
-    >
-      <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
-      <polyline points="9 22 9 12 15 12 15 22" />
-    </svg>
-  );
-}
-
 function DashboardIcon({ active }: { active: boolean }) {
   return (
     <svg
@@ -116,15 +91,63 @@ function SettingsIcon({ active }: { active: boolean }) {
   );
 }
 
-const NAV_ITEMS: NavItem[] = [
-  { href: "/dashboard", label: "Dashboard", icon: null },
-  { href: "/stream/new", label: "Create", icon: null },
-  { href: "/address-book", label: "Contacts", icon: null },
-  { href: "/settings", label: "Settings", icon: null },
-];
+function MoreIcon({ active }: { active: boolean }) {
+  return (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      width="22"
+      height="22"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <line x1="4" y1="6" x2="20" y2="6" strokeWidth={active ? "2.5" : "2"} />
+      <line x1="4" y1="12" x2="20" y2="12" strokeWidth={active ? "2.5" : "2"} />
+      <line x1="4" y1="18" x2="20" y2="18" strokeWidth={active ? "2.5" : "2"} />
+    </svg>
+  );
+}
+
+/** Routes shown inside the "More" drawer — everything not reachable from the 4 primary tabs. */
+const MORE_LINKS = [
+  { href: "/analytics", label: "Analytics" },
+  { href: "/activity", label: "Activity" },
+  { href: "/stats", label: "Stats" },
+  { href: "/stream/batch", label: "Batch Streams" },
+  { href: "/admin", label: "Admin" },
+  { href: "/archive", label: "Archive" },
+] as const;
+
+/** Hrefs covered by the More drawer — used to highlight the More button when
+ *  the user is on one of those pages. */
+const MORE_HREFS = MORE_LINKS.map((l) => l.href);
 
 export default function BottomNav() {
   const pathname = usePathname();
+  const [drawerOpen, setDrawerOpen] = useState(false);
+
+  // Close the drawer whenever the user navigates to a new page.
+  useEffect(() => {
+    setDrawerOpen(false);
+  }, [pathname]);
+
+  // Close drawer on Escape key.
+  useEffect(() => {
+    if (!drawerOpen) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setDrawerOpen(false);
+    };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [drawerOpen]);
+
+  const isMoreActive = MORE_HREFS.some(
+    (href) => pathname === href || pathname.startsWith(href + "/"),
+  );
 
   return (
     <>
@@ -134,6 +157,57 @@ export default function BottomNav() {
        * so we reserve exactly the same height in the document flow.
        */}
       <div className="h-16 md:hidden" aria-hidden="true" />
+
+      {/* More drawer overlay */}
+      {drawerOpen && (
+        <div className="fixed inset-0 z-[55] md:hidden" onClick={() => setDrawerOpen(false)}>
+          <div className="absolute inset-0 bg-black/50" aria-hidden="true" />
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-label="More navigation options"
+            className="absolute bottom-16 inset-x-0 bg-gray-900 border-t border-gray-700 rounded-t-2xl shadow-xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="p-4">
+              <div className="flex items-center justify-between mb-3">
+                <span className="text-sm font-semibold text-gray-200">More</span>
+                <button
+                  type="button"
+                  onClick={() => setDrawerOpen(false)}
+                  className="p-1 text-gray-400 hover:text-white rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-500"
+                  aria-label="Close more menu"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                    <line x1="18" y1="6" x2="6" y2="18" />
+                    <line x1="6" y1="6" x2="18" y2="18" />
+                  </svg>
+                </button>
+              </div>
+              <ul className="grid grid-cols-2 gap-2" role="list">
+                {MORE_LINKS.map(({ href, label }) => {
+                  const isActive = pathname === href || pathname.startsWith(href + "/");
+                  return (
+                    <li key={href}>
+                      <Link
+                        href={href}
+                        aria-current={isActive ? "page" : undefined}
+                        className={`flex items-center gap-2 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-500 ${
+                          isActive
+                            ? "bg-gray-700 text-green-400"
+                            : "text-gray-300 hover:bg-gray-800 hover:text-white"
+                        }`}
+                      >
+                        {label}
+                      </Link>
+                    </li>
+                  );
+                })}
+              </ul>
+            </div>
+          </div>
+        </div>
+      )}
 
       <nav
         aria-label="Mobile navigation"
@@ -145,7 +219,12 @@ export default function BottomNav() {
             <NavLink
               href="/dashboard"
               label="Dashboard"
-              isActive={pathname === "/dashboard" || pathname.startsWith("/stream/")}
+              isActive={
+                pathname === "/dashboard" ||
+                (pathname.startsWith("/stream/") &&
+                  pathname !== "/stream/new" &&
+                  pathname !== "/stream/batch")
+              }
               icon={(active) => <DashboardIcon active={active} />}
             />
           </li>
@@ -176,9 +255,29 @@ export default function BottomNav() {
             <NavLink
               href="/settings"
               label="Settings"
-              isActive={pathname === "/settings"}
+              isActive={pathname === "/settings" || pathname.startsWith("/settings/")}
               icon={(active) => <SettingsIcon active={active} />}
             />
+          </li>
+
+          {/* More — opens a drawer with Analytics, Activity, Stats, Batch, Admin, Archive */}
+          <li className="flex-1">
+            <button
+              type="button"
+              aria-expanded={drawerOpen}
+              aria-haspopup="dialog"
+              aria-label="More navigation options"
+              onClick={() => setDrawerOpen((prev) => !prev)}
+              className={`
+                flex flex-col items-center justify-center gap-1 h-full w-full text-[10px] font-medium
+                transition-colors min-h-11 min-w-11
+                focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-500 focus-visible:ring-inset
+                ${isMoreActive || drawerOpen ? "text-green-400" : "text-gray-400 hover:text-gray-200"}
+              `}
+            >
+              <MoreIcon active={isMoreActive || drawerOpen} />
+              <span>More</span>
+            </button>
           </li>
         </ul>
       </nav>

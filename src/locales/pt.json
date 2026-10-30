@@ -161,7 +161,9 @@
     "keyboard_shortcuts": "Atalhos de teclado (?)",
     "open_keyboard_shortcuts": "Abrir ajuda de atalhos de teclado",
     "shortcuts": "Atalhos",
-    "analytics": "Análises"
+    "analytics": "Análises",
+    "stats": "Estatísticas",
+    "batch": "Streams em Lote"
   },
   "common": {
     "price_unavailable": "Preço indisponível",
