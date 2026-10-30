@@ -31,6 +31,9 @@ export default function PullToRefresh({
   const getScrollTop = () =>
     Math.max(
       containerRef.current?.scrollTop ?? 0,
+      // Include nested virtualized scrolling when deciding whether the list is
+      // at its top boundary.
+      containerRef.current?.querySelector<HTMLElement>('[data-testid="stream-list"]')?.scrollTop ?? 0,
       typeof window !== "undefined" ? window.scrollY : 0,
     );
 

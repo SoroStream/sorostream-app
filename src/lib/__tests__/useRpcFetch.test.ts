@@ -1,0 +1,37 @@
+import { act, renderHook } from "@testing-library/react";
+import { afterEach, expect, it, vi } from "vitest";
+const toast = vi.hoisted(() => ({ upsertPersistentToast: vi.fn(() => 42), removeToast: vi.fn(), addToast: vi.fn() }));
+vi.mock("../toast", () => ({ useToast: () => toast }));
+import { useRpcFetch } from "../useRpcFetch";
+afterEach(() => { vi.useRealTimers(); vi.clearAllMocks(); });
+it("shares the longest countdown across overlapping calls and hook instances", async () => {
+  vi.useFakeTimers();
+  const first = renderHook(() => useRpcFetch());
+  const second = renderHook(() => useRpcFetch());
+  const a = vi.fn().mockRejectedValueOnce({ status: 429 }).mockResolvedValue("a");
+  const b = vi.fn().mockRejectedValueOnce({ status: 429 }).mockRejectedValueOnce({ status: 429 }).mockResolvedValue("b");
+  const pa = first.result.current(a);
+  await act(async () => { await vi.advanceTimersByTimeAsync(1000); });
+  const pb = second.result.current(b);
+  await act(async () => { await vi.advanceTimersByTimeAsync(0); });
+  expect(toast.upsertPersistentToast).toHaveBeenLastCalledWith("rpc-rate-limit", "Rate limited — retrying in 2s", "warning");
+  await act(async () => { await vi.advanceTimersByTimeAsync(1000); });
+  expect(await pa).toBe("a");
+  expect(toast.removeToast).not.toHaveBeenCalled();
+  await act(async () => { await vi.advanceTimersByTimeAsync(1000); });
+  expect(toast.upsertPersistentToast).toHaveBeenLastCalledWith("rpc-rate-limit", "Rate limited — retrying in 4s", "warning");
+  await act(async () => { await vi.advanceTimersByTimeAsync(4000); });
+  expect(await pb).toBe("b");
+  expect(toast.removeToast).toHaveBeenCalledTimes(1);
+  expect(toast.removeToast).toHaveBeenCalledWith(42);
+});
+it("cleans up the persistent toast when a retry fails", async () => {
+  vi.useFakeTimers();
+  const { result } = renderHook(() => useRpcFetch());
+  const promise = result.current(vi.fn().mockRejectedValueOnce({ status: 429 }).mockRejectedValue(new Error("failed")));
+  const assertion = expect(promise).rejects.toThrow("failed");
+  await act(async () => { await vi.advanceTimersByTimeAsync(2000); });
+  await assertion;
+  expect(toast.removeToast).toHaveBeenCalledTimes(1);
+  expect(toast.removeToast).toHaveBeenCalledWith(42);
+});

@@ -1,0 +1,19 @@
+{
+  "settings": {
+    "title": "פנקס כתובות",
+    "language_title": "שפה",
+    "language_label": "בחירת שפה",
+    "language_desc": "בחירת שפת תצוגה"
+  },
+  "nav": {
+    "home": "בית",
+    "dashboard": "לוח בקרה",
+    "create": "יצירה",
+    "activity": "פעילות",
+    "admin": "ניהול",
+    "archive": "ארכיון",
+    "settings": "הגדרות",
+    "help": "עזרה",
+    "analytics": "ניתוח נתונים"
+  }
+}

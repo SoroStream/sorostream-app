@@ -356,3 +356,9 @@ body {
     max-height: calc(100vh - 2rem);
   }
 }
+
+/* Identifiers and numeric entry retain their reading order inside RTL layouts. */
+input[type="number"], input[type="url"], input[type="email"], .font-mono {
+  direction: ltr;
+  unicode-bidi: isolate;
+}

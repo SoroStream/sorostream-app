@@ -192,7 +192,7 @@ export default function StreamComparisonModal({
                   <button
                     id="compare-stream"
                     onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-                    className="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 text-left text-gray-100 hover:border-gray-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-500 flex items-center justify-between"
+                    className="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 text-start text-gray-100 hover:border-gray-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-500 flex items-center justify-between"
                   >
                     <span>
                       {selectedStream
@@ -219,7 +219,7 @@ export default function StreamComparisonModal({
                   </button>
 
                   {isDropdownOpen && (
-                    <div className="absolute top-full left-0 right-0 mt-1 bg-gray-700 border border-gray-600 rounded-lg shadow-lg z-10">
+                    <div className="absolute top-full start-0 end-0 mt-1 bg-gray-700 border border-gray-600 rounded-lg shadow-lg z-10">
                       {/* Search Input */}
                       <div className="p-2 border-b border-gray-600">
                         <input
@@ -248,7 +248,7 @@ export default function StreamComparisonModal({
                                   setIsDropdownOpen(false);
                                   setSearchQuery("");
                                 }}
-                                className="w-full text-left px-3 py-2 hover:bg-gray-600 transition-colors text-sm text-gray-100 flex flex-col gap-1"
+                                className="w-full text-start px-3 py-2 hover:bg-gray-600 transition-colors text-sm text-gray-100 flex flex-col gap-1"
                               >
                                 <div className="font-medium">
                                   {stream.id.slice(0, 16)}
@@ -347,8 +347,8 @@ export default function StreamComparisonModal({
 
                     <ComparisonRow
                       label={t("compare_amount")}
-                      current={formatStellarAmount(currentStream.deposit)}
-                      compared={formatStellarAmount(selectedStream.deposit)}
+                      current={`${formatStellarAmount(currentStream.deposit)} ${currentStream.token}`}
+                      compared={`${formatStellarAmount(selectedStream.deposit)} ${selectedStream.token}`}
                       highlighted={getDifference(
                         currentStream.deposit,
                         selectedStream.deposit
@@ -378,12 +378,12 @@ export default function StreamComparisonModal({
                       label={t("compare_flow_rate")}
                       current={
                         <div className="text-sm">
-                          {formatStellarAmount(currentStream.flowRate)} / sec
+                          {formatStellarAmount(currentStream.flowRate)} {currentStream.token} / sec
                         </div>
                       }
                       compared={
                         <div className="text-sm">
-                          {formatStellarAmount(selectedStream.flowRate)} / sec
+                          {formatStellarAmount(selectedStream.flowRate)} {selectedStream.token} / sec
                         </div>
                       }
                       highlighted={getDifference(

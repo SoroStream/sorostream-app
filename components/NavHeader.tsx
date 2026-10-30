@@ -2,6 +2,7 @@
 import { useState, useEffect, useCallback, useRef, Suspense } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { NAV_LINKS, BOTTOM_NAV_HREFS } from "@/src/lib/navConstants";
 import NetworkSelector from "@/components/NetworkSelector";
 import WalletConnect from "@/components/WalletConnect";
 import ThemeToggle from "@/components/ThemeToggle";
@@ -22,22 +23,13 @@ const HORIZON_URL = process.env.NEXT_PUBLIC_RPC_URL
   ? process.env.NEXT_PUBLIC_RPC_URL.replace("/rpc/v1", "")
   : "https://horizon-testnet.stellar.org";
 
-const NAV_LINKS = [
-  { href: "/", key: "home" },
-  { href: "/dashboard", key: "dashboard" },
-  { href: "/analytics", key: "analytics" },
-  { href: "/stream/new", key: "create" },
-  { href: "/stream/batch", key: "batch" },
-  { href: "/stats", key: "stats" },
-  { href: "/activity", key: "activity" },
-  { href: "/admin", key: "admin" },
-  { href: "/archive", key: "archive" },
-  { href: "/settings", key: "settings" },
-] as const;
-
-// Routes already reachable from BottomNav on mobile; omitted from the drawer.
-const BOTTOM_NAV_HREFS = ["/dashboard", "/stream/new", "/address-book", "/settings"];
+// Filter out links that appear in BottomNav's primary tabs or its More drawer
+// so they aren't duplicated in the desktop nav / mobile hamburger drawer.
+// BOTTOM_NAV_HREFS is the single source of truth — do not redefine it here.
 const DRAWER_LINKS = NAV_LINKS.filter((l) => !BOTTOM_NAV_HREFS.includes(l.href));
+
+// Re-export for consumers that need to inspect drawer links in tests.
+export { DRAWER_LINKS };
 
 /**
  * Next.js App Router (14.2.5) has a known failure mode where a soft
@@ -209,7 +201,7 @@ export default function NavHeader() {
                 >
                   {label}
                   <NotificationBadge count={unread} label={`${label} update`} />
-                  {isActive && <span className="ml-1 inline-block h-1 w-1 rounded-full bg-green-600 dark:bg-green-400" aria-hidden="true" />}
+                  {isActive && <span className="ms-1 inline-block h-1 w-1 rounded-full bg-green-600 dark:bg-green-400" aria-hidden="true" />}
                 </Link>
               );
             })}
@@ -275,7 +267,7 @@ export default function NavHeader() {
               <path d="M13.73 21a2 2 0 0 1-3.46 0" />
             </svg>
             {changelogUnread && (
-              <span className="absolute top-0.5 right-0.5 w-2 h-2 bg-green-600 dark:bg-green-400 rounded-full" aria-hidden="true" />
+              <span className="absolute top-0.5 end-0.5 w-2 h-2 bg-green-600 dark:bg-green-400 rounded-full" aria-hidden="true" />
             )}
           </button>
           <button
@@ -324,7 +316,7 @@ export default function NavHeader() {
           role="dialog"
           aria-modal="true"
           aria-label={t("main_navigation")}
-          className="absolute inset-y-0 left-0 w-full bg-white dark:bg-gray-900 p-4 shadow-xl animate-nav-drawer-in"
+          className="absolute inset-y-0 start-0 w-full bg-white dark:bg-gray-900 p-4 shadow-xl animate-nav-drawer-in"
         >
           <div className="flex items-center justify-between mb-4">
             <span className="text-lg font-bold text-green-400">SoroStream</span>

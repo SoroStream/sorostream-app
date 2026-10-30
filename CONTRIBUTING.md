@@ -9,6 +9,20 @@ significant work so we can align on scope and approach.
 - Run the dev server and tests using the scripts defined in `package.json`.
 - Keep changes focused; avoid unrelated refactors in the same pull request.
 
+## Browser storage keys
+
+Every `localStorage` / `sessionStorage` key must start with `sorostream-`, so
+it can't collide with a third-party script or extension on the same origin.
+Use `sorostream-<area>-<name>` in kebab-case, defined once as a constant in
+the owning module. Existing `sorostream_` keys are grandfathered.
+
+`npm run lint` (via `scripts/check-storage-keys.mjs`) and
+`__tests__/storageKeyPrefix.test.ts` fail on any other key. The few existing
+exceptions are listed, with reasons, in `KNOWN_VIOLATIONS` in that script:
+flagged, not yet fixed. Don't add to that list for new code. The full
+inventory and naming guidance is in
+[docs/storage-keys.md](docs/storage-keys.md).
+
 ## Notification Thresholds
 
 Notifications are produced by `streamNotificationWatcher.ts`, which reads user
@@ -41,8 +55,4 @@ notification trigger and whether it is user-configurable today.
    preference from `notificationPrefs.ts` when applicable.
 4. Update the table above so this document stays accurate.
 
-### Related work
-
-The configurable-thresholds enhancement will make the expiry thresholds
-user-configurable. Once that lands, update the table above to mark the 24h and
-1h expiry triggers as configurable and point them at `notificationPrefs.ts`.
+on

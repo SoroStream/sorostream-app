@@ -3,6 +3,7 @@ import { verifyAddress } from "../addressVerification";
 import { invalidateTomlDisplayName, resolveTomlDisplayName } from "../stellarToml";
 
 vi.mock("@/src/lib/federation", () => ({
+  invalidateFederationCache: vi.fn(),
   resolveFederationName: vi.fn(async () => null),
   LookupAbortedError: class LookupAbortedError extends Error {},
   isLookupAborted: (err: unknown) =>

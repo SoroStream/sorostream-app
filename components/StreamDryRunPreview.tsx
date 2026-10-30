@@ -115,7 +115,7 @@ export default function StreamDryRunPreview({
         <h2 id="dry-run-heading" className="text-sm font-semibold uppercase tracking-wide text-gray-300">
           Dry-Run Simulation
         </h2>
-        <span className="ml-auto text-xs text-gray-500">no transaction will be signed</span>
+        <span className="ms-auto text-xs text-gray-500">no transaction will be signed</span>
       </div>
 
       {state.status === "loading" && (
@@ -150,24 +150,24 @@ export default function StreamDryRunPreview({
           <div className="overflow-x-auto">
             <table className="w-full text-sm" aria-label="Simulated stream checkpoints">
               <thead>
-                <tr className="text-left text-xs text-gray-500 uppercase tracking-wide border-b border-gray-700">
-                  <th scope="col" className="py-2 pr-2 font-medium">Point</th>
-                  <th scope="col" className="py-2 pr-2 font-medium">Date</th>
-                  <th scope="col" className="py-2 pr-2 font-medium text-right">Vested</th>
-                  <th scope="col" className="py-2 pr-2 font-medium text-right">Fee</th>
-                  <th scope="col" className="py-2 font-medium text-right">Net</th>
+                <tr className="text-start text-xs text-gray-500 uppercase tracking-wide border-b border-gray-700">
+                  <th scope="col" className="py-2 pe-2 font-medium">Point</th>
+                  <th scope="col" className="py-2 pe-2 font-medium">Date</th>
+                  <th scope="col" className="py-2 pe-2 font-medium text-end">Vested</th>
+                  <th scope="col" className="py-2 pe-2 font-medium text-end">Fee</th>
+                  <th scope="col" className="py-2 font-medium text-end">Net</th>
                 </tr>
               </thead>
               <tbody className="font-mono text-xs">
                 {state.result.checkpoints.map((cp) => (
                   <tr key={cp.progress} className="border-b border-gray-800 last:border-0">
-                    <td className="py-2 pr-2 text-gray-400 font-sans">{fmtProgress(cp.progress)}</td>
-                    <td className="py-2 pr-2 text-gray-400">
+                    <td className="py-2 pe-2 text-gray-400 font-sans">{fmtProgress(cp.progress)}</td>
+                    <td className="py-2 pe-2 text-gray-400">
                       {new Date(cp.time * 1000).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })}
                     </td>
-                    <td className="py-2 pr-2 text-white text-right">{fmtTokens(cp.vestedStroops)}</td>
-                    <td className="py-2 pr-2 text-yellow-400 text-right">{fmtTokens(cp.feeStroops)}</td>
-                    <td className="py-2 text-green-400 text-right">{fmtTokens(cp.netStroops)}</td>
+                    <td className="py-2 pe-2 text-white text-end">{fmtTokens(cp.vestedStroops)}</td>
+                    <td className="py-2 pe-2 text-yellow-400 text-end">{fmtTokens(cp.feeStroops)}</td>
+                    <td className="py-2 text-green-400 text-end">{fmtTokens(cp.netStroops)}</td>
                   </tr>
                 ))}
               </tbody>
@@ -181,7 +181,7 @@ export default function StreamDryRunPreview({
                 {fmtTokens(state.result.totalFeeStroops)} {token}
               </p>
             </div>
-            <div className="text-right">
+            <div className="text-end">
               <p className="text-gray-500 text-xs">Net to recipient</p>
               <p className="font-mono text-green-400" data-testid="dry-run-net-total">
                 {fmtTokens(state.result.netTotalStroops)} {token}

@@ -15,7 +15,6 @@ import {
   getActivityEvents,
   getActivityEventsAll,
   getActivityAssets,
-  simulateNewEvent,
   buildStreamAuditLog,
   formatUSDC,
   truncateAddress,
@@ -31,8 +30,6 @@ import {
 import { downloadActivityCsv } from "@/src/lib/export";
 
 const PAGE_SIZE = 10;
-/** How often we check for newly-arrived events to prepend (ms). */
-const POLL_INTERVAL = 15000;
 
 const TYPE_FILTERS: { value: StreamEvent["type"]; label: string }[] = [
   { value: "creation", label: "Subscription" },
@@ -51,7 +48,7 @@ const typeConfig: Record<StreamEvent["type"], { label: string; icon: string; col
 };
 
 const SORT_COLUMNS: { field: ActivitySortField; label: string; className: string }[] = [
-  { field: "type", label: "Type", className: "flex-1 justify-start pl-12" },
+  { field: "type", label: "Type", className: "flex-1 justify-start ps-12" },
   { field: "date", label: "Date", className: "justify-start" },
   { field: "amount", label: "Amount", className: "justify-end w-32" },
 ];
@@ -138,31 +135,6 @@ function ActivityPageContent() {
     setCursor(nextCursor);
     setLoadingMore(false);
   }, [cursor, loadingMore, buildQuery]);
-
-  // Real-time prepend: poll for newly-created events and add matching ones to
-  // the top of the feed without resetting scroll position or existing pages.
-  const lastSeenIdRef = useRef<string | null>(null);
-  useEffect(() => {
-    if (events.length > 0 && lastSeenIdRef.current === null) {
-      lastSeenIdRef.current = events[0]?.id ?? null;
-    }
-  }, [events]);
-
-  useEffect(() => {
-    const interval = setInterval(() => {
-      const newEvent = simulateNewEvent();
-      const matchesTypes = activeTypes.size === 0 || activeTypes.has(newEvent.type);
-      const matchesAsset = !assetFilter || newEvent.asset === assetFilter;
-      const ts = new Date(newEvent.timestamp).getTime();
-      const matchesFrom = !fromDate || ts >= new Date(fromDate).getTime();
-      const matchesTo = !toDate || ts <= new Date(toDate).getTime() + 86_400_000 - 1;
-      if (matchesTypes && matchesAsset && matchesFrom && matchesTo) {
-        setEvents((prev) => [newEvent, ...prev]);
-      }
-      lastSeenIdRef.current = newEvent.id;
-    }, POLL_INTERVAL);
-    return () => clearInterval(interval);
-  }, [activeTypes, assetFilter, fromDate, toDate]);
 
   function toggleType(type: StreamEvent["type"]) {
     setActiveTypes((prev) => {
@@ -448,7 +420,7 @@ function ActivityPageContent() {
                           {event.message && ` · ${formatDateTime(event.timestamp)}`}
                         </p>
                       </div>
-                      <div className="text-right shrink-0">
+                      <div className="text-end shrink-0">
                         {event.amount && (
                           <p className="text-sm font-semibold text-white font-mono">
                             {formatUSDC(BigInt(event.amount))} {event.asset}

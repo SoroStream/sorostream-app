@@ -93,7 +93,7 @@ export default function PollingIndicator({
         <button
           onClick={() => void handleManualRefresh()}
           disabled={busy}
-          className="ml-1 px-2 py-1 rounded text-gray-600 dark:text-gray-400 border border-gray-300 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-500"
+          className="ms-1 px-2 py-1 rounded text-gray-600 dark:text-gray-400 border border-gray-300 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-500"
           aria-label={busy ? busyLabel : idleLabel}
           title={busy ? busyLabel : idleLabel}
         >

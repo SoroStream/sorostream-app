@@ -33,4 +33,15 @@ describe("RouteErrorFallback", () => {
     fireEvent.click(screen.getByRole("button", { name: /try again/i }));
     expect(onRetry).toHaveBeenCalledTimes(1);
   });
+
+  it("gives network failures connection guidance", () => {
+    render(<RouteErrorFallback error={new TypeError("fetch failed")} />);
+    expect(screen.getByText(/check your internet connection/i)).toBeInTheDocument();
+  });
+
+  it("gives application errors generic report guidance", () => {
+    render(<RouteErrorFallback error={new Error("render exploded")} />);
+    expect(screen.getByText(/report the issue if it continues/i)).toBeInTheDocument();
+    expect(screen.queryByText(/check your internet connection/i)).not.toBeInTheDocument();
+  });
 });

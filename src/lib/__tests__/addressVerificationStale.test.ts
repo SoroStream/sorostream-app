@@ -5,6 +5,7 @@ import {
 } from "../addressVerification";
 
 vi.mock("@/src/lib/federation", () => ({
+  invalidateFederationCache: vi.fn(),
   resolveFederationName: vi.fn(async () => null),
   LookupAbortedError: class LookupAbortedError extends Error {},
   isLookupAborted: (err: unknown) =>

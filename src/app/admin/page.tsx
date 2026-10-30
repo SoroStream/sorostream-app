@@ -138,7 +138,7 @@ function TreasuryRow({ entry, isAdmin, xlmPrice, onSweep, sweeping }: TreasuryRo
           <p className="text-xs text-gray-400 uppercase tracking-wider mb-0.5">Token</p>
           <p className="text-lg font-bold text-white">{entry.token}</p>
         </div>
-        <div className="text-right">
+        <div className="text-end">
           <p className="text-xs text-gray-400 uppercase tracking-wider mb-0.5">Balance</p>
           {hasBalance ? (
             <p className="text-lg font-bold text-green-400 font-mono">
@@ -737,10 +737,10 @@ export default function AdminPage() {
                 Clear filters
               </button>
             )}
-            <p className="text-xs text-gray-500 self-end ml-auto">
+            <p className="text-xs text-gray-500 self-end ms-auto">
               {filteredStreams.length} stream{filteredStreams.length !== 1 ? "s" : ""}
               {totalStreamPages > 1 && (
-                <span className="ml-1">· page {currentStreamPage} of {totalStreamPages}</span>
+                <span className="ms-1">· page {currentStreamPage} of {totalStreamPages}</span>
               )}
             </p>
           </div>
@@ -749,7 +749,7 @@ export default function AdminPage() {
           <div className="overflow-x-auto rounded-xl border border-gray-700">
             <table className="w-full text-sm">
               <thead>
-                <tr className="bg-gray-800 text-gray-400 text-left">
+                <tr className="bg-gray-800 text-gray-400 text-start">
                   <th className="px-4 py-3 font-medium">ID</th>
                   <th className="px-4 py-3 font-medium">Status</th>
                   <th className="px-4 py-3 font-medium">Token</th>

@@ -3,6 +3,34 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState, useEffect } from "react";
+import { NAV_LINKS, BOTTOM_NAV_HREFS, MORE_NAV_HREFS } from "@/src/lib/navConstants";
+
+/**
+ * Mobile bottom navigation bar.
+ *
+ * Primary tabs (Dashboard, Create, Contacts, Settings) are driven by
+ * BOTTOM_NAV_HREFS from src/lib/navConstants.ts — the single source of truth
+ * shared with NavHeader.
+ *
+ * Secondary routes (Analytics, Activity, Stats, Batch Streams, Admin, Archive)
+ * are reachable via the "More" button which opens a bottom sheet drawer.
+ * These are driven by MORE_NAV_HREFS from the same constants file.
+ *
+ * IMPORTANT: Do NOT define a local copy of either list here. Editing a list
+ * in one place without updating navConstants.ts is exactly the drift bug this
+ * design prevents. See feat/778 for background.
+ *
+ * See: __tests__/navDrift.test.ts for the drift test that guards this invariant.
+ */
+
+// Primary tabs — derived from the single shared source of truth.
+const BOTTOM_NAV_LINKS = NAV_LINKS.filter((l) => BOTTOM_NAV_HREFS.includes(l.href));
+
+// Secondary routes shown in the More drawer.
+const MORE_LINKS = NAV_LINKS.filter((l) => MORE_NAV_HREFS.includes(l.href));
+
+// Re-export for consumers that need to inspect rendered hrefs in tests.
+export { BOTTOM_NAV_LINKS };
 
 // SVG icons for each nav destination
 function DashboardIcon({ active }: { active: boolean }) {
@@ -112,20 +140,6 @@ function MoreIcon({ active }: { active: boolean }) {
   );
 }
 
-/** Routes shown inside the "More" drawer — everything not reachable from the 4 primary tabs. */
-const MORE_LINKS = [
-  { href: "/analytics", label: "Analytics" },
-  { href: "/activity", label: "Activity" },
-  { href: "/stats", label: "Stats" },
-  { href: "/stream/batch", label: "Batch Streams" },
-  { href: "/admin", label: "Admin" },
-  { href: "/archive", label: "Archive" },
-] as const;
-
-/** Hrefs covered by the More drawer — used to highlight the More button when
- *  the user is on one of those pages. */
-const MORE_HREFS = MORE_LINKS.map((l) => l.href);
-
 export default function BottomNav() {
   const pathname = usePathname();
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -145,7 +159,7 @@ export default function BottomNav() {
     return () => document.removeEventListener("keydown", onKey);
   }, [drawerOpen]);
 
-  const isMoreActive = MORE_HREFS.some(
+  const isMoreActive = MORE_NAV_HREFS.some(
     (href) => pathname === href || pathname.startsWith(href + "/"),
   );
 
@@ -178,7 +192,18 @@ export default function BottomNav() {
                   className="p-1 text-gray-400 hover:text-white rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-500"
                   aria-label="Close more menu"
                 >
-                  <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    width="18"
+                    height="18"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    aria-hidden="true"
+                  >
                     <line x1="18" y1="6" x2="6" y2="18" />
                     <line x1="6" y1="6" x2="18" y2="18" />
                   </svg>
@@ -212,6 +237,7 @@ export default function BottomNav() {
       <nav
         aria-label="Mobile navigation"
         className="fixed bottom-0 inset-x-0 z-50 md:hidden bg-gray-900/95 backdrop-blur border-t border-gray-800 safe-bottom"
+        data-testid="bottom-nav"
       >
         <ul className="flex items-stretch h-16" role="list">
           {/* Dashboard */}

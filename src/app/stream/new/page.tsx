@@ -1096,7 +1096,7 @@ function NewStreamWizard() {
                     </>
                   ) : null}
                   {whitelistEnforced && (
-                    <span className="ml-auto text-gray-500">Whitelist mode on</span>
+                    <span className="ms-auto text-gray-500">Whitelist mode on</span>
                   )}
                 </div>
               )}
@@ -1429,7 +1429,7 @@ function NewStreamWizard() {
               </button>
 
               {showAdvanced && (
-                <div className="mt-4 space-y-4 pl-1">
+                <div className="mt-4 space-y-4 ps-1">
                   {/* Auto-renewal toggle */}
                   <div className="flex items-start justify-between gap-4">
                     <div className="flex-1">
@@ -1644,11 +1644,11 @@ function NewStreamWizard() {
               <div className="border-t border-gray-700 pt-4 space-y-3">
                 <div className="flex justify-between items-start text-sm">
                   <span className="text-gray-400">To</span>
-                  <span className="text-white font-mono text-xs text-right max-w-[60%] break-all">{recipient}</span>
+                  <span className="text-white font-mono text-xs text-end max-w-[60%] break-all">{recipient}</span>
                 </div>
                 <div className="flex justify-between items-start text-sm">
                   <span className="text-gray-400">From</span>
-                  <span className="text-white font-mono text-xs text-right max-w-[60%] break-all">{address ?? "—"}</span>
+                  <span className="text-white font-mono text-xs text-end max-w-[60%] break-all">{address ?? "—"}</span>
                 </div>
               </div>
             </div>
@@ -1702,7 +1702,7 @@ function NewStreamWizard() {
               {/* Sender */}
               <div className="flex justify-between items-start">
                 <span className="text-gray-400 text-sm">Sender</span>
-                <span className="text-white font-mono text-xs text-right max-w-[60%] break-all">
+                <span className="text-white font-mono text-xs text-end max-w-[60%] break-all">
                   {address ?? "—"}
                 </span>
               </div>
@@ -1710,7 +1710,7 @@ function NewStreamWizard() {
               {/* Recipient */}
               <div className="flex justify-between items-start">
                 <span className="text-gray-400 text-sm">Recipient</span>
-                <span className="text-white font-mono text-xs text-right max-w-[60%] break-all">
+                <span className="text-white font-mono text-xs text-end max-w-[60%] break-all">
                   {recipient}
                 </span>
               </div>
@@ -1797,7 +1797,7 @@ function NewStreamWizard() {
                               href="/docs/fees"
                               target="_blank"
                               rel="noopener noreferrer"
-                              className="text-green-400 hover:text-green-300 underline underline-offset-2 text-xs ml-1"
+                              className="text-green-400 hover:text-green-300 underline underline-offset-2 text-xs ms-1"
                             >
                               how do fees work?
                             </a>
@@ -1841,7 +1841,7 @@ function NewStreamWizard() {
                   <span className="text-green-400 text-sm font-medium">
                     ✓ Enabled
                     {autoRenewDuration > 0 && (
-                      <span className="text-gray-400 font-normal ml-1">
+                      <span className="text-gray-400 font-normal ms-1">
                         ({(() => {
                           const s = autoRenewDuration;
                           if (s >= 86400) return `${Math.floor(s / 86400)}d`;

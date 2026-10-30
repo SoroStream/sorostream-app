@@ -12,7 +12,7 @@
  * - "pending" (gray): Verification in progress
  */
 
-import { isLookupAborted, LookupAbortedError, resolveFederationName } from "./federation";
+import { invalidateFederationCache, isLookupAborted, LookupAbortedError, resolveFederationName } from "./federation";
 import { invalidateTomlDisplayName } from "./stellarToml";
 
 export type VerificationStatus = "pending" | "verified" | "active" | "unverified";
@@ -34,6 +34,7 @@ const HORIZON_URL = process.env.NEXT_PUBLIC_RPC_URL
 // Cache verification results in sessionStorage
 const VERIFICATION_CACHE_PREFIX = "sorostream-addr-verify-";
 const CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
+const VERIFICATION_TIMEOUT_MS = 10_000;
 
 /**
  * Read verification result from cache if still valid.
@@ -134,6 +135,37 @@ export async function verifyAddress(
   address: string,
   options: VerifyAddressOptions = {},
 ): Promise<AddressVerification> {
+  let timedOut = false;
+  let timeoutId: ReturnType<typeof setTimeout> | undefined;
+  const work = verifyAddressUnbounded(address, {
+    ...options,
+    isCurrentTarget: () => !timedOut && options.isCurrentTarget?.() !== false,
+  });
+  const timeout = new Promise<AddressVerification>((resolve) => {
+    timeoutId = setTimeout(() => {
+      timedOut = true;
+      resolve({
+        status: "unverified",
+        address,
+        federationName: null,
+        accountExists: null,
+        error: "Address verification timed out",
+        lastCheckedAt: Date.now(),
+      });
+    }, VERIFICATION_TIMEOUT_MS);
+  });
+
+  try {
+    return await Promise.race([work, timeout]);
+  } finally {
+    if (timeoutId !== undefined) clearTimeout(timeoutId);
+  }
+}
+
+async function verifyAddressUnbounded(
+  address: string,
+  options: VerifyAddressOptions = {},
+): Promise<AddressVerification> {
   // Return cached result if available
   const cached = readVerificationCache(address);
   if (cached) return cached;
@@ -224,11 +256,13 @@ export async function verifyAddress(
     return verification;
   }
 
-  // Failed or unverified verification (issue #725): any [[ACCOUNTS]] alias a
-  // domain published for this address earlier is no longer trustworthy —
-  // invalidate the cached TOML display name so the UI cannot keep showing a
-  // friendly label for an address that just failed verification.
+  // Failed verification invalidates federation identities (#698/#785) and
+  // TOML aliases (#725), including forward aliases of the resolved G-address.
+  // Keep this after the stale-target guard so an obsolete run cannot clear
+  // identity data belonging to a newer verification.
   if (status === "unverified") {
+    invalidateFederationCache(resolvedAddress);
+    if (address !== resolvedAddress) invalidateFederationCache(address);
     if (isGAddress(resolvedAddress)) invalidateTomlDisplayName(resolvedAddress);
     if (isGAddress(address) && address !== resolvedAddress) {
       invalidateTomlDisplayName(address);

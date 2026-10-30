@@ -315,7 +315,7 @@ export default function BatchStreamPage() {
               aria-label="Upload CSV file"
               aria-describedby={fileError ? "csv-file-error" : undefined}
               aria-invalid={!!fileError}
-              className="block text-sm text-gray-300 file:mr-4 file:rounded-lg file:border-0 file:bg-green-700 file:px-4 file:py-2 file:text-sm file:font-medium file:text-white hover:file:bg-green-800 file:cursor-pointer cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-500 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-900"
+              className="block text-sm text-gray-300 file:me-4 file:rounded-lg file:border-0 file:bg-green-700 file:px-4 file:py-2 file:text-sm file:font-medium file:text-white hover:file:bg-green-800 file:cursor-pointer cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-500 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-900"
             />
             {fileName && (
               <button
@@ -367,7 +367,7 @@ export default function BatchStreamPage() {
             >
               <table className="w-full text-sm">
                 <thead>
-                  <tr className="bg-gray-800 text-gray-400 text-left">
+                  <tr className="bg-gray-800 text-gray-400 text-start">
                     <th className="px-4 py-3 font-medium">#</th>
                     <th className="px-4 py-3 font-medium">Recipient</th>
                     <th className="px-4 py-3 font-medium">Amount</th>

@@ -55,6 +55,8 @@ export default function StreamCloneModal({ stream, onClose }: StreamCloneModalPr
       token: stream.token,
       duration: String(durationSeconds),
       cliff: "0",
+      // The new stream form defaults its start time to now. Deliberately omit
+      // the original startTime so cloning cannot carry over a past date.
     });
     router.push(`/stream/new?${qp.toString()}`);
     onClose();

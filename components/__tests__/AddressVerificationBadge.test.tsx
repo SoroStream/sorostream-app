@@ -15,6 +15,7 @@ vi.mock("@/src/lib/i18n", () => ({
       address_active: "Active",
       address_unverified: "Unverified",
       address_verifying: "Verifying…",
+      address_unknown: "Unknown status (translated)",
     };
     return labels[key] ?? key;
   },
@@ -139,5 +140,10 @@ describe("AddressVerificationBadge", () => {
       const spinSvg = container.querySelector("svg.animate-spin");
       expect(spinSvg).toBeInTheDocument();
     });
+  });
+
+  it("uses the translated fallback label for an unrecognized status", () => {
+    renderBadge("future-status" as VerificationStatus);
+    expect(screen.getByText("Unknown status (translated)")).toBeInTheDocument();
   });
 });

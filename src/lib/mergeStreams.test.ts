@@ -51,3 +51,12 @@ describe('mergeById', () => {
     expect(result[1]).toEqual(next[1]);
   });
 });
+
+it('accepts a comparator for nested data while retaining the shallow default', () => {
+  const prev = [{ id: 'a', metadata: { tag: 'salary' } }];
+  const next = [{ id: 'a', metadata: { tag: 'salary' } }];
+  expect(mergeById(prev, next)[0]).toBe(next[0]);
+  const equal = (a: typeof prev[number], b: typeof prev[number]) => a.metadata.tag === b.metadata.tag;
+  expect(mergeById(prev, next, equal)).toBe(prev);
+  expect(mergeById(prev, [{ id: 'a', metadata: { tag: 'changed' } }], equal)).not.toBe(prev);
+});
