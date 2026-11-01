@@ -83,18 +83,16 @@ const EXCLUDE_DIRS = new Set([
  *   - The component is wired into the app via a normal import
  */
 const ALLOWLIST = {
-  // ── Known dead code (tracked for removal) ──────────────────────────────
-  // These two components were already identified as dead code before this
-  // check was added. They are allowlisted so CI passes while the removal
-  // decision is pending (see the dead-code removal/consolidation issue).
-  "StreamActions.tsx": "Superseded by inline actions in stream/[id]/page.tsx; kept for reference pending cleanup decision.",
-  "StreamCreationForm.tsx": "Self-contained Storybook-only wrapper of the stream creation wizard; the /stream/new page uses its own inline wizard. Tracked for removal.",
-
-  // ── Additional findings from the initial run ───────────────────────────
   // This file is a re-export (`export { default } from "@/src/components/InstallPrompt"`)
   // but the app's layout.tsx imports directly from @/src/components/InstallPrompt,
   // not from @/components/InstallPrompt. The re-export is therefore dead.
   "InstallPrompt.tsx": "Re-export of src/components/InstallPrompt.tsx; the app imports the source directly. Tracked for removal.",
+
+  // Complete, documented fee-breakdown modal (mirrors WithdrawConfirmModal)
+  // that was never wired into the withdraw flow. Allowlisted rather than
+  // deleted since it's real, working functionality, not abandoned code —
+  // wiring it in (or removing it) is a separate product decision.
+  "WithdrawFeeBreakdownModal.tsx": "Not yet wired into the withdraw flow; kept pending a decision to integrate or remove it.",
 };
 
 // ── Helpers ────────────────────────────────────────────────────────────────
