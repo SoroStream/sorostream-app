@@ -13,6 +13,13 @@ import { describe, expect, it } from 'vitest';
 
 const ROOT = resolve(__dirname, '../..');
 const navSrc = readFileSync(resolve(ROOT, 'components/NavHeader.tsx'), 'utf8');
+// NAV_LINKS moved to a shared module (src/lib/navConstants.ts) so NavHeader
+// and BottomNav can both import the same list without drift (see navDrift
+// test). The link-count assertion below reads it from there now.
+const navConstantsSrc = readFileSync(
+  resolve(ROOT, 'src/lib/navConstants.ts'),
+  'utf8',
+);
 
 /** The header's inner flex row — the one holding nav + wallet controls. */
 const headerRow = navSrc.match(
@@ -24,7 +31,9 @@ const controlCluster = navSrc.match(
   /<div className="flex flex-wrap items-center justify-end[\s\S]*?<\/div>\s*<\/div>\s*<\/header>/,
 )!;
 
-const navLinksBlock = navSrc.match(/const NAV_LINKS = \[([\s\S]*?)\] as const;/)![1];
+const navLinksBlock = navConstantsSrc.match(
+  /export const NAV_LINKS: NavLink\[\] = \[([\s\S]*?)\];/,
+)![1];
 
 describe('NavHeader medium-width overflow (#542)', () => {
   it('wraps the header row instead of forcing a single fixed-height line', () => {
@@ -66,8 +75,8 @@ describe('NavHeader medium-width overflow (#542)', () => {
     );
   });
 
-  it('keeps all 8 nav links mounted at 1024px, 1280px and 1440px (wrapping, not hiding)', () => {
-    expect((navLinksBlock.match(/\{ href:/g) ?? []).length).toBe(8);
+  it('keeps all 11 nav links mounted at 1024px, 1280px and 1440px (wrapping, not hiding)', () => {
+    expect((navLinksBlock.match(/href:/g) ?? []).length).toBe(11);
 
     // Nothing in the nav is breakpoint-hidden, so every link is reachable at
     // 1024px, 1280px and 1440px — the row simply reflows.

@@ -164,7 +164,8 @@
     "shortcuts": "Atajos",
     "analytics": "Analíticas",
     "stats": "Estadísticas",
-    "batch": "Streams por Lote"
+    "batch": "Streams por Lote",
+    "contacts": "Contactos"
   },
   "common": {
     "price_unavailable": "Precio no disponible",

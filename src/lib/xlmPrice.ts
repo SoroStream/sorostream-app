@@ -83,6 +83,9 @@ async function fetchStellarExpert(): Promise<number> {
  * Returns the current XLM/USD price, using a 5-minute cache.
  * Returns `null` if both sources are unavailable.
  *
+ * Thin wrapper over {@link getXlmUsdPriceWithMeta} for callers that only
+ * need the price, not the rate-limit classification.
+ *
  * @param options.force Bypass the cache and fetch a fresh price (used by the
  *   shared context's manual refresh). Falls back to the stale cache value if
  *   both feeds are unreachable.
@@ -90,12 +93,25 @@ async function fetchStellarExpert(): Promise<number> {
 export async function getXlmUsdPrice(
   options: { force?: boolean } = {},
 ): Promise<number | null> {
+  return (await getXlmUsdPriceWithMeta(options)).price;
+}
+
+/**
+ * Returns the current XLM/USD price along with whether the underlying feeds
+ * are rate-limiting us (issue #726), using a 5-minute cache.
+ *
+ * @param options.force Bypass the cache and fetch a fresh price (used by the
+ *   shared context's manual refresh). Falls back to the stale cache value if
+ *   both feeds are unreachable.
+ */
+export async function getXlmUsdPriceWithMeta(
+  options: { force?: boolean } = {},
+): Promise<XlmPriceMeta> {
   const now = Date.now();
-  const rateLimitedRecently = now < rateLimitedUntil;
 
   // Return cached value if still fresh, unless a fresh fetch was requested.
   if (!options.force && cache && now - cache.fetchedAt < CACHE_TTL_MS) {
-    return cache.price;
+    return { price: cache.price, rateLimited: now < rateLimitedUntil };
   }
 
   // Try primary source, then fallback.

@@ -18,21 +18,26 @@
 export interface NavLink {
   label: string;
   href: string;
+  /** Key into the "nav" i18n namespace (src/locales/*.json) for this link's
+   * translated label. NavHeader looks this up via useTranslations("nav");
+   * `label` above is the English fallback (used by BottomNav, which is
+   * icon-led and doesn't translate its tab text). */
+  key: string;
 }
 
 /** All top-level navigation links. */
 export const NAV_LINKS: NavLink[] = [
-  { label: "Home", href: "/" },
-  { label: "Dashboard", href: "/dashboard" },
-  { label: "New Stream", href: "/stream/new" },
-  { label: "Contacts", href: "/address-book" },
-  { label: "Settings", href: "/settings" },
-  { label: "Analytics", href: "/analytics" },
-  { label: "Activity", href: "/activity" },
-  { label: "Stats", href: "/stats" },
-  { label: "Batch Streams", href: "/stream/batch" },
-  { label: "Admin", href: "/admin" },
-  { label: "Archive", href: "/archive" },
+  { label: "Home", href: "/", key: "home" },
+  { label: "Dashboard", href: "/dashboard", key: "dashboard" },
+  { label: "New Stream", href: "/stream/new", key: "create" },
+  { label: "Contacts", href: "/address-book", key: "contacts" },
+  { label: "Settings", href: "/settings", key: "settings" },
+  { label: "Analytics", href: "/analytics", key: "analytics" },
+  { label: "Activity", href: "/activity", key: "activity" },
+  { label: "Stats", href: "/stats", key: "stats" },
+  { label: "Batch Streams", href: "/stream/batch", key: "batch" },
+  { label: "Admin", href: "/admin", key: "admin" },
+  { label: "Archive", href: "/archive", key: "archive" },
 ];
 
 /**

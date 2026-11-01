@@ -36,7 +36,6 @@ address, …).
 | `sorostream_address_book` | `src/lib/addressBook.ts` | Contacts saved with no wallet owner (the original global address book; still read and written) |
 | `sorostream_address_book_v2` | `src/lib/addressBook.ts` | Contacts per wallet owner |
 | `sorostream_recipient_whitelist_v1` | `src/lib/addressBook.ts` | Recipient whitelist |
-| `addressBook`, `stellarAddressBook`, `stellar-address-book`, `address-book`, `stellar_address_book`, `contacts` | `components/StreamCreationForm.tsx` | **Read only.** Address books written by other tools, offered as recipient suggestions |
 | `sorostream_templates` | `src/lib/streamTemplates.ts` | Saved stream templates |
 | `sorostream-stream-tags` | `src/lib/streamTags.ts` | Tags, keyed by stream id |
 | `sorostream-watchlist` | `components/WatchlistTab.tsx` | Watched streams |
@@ -64,9 +63,8 @@ address, …).
 | `sorostream-pwa-dismissed` | `src/components/InstallPrompt.tsx` | Install prompt dismissed this session |
 | `sorostream_session_counted` | `src/components/InstallPrompt.tsx` | This session already counted in `sorostream_visit_count` |
 
-Related same-origin storage (not checked by the script): IndexedDB
-databases `sorostream_balance_cache` (`src/lib/balanceCache.ts`) and
-`SoroStreamBalanceHistory` (`src/lib/balanceHistory.ts`).
+Related same-origin storage (not checked by the script): the IndexedDB
+database `sorostream_balance_cache` (`src/lib/balanceCache.ts`).
 
 ## Findings
 
@@ -91,10 +89,7 @@ Issues found while compiling the list. None are fixed here.
    trimmed as if it were an error entry.
 4. **Unprefixed keys.** `analytics_events` is written without a prefix and
    could collide with any script on the origin. `theme` is a legacy key
-   that is only read and removed. `StreamCreationForm.tsx` *reads* six
-   generic keys (`contacts`, `addressBook`, …) that belong to other tools.
-   Any same-origin script writing `contacts` would have its data parsed
-   as an address book.
+   that is only read and removed.
 5. **Unbounded per-entity keys.** `sorostream_notified_*`,
    `sorostream_notified_claimable_*` and `sorostream_milestones_push_*` add
    one localStorage key per stream and threshold, and nothing removes

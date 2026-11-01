@@ -183,7 +183,10 @@ export default function NavHeader() {
             {NAV_LINKS.map((link) => {
               const isActive = pathname === link.href || (link.href !== "/" && pathname.startsWith(link.href));
               const unread = countFor(link.href);
-              const label = t(link.key);
+              // `key` is a plain `string` in NavLink (shared with BottomNav,
+              // which doesn't translate), so it isn't narrowed to `t`'s
+              // literal key union — cast rather than widen `t`'s own type.
+              const label = t(link.key as Parameters<typeof t>[0]);
               return (
                 <Link
                   key={link.href}
@@ -350,7 +353,7 @@ export default function NavHeader() {
                         isActive ? "bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-white font-medium" : "text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800"
                       }`}
                     >
-                      {t(link.key)}
+                      {t(link.key as Parameters<typeof t>[0])}
                     </Link>
                   </li>
                 );

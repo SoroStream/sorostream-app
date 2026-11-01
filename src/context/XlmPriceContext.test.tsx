@@ -2,10 +2,10 @@ import { act, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const mockGetXlmUsdPrice =
-  vi.fn<(options?: { force?: boolean }) => Promise<number | null>>();
+  vi.fn<(options?: { force?: boolean }) => Promise<{ price: number | null; rateLimited: boolean }>>();
 
 vi.mock('@/src/lib/xlmPrice', () => ({
-  getXlmUsdPrice: (options?: { force?: boolean }) => mockGetXlmUsdPrice(options),
+  getXlmUsdPriceWithMeta: (options?: { force?: boolean }) => mockGetXlmUsdPrice(options),
 }));
 
 import { XlmPriceProvider, useSharedXlmPrice } from './XlmPriceContext';
@@ -42,7 +42,7 @@ async function flushPromises() {
 describe('XlmPriceContext', () => {
   beforeEach(() => {
     vi.useFakeTimers();
-    mockGetXlmUsdPrice.mockResolvedValue(0.125);
+    mockGetXlmUsdPrice.mockResolvedValue({ price: 0.125, rateLimited: false });
   });
 
   afterEach(() => {
@@ -52,8 +52,8 @@ describe('XlmPriceContext', () => {
 
   it('manual refresh updates the shared price immediately for every consumer', async () => {
     mockGetXlmUsdPrice
-      .mockResolvedValueOnce(0.1)
-      .mockResolvedValueOnce(0.2);
+      .mockResolvedValueOnce({ price: 0.1, rateLimited: false })
+      .mockResolvedValueOnce({ price: 0.2, rateLimited: false });
 
     renderProvider();
     await flushPromises();
@@ -126,9 +126,9 @@ describe('XlmPriceContext', () => {
   });
 
   it('clears the update path on unmount', async () => {
-    let resolvePrice: (price: number) => void = () => {};
+    let resolvePrice: (meta: { price: number | null; rateLimited: boolean }) => void = () => {};
     mockGetXlmUsdPrice.mockReturnValueOnce(
-      new Promise<number | null>((resolve) => {
+      new Promise((resolve) => {
         resolvePrice = resolve;
       }),
     );
@@ -138,7 +138,7 @@ describe('XlmPriceContext', () => {
 
     // Resolving after unmount must not throw or warn about state updates.
     await act(async () => {
-      resolvePrice(0.5);
+      resolvePrice({ price: 0.5, rateLimited: false });
       await Promise.resolve();
     });
 

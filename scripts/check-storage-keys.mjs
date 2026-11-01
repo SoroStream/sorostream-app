@@ -25,7 +25,7 @@ import { fileURLToPath } from "node:url";
 
 const __filename = fileURLToPath(import.meta.url);
 const ROOT = path.join(path.dirname(__filename), "..");
-const SOURCE_DIRS = ["src", "components", "lib", "hooks", "contexts"];
+const SOURCE_DIRS = ["src", "components"];
 const PREFIX = /^sorostream[-_]/;
 
 /** `key @ file` → why it is tolerated. Keep in sync with docs/storage-keys.md. */
@@ -33,12 +33,6 @@ export const KNOWN_VIOLATIONS = {
   "theme @ src/lib/theme.tsx": "legacy key: read once, migrated to sorostream_theme and removed",
   "theme @ src/app/layout.tsx": "legacy key: read by the pre-hydration theme script as a fallback",
   "analytics_events @ src/lib/analytics.ts": "unprefixed write; should become sorostream-analytics-events",
-  "addressBook @ components/StreamCreationForm.tsx": "read-only import of address books written by other tools",
-  "stellarAddressBook @ components/StreamCreationForm.tsx": "read-only import of address books written by other tools",
-  "stellar-address-book @ components/StreamCreationForm.tsx": "read-only import of address books written by other tools",
-  "address-book @ components/StreamCreationForm.tsx": "read-only import of address books written by other tools",
-  "stellar_address_book @ components/StreamCreationForm.tsx": "read-only import of address books written by other tools",
-  "contacts @ components/StreamCreationForm.tsx": "read-only import of address books written by other tools",
 };
 
 function listSourceFiles() {

@@ -160,7 +160,8 @@
     "shortcuts": "Shortcuts",
     "analytics": "Analytics",
     "stats": "Stats",
-    "batch": "Batch Streams"
+    "batch": "Batch Streams",
+    "contacts": "Contacts"
   },
   "common": {
     "price_unavailable": "Price unavailable",

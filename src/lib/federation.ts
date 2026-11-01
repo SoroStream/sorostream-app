@@ -147,16 +147,6 @@ function writeCache(address: string, result: string | null): void {
   }
 }
 
-/** Remove a federation lookup result from this session's cache. */
-export function invalidateFederationCache(address: string): void {
-  if (typeof sessionStorage === "undefined") return;
-  try {
-    sessionStorage.removeItem(SESSION_PREFIX + address);
-  } catch {
-    // Ignore storage errors; the next lookup will still be attempted.
-  }
-}
-
 /**
  * Invalidate a federation result and any cached forward aliases pointing to it
  * (issue #698). Used when background account verification fails (#785).

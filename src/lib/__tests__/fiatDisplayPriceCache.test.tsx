@@ -36,9 +36,9 @@ vi.mock("@/src/lib/i18n", () => ({
 
 // xlmPrice is mocked at module level so every import in the test file and
 // in XlmPriceContext sees the same spy function.
-const mockGetXlmUsdPrice = vi.fn<() => Promise<number | null>>();
+const mockGetXlmUsdPrice = vi.fn<() => Promise<{ price: number | null; rateLimited: boolean }>>();
 vi.mock("@/src/lib/xlmPrice", () => ({
-  getXlmUsdPrice: () => mockGetXlmUsdPrice(),
+  getXlmUsdPriceWithMeta: () => mockGetXlmUsdPrice(),
 }));
 
 // ---------------------------------------------------------------------------
@@ -54,7 +54,7 @@ import { XlmPriceProvider } from "@/src/context/XlmPriceContext";
 
 beforeEach(() => {
   vi.useFakeTimers();
-  mockGetXlmUsdPrice.mockResolvedValue(0.125); // default: $0.125 per XLM
+  mockGetXlmUsdPrice.mockResolvedValue({ price: 0.125, rateLimited: false }); // default: $0.125 per XLM
 });
 
 afterEach(() => {
@@ -147,8 +147,8 @@ describe("FiatDisplay — shared XLM price context (issue #582)", () => {
 
   it("updates all instances simultaneously when the price refreshes", async () => {
     mockGetXlmUsdPrice
-      .mockResolvedValueOnce(0.10)  // first fetch: $0.10
-      .mockResolvedValueOnce(0.20); // second fetch (after 60 s): $0.20
+      .mockResolvedValueOnce({ price: 0.10, rateLimited: false })  // first fetch: $0.10
+      .mockResolvedValueOnce({ price: 0.20, rateLimited: false }); // second fetch (after 60 s): $0.20
 
     renderN(3, 10); // 10 XLM
 
@@ -213,7 +213,7 @@ describe("FiatDisplay — display logic", () => {
   });
 
   it("shows '(Price unavailable)' when the price feed returns null", async () => {
-    mockGetXlmUsdPrice.mockResolvedValue(null);
+    mockGetXlmUsdPrice.mockResolvedValue({ price: null, rateLimited: false });
 
     render(
       <XlmPriceProvider>
@@ -240,7 +240,7 @@ describe("FiatDisplay — display logic", () => {
   });
 
   it("correctly computes USD value: xlmAmount × price", async () => {
-    mockGetXlmUsdPrice.mockResolvedValue(0.25); // $0.25 per XLM
+    mockGetXlmUsdPrice.mockResolvedValue({ price: 0.25, rateLimited: false }); // $0.25 per XLM
 
     render(
       <XlmPriceProvider>
@@ -256,7 +256,7 @@ describe("FiatDisplay — display logic", () => {
   });
 
   it("formats the USD value with exactly 2 decimal places", async () => {
-    mockGetXlmUsdPrice.mockResolvedValue(0.123456789);
+    mockGetXlmUsdPrice.mockResolvedValue({ price: 0.123456789, rateLimited: false });
 
     render(
       <XlmPriceProvider>

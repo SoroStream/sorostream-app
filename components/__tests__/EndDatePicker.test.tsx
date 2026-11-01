@@ -11,7 +11,12 @@ vi.mock("@/src/lib/timezone", () => ({
   listTimezones: () => ["UTC", "America/New_York", "Europe/London"],
   zonedWallTimeToUtc: (wall: string, _tz: string) => {
     if (!wall) return null;
-    const d = new Date(wall);
+    // `wall` is a datetime-local value with no timezone designator
+    // (e.g. "2026-11-01T14:30"); `new Date()` would parse that as the
+    // system's local time, not UTC. The "UTC" mock timezone must behave
+    // like UTC regardless of the machine running the test, so parse it
+    // explicitly as UTC.
+    const d = new Date(wall + "Z");
     return isNaN(d.getTime()) ? null : d;
   },
   formatWallTimeInZone: (_date: Date, _tz: string) => "2099-01-01T12:00",

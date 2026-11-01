@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 
 export const metadata: Metadata = {
   title: "SoroStream Widget",
-  description: "Embeddable SoroStream payment widget",
+  description: "Embeddable SoroStream stream status widget",
   // Prevent search engines from indexing embed pages — they are not
   // standalone pages; they are meant to be iframed by third parties.
   robots: { index: false, follow: false },
@@ -31,22 +31,8 @@ export const metadata: Metadata = {
  *   - Any React context providers tied to the main app session
  *
  * This layout intentionally does NOT import or render any of those components.
- * The test in __tests__/embedIsolation.test.tsx verifies this isolation and
- * must be kept passing if this layout is ever refactored.
  *
  * See: feat/779 — embed widget layout isolation
- */
-export default function EmbedLayout({ children }: { children: React.ReactNode }) {
-  return (
-    <html lang="en">
-      <body className="bg-transparent" data-embed="true">
-  description: "Embeddable SoroStream stream status widget",
-  robots: "noindex",
-};
-
-/**
- * Bare layout for /embed/* routes.
- * No nav, footer, wallet connect bar, or global providers — just the widget.
  */
 export default function EmbedLayout({ children }: { children: React.ReactNode }) {
   return (
