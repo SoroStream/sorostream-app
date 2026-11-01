@@ -15,18 +15,21 @@
 import { describe, it, expect } from "vitest";
 
 // ---------------------------------------------------------------------------
-// NAV_LINKS — mirrored from components/NavHeader.tsx
-// Keep this in sync whenever NavHeader.tsx is changed.
+// NAV_LINKS — mirrored from src/lib/navConstants.ts
+// Keep this in sync whenever navConstants.ts is changed.
 // ---------------------------------------------------------------------------
 const NAV_LINKS: { href: string; key: string }[] = [
   { href: "/", key: "home" },
   { href: "/dashboard", key: "dashboard" },
-  { href: "/analytics", key: "analytics" },
   { href: "/stream/new", key: "create" },
+  { href: "/address-book", key: "contacts" },
+  { href: "/settings", key: "settings" },
+  { href: "/analytics", key: "analytics" },
   { href: "/activity", key: "activity" },
+  { href: "/stats", key: "stats" },
+  { href: "/stream/batch", key: "batch" },
   { href: "/admin", key: "admin" },
   { href: "/archive", key: "archive" },
-  { href: "/settings", key: "settings" },
 ];
 
 // ---------------------------------------------------------------------------
@@ -61,16 +64,13 @@ const KNOWN_ROUTES: string[] = [
 // expected omissions and forces a conscious decision when gaps appear.
 // ---------------------------------------------------------------------------
 const KNOWN_GAPS: { route: string; reason: string }[] = [
-  { route: "/stats",                   reason: "Stats dashboard — not surfaced in the primary nav; reachable from analytics page" },
-  { route: "/docs/fees",               reason: "Documentation page — supplementary content, not a primary navigation destination" },
-  { route: "/address-book",            reason: "Reachable from BottomNav on mobile; excluded from desktop drawer by design" },
-  { route: "/settings/notifications",  reason: "Sub-page of /settings — accessed from within the settings page, not top-level nav" },
-  { route: "/api/og",                  reason: "API route (OG image generation), not a user-facing page" },
-  { route: "/stream/[id]",             reason: "Dynamic stream detail page — reached via stream cards, not direct nav" },
-  { route: "/stream/batch",            reason: "Batch create page — reachable from within the create-stream flow, not top-level nav" },
-  { route: "/embed/stream/[id]",       reason: "Embed widget route — not a navigable app page" },
-  { route: "/offline",                 reason: "PWA offline fallback — not a user-visible nav destination" },
-  { route: "/~offline",                reason: "Next.js PWA offline redirect alias — internal, not a user-visible nav destination" },
+  { route: "/docs/fees",              reason: "Documentation page — supplementary content, not a primary navigation destination" },
+  { route: "/settings/notifications", reason: "Sub-page of /settings — accessed from within the settings page, not top-level nav" },
+  { route: "/api/og",                 reason: "API route (OG image generation), not a user-facing page" },
+  { route: "/stream/[id]",            reason: "Dynamic stream detail page — reached via stream cards, not direct nav" },
+  { route: "/embed/stream/[id]",      reason: "Embed widget route — not a navigable app page" },
+  { route: "/offline",                reason: "PWA offline fallback — not a user-visible nav destination" },
+  { route: "/~offline",               reason: "Next.js PWA offline redirect alias — internal, not a user-visible nav destination" },
 ];
 
 // ---------------------------------------------------------------------------

@@ -1000,6 +1000,15 @@ function NewStreamWizard() {
         {activeTab === "batch" && (
           <div role="tabpanel" aria-label="Batch create">
             <BatchCreateTab />
+            <p className="mt-6 text-center text-sm text-gray-400">
+              Need to upload a CSV file?{" "}
+              <a
+                href="/stream/batch"
+                className="text-green-400 underline hover:text-green-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-500 rounded"
+              >
+                Create multiple streams via CSV
+              </a>
+            </p>
           </div>
         )}
 
