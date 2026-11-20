@@ -22,6 +22,38 @@ describe("mergeById", () => {
   });
 });
 
+describe("mergeById with duplicate IDs in next (#853)", () => {
+  it("includes both entries when next contains two items with the same id", () => {
+    // mergeById does not deduplicate next; if next has two items sharing an id
+    // both appear in the merged output, which can produce duplicate React keys.
+    // This test documents the current behavior so a future deduplication change
+    // is deliberate and visible.
+    const prev = [{ id: "a", n: 1 }];
+    const next = [
+      { id: "a", n: 1 },
+      { id: "a", n: 2 }, // duplicate id — API glitch
+    ];
+    const out = mergeById(prev, next);
+    expect(out).toHaveLength(2);
+    // The first duplicate matches prev and keeps the prev reference.
+    expect(out[0]).toBe(prev[0]);
+    // The second duplicate is a new item (different value), so gets next's reference.
+    expect(out[1]).toBe(next[1]);
+  });
+
+  it("produces a merged array longer than prev when next has duplicate ids not in prev", () => {
+    const prev: { id: string; n: number }[] = [];
+    const next = [
+      { id: "x", n: 10 },
+      { id: "x", n: 20 }, // duplicate id absent from prev
+    ];
+    const out = mergeById(prev, next);
+    expect(out).toHaveLength(2);
+    expect(out[0]).toEqual({ id: "x", n: 10 });
+    expect(out[1]).toEqual({ id: "x", n: 20 });
+  });
+});
+
 describe("mergeById with Date fields (#712)", () => {
   it("treats items that differ only by Date instance (same timestamp) as unchanged", () => {
     const prev = [

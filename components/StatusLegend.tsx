@@ -29,6 +29,18 @@ const STATUSES = [
     colorClass: "bg-red-100 dark:bg-red-900 text-red-700 dark:text-red-400",
     description: "Stream was cancelled before completing. Remaining balance returned to sender.",
   },
+  {
+    name: "Scheduled",
+    symbol: "◷",
+    colorClass: "bg-blue-900 text-blue-100 border border-blue-700",
+    description: "Stream is queued and will start automatically at the scheduled time.",
+  },
+  {
+    name: "Not Started",
+    symbol: "◷",
+    colorClass: "bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-400",
+    description: "Stream has been created but has not yet begun.",
+  },
 ];
 
 export default function StatusLegend() {

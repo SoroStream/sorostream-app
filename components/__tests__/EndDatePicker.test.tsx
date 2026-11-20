@@ -160,3 +160,30 @@ describe("EndDatePicker — past-date validation (#487)", () => {
     expect(input).toHaveAttribute("aria-invalid", "false");
   });
 });
+
+describe("EndDatePicker — value prop sync after mount (#850)", () => {
+  it("updates the displayed wall-clock input when the value prop changes after mount", () => {
+    // formatWallTimeInZone is mocked to return "2099-01-01T12:00" for any date.
+    // Start with no value, then supply one — the input must reflect the new date.
+    const { rerender } = render(<EndDatePicker onChange={vi.fn()} value="" />);
+    const input = getDateInput();
+    expect(input.value).toBe("");
+
+    rerender(
+      <EndDatePicker onChange={vi.fn()} value="2099-01-01T12:00:00.000Z" />
+    );
+    expect(input.value).toBe("2099-01-01T12:00");
+  });
+
+  it("clears the displayed wall-clock input when value is reset to empty string", () => {
+    const { rerender } = render(
+      <EndDatePicker onChange={vi.fn()} value="2099-01-01T12:00:00.000Z" />
+    );
+    const input = getDateInput();
+    // Initial non-empty value: mock returns "2099-01-01T12:00".
+    expect(input.value).toBe("2099-01-01T12:00");
+
+    rerender(<EndDatePicker onChange={vi.fn()} value="" />);
+    expect(input.value).toBe("");
+  });
+});

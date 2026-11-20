@@ -57,3 +57,31 @@ describe('CopyButton', () => {
     vi.useRealTimers();
   });
 });
+
+  it('does not trigger a state update after unmount when the reset timer fires (#849)', async () => {
+    vi.useFakeTimers();
+    mockWriteText.mockResolvedValueOnce(undefined);
+
+    // Spy on console.error to catch React's "state update on unmounted component" warning.
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+
+    const { unmount } = render(<CopyButton value="GBAM...BOEP" />);
+    const button = screen.getByRole('button', { name: 'Copy' });
+
+    await act(async () => {
+      fireEvent.click(button);
+    });
+
+    // Unmount before the 2-second reset timer fires.
+    unmount();
+
+    // Advance time past the reset delay — should not trigger any state update.
+    act(() => {
+      vi.advanceTimersByTime(3000);
+    });
+
+    expect(errorSpy).not.toHaveBeenCalled();
+
+    errorSpy.mockRestore();
+    vi.useRealTimers();
+  });

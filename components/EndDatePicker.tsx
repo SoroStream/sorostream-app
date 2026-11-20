@@ -63,17 +63,28 @@ export default function EndDatePicker({
 
   const timezoneOptions = useMemo(() => listTimezones(), []);
 
-  // Initialise timezone + input display from props once on mount.
+  // Seed timezone once on mount (depends only on the user's browser setting,
+  // not on the value prop, so this effect has no external deps).
   useEffect(() => {
     let tz = getUserTimezone();
     if (!listTimezones().includes(tz)) tz = "UTC";
     setTimezone(tz);
-    if (value) {
-      const d = new Date(value);
-      if (!Number.isNaN(d.getTime())) setWallTime(formatWallTimeInZone(d, tz));
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Sync the displayed wall-clock input whenever the controlled `value` prop
+  // changes (e.g. parent resets the form or loads a saved template, #850).
+  useEffect(() => {
+    setTimezone((currentTz) => {
+      const tz = currentTz || getUserTimezone();
+      if (value) {
+        const d = new Date(value);
+        if (!Number.isNaN(d.getTime())) setWallTime(formatWallTimeInZone(d, tz));
+      } else {
+        setWallTime("");
+      }
+      return currentTz;
+    });
+  }, [value]);
 
   function resolve(wall: string, tz: string) {
     setWallTime(wall);

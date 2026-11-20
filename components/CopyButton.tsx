@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import { copyToClipboard } from "@/src/lib/clipboard";
 
 interface CopyButtonProps {
@@ -13,17 +13,26 @@ interface CopyButtonProps {
 export default function CopyButton({ value, label = "Copy", showTooltip = false }: CopyButtonProps) {
   const [copied, setCopied] = useState(false);
   const [failed, setFailed] = useState(false);
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Clear any pending reset timer when the component unmounts (#849).
+  useEffect(() => {
+    return () => {
+      if (timerRef.current !== null) clearTimeout(timerRef.current);
+    };
+  }, []);
 
   const handleCopy = useCallback(async () => {
+    if (timerRef.current !== null) clearTimeout(timerRef.current);
     const success = await copyToClipboard(value);
     if (success) {
       setCopied(true);
       setFailed(false);
-      setTimeout(() => setCopied(false), 2000);
+      timerRef.current = setTimeout(() => setCopied(false), 2000);
     } else {
       // Neither API worked — prompt the user to copy manually.
       setFailed(true);
-      setTimeout(() => setFailed(false), 3000);
+      timerRef.current = setTimeout(() => setFailed(false), 3000);
     }
   }, [value]);
 
