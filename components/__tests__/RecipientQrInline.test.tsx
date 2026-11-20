@@ -113,4 +113,99 @@ describe("#452 — RecipientQrInline", () => {
       expect.objectContaining({ width: 200 }),
     );
   });
+
+  // -------------------------------------------------------------------------
+  // issue #889 — C... (Soroban contract) addresses
+  // -------------------------------------------------------------------------
+
+  /**
+   * C... addresses identify Soroban smart contracts, not user accounts.
+   * The current component intentionally encodes them as the bare address
+   * string rather than prefixing `stellar:`, because the SEP-7 `stellar:`
+   * URI scheme is defined for transferable accounts, not contracts.
+   *
+   * These tests document the current behaviour so that any future change to
+   * the scheme logic triggers a deliberate test update rather than a silent
+   * regression.
+   */
+
+  describe("#889 — contract (C...) recipient address QR encoding", () => {
+    // A realistic-length Soroban contract address (56 characters, starts with C).
+    const CONTRACT_ADDRESS =
+      "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA";
+
+    it("renders without error for a C... recipient", () => {
+      expect(() =>
+        render(<RecipientQrInline recipient={CONTRACT_ADDRESS} />),
+      ).not.toThrow();
+    });
+
+    it("shows the contract address text when expanded", async () => {
+      render(<RecipientQrInline recipient={CONTRACT_ADDRESS} />);
+      await act(async () => {
+        fireEvent.click(screen.getByRole("button", { name: /recipient qr code/i }));
+      });
+
+      expect(screen.getByText(CONTRACT_ADDRESS)).toBeInTheDocument();
+    });
+
+    it("encodes the bare address (no stellar: prefix) for a C... recipient", async () => {
+      const QRCode = await import("qrcode");
+      const toCanvas = vi.mocked(QRCode.default.toCanvas);
+
+      render(<RecipientQrInline recipient={CONTRACT_ADDRESS} />);
+      await act(async () => {
+        fireEvent.click(screen.getByRole("button", { name: /recipient qr code/i }));
+      });
+
+      // The QR payload must be the raw address, not `stellar:${CONTRACT_ADDRESS}`.
+      expect(toCanvas).toHaveBeenCalledWith(
+        expect.anything(),
+        CONTRACT_ADDRESS,
+        expect.objectContaining({ width: 200 }),
+      );
+
+      // Confirm the stellar: variant was NOT used — wallets scanning a bare
+      // C... string receive just the contract ID with no URI scheme.
+      expect(toCanvas).not.toHaveBeenCalledWith(
+        expect.anything(),
+        `stellar:${CONTRACT_ADDRESS}`,
+        expect.anything(),
+      );
+    });
+
+    it("the aria-label on the QR canvas references the contract address", async () => {
+      render(<RecipientQrInline recipient={CONTRACT_ADDRESS} />);
+      await act(async () => {
+        fireEvent.click(screen.getByRole("button", { name: /recipient qr code/i }));
+      });
+
+      const canvas = document.querySelector("canvas");
+      expect(canvas).toHaveAttribute(
+        "aria-label",
+        expect.stringContaining(CONTRACT_ADDRESS),
+      );
+    });
+
+    it("Copy Address copies the raw contract address (no URI scheme prepended)", async () => {
+      const mockWriteText = vi.fn().mockResolvedValue(undefined);
+      Object.assign(navigator, { clipboard: { writeText: mockWriteText } });
+
+      render(<RecipientQrInline recipient={CONTRACT_ADDRESS} />);
+      await act(async () => {
+        fireEvent.click(screen.getByRole("button", { name: /recipient qr code/i }));
+      });
+
+      await act(async () => {
+        fireEvent.click(screen.getByRole("button", { name: /copy address/i }));
+      });
+
+      // The copy target is always the raw recipient prop, regardless of what
+      // the QR encodes. This keeps clipboard content scannable for other uses.
+      expect(mockWriteText).toHaveBeenCalledWith(CONTRACT_ADDRESS);
+      expect(mockWriteText).not.toHaveBeenCalledWith(
+        `stellar:${CONTRACT_ADDRESS}`,
+      );
+    });
+  });
 });
