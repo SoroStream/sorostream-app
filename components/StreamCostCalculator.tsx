@@ -31,7 +31,8 @@ export default function StreamCostCalculator({
   tokenSymbol,
 }: StreamCostCalculatorProps) {
   const amountNum = parseFloat(amount) || 0;
-  const perSecond = durationSeconds > 0 ? amountNum / durationSeconds : 0;
+  const isNegative = amountNum < 0;
+  const perSecond = !isNegative && durationSeconds > 0 ? amountNum / durationSeconds : 0;
   const ready = amountNum > 0 && durationSeconds > 0;
 
   return (
@@ -40,6 +41,12 @@ export default function StreamCostCalculator({
       aria-label="Stream cost calculator"
     >
       <p className="text-sm font-medium text-gray-200">Cost projection</p>
+
+      {isNegative && (
+        <p role="alert" className="text-xs text-red-400">
+          Amount must be a positive number.
+        </p>
+      )}
 
       <div className="flex items-center justify-between text-sm">
         <span className="text-gray-400">Rate per second</span>

@@ -26,7 +26,7 @@ const FIREFOX_ADDONS_URL =
 type BrowserHint = "chrome" | "firefox" | "other";
 
 /** Best-effort UA sniff — only used to pre-select the install link. */
-function detectBrowser(): BrowserHint {
+export function detectBrowser(): BrowserHint {
   if (typeof navigator === "undefined") return "other";
   const ua = navigator.userAgent.toLowerCase();
   // Firefox must be checked before Chrome because some Firefox builds include

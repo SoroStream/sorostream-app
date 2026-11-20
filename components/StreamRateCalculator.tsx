@@ -22,6 +22,16 @@ export default function StreamRateCalculator({
   const [calculatedRate, setCalculatedRate] = useState<number | null>(null);
   const [ratePerDay, setRatePerDay] = useState<number | null>(null);
 
+  // Keep internal state in sync when the parent updates props after mount
+  // (e.g. loading a saved template into an already-rendered form — #868).
+  useEffect(() => {
+    setAmount(initialAmount);
+  }, [initialAmount]);
+
+  useEffect(() => {
+    setDuration(initialDuration);
+  }, [initialDuration]);
+
   // Recalculate rate whenever amount or duration changes
   useEffect(() => {
     if (amount && duration > 0) {

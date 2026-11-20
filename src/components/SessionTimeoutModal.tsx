@@ -3,18 +3,12 @@
 import React, { useRef, useEffect, useState } from "react";
 import { useWallet } from "@/src/context/WalletContext";
 import { useFocusTrap } from "@/src/lib/useFocusTrap";
+import { formatSecondsRemaining } from "@/src/lib/timeRemaining";
 
 export function SessionTimeoutModal() {
   const { showSessionWarning1Min, sessionTimeRemaining, extendSession, disconnect } = useWallet();
   const modalRef = useRef<HTMLDivElement>(null);
   const [isLoading, setIsLoading] = useState(false);
-
-  // Format remaining time
-  const formatTimeRemaining = (ms: number | null): string => {
-    if (!ms) return "0s";
-    const seconds = Math.ceil(ms / 1000);
-    return `${seconds}s`;
-  };
 
   // Handle Extend Session
   const handleExtend = async () => {
@@ -75,7 +69,7 @@ export function SessionTimeoutModal() {
               </h2>
               <p className="text-xs text-red-300 mt-1">
                 Your wallet session will expire in{" "}
-                <span className="font-mono font-bold">{formatTimeRemaining(sessionTimeRemaining)}</span>
+                <span className="font-mono font-bold">{formatSecondsRemaining(sessionTimeRemaining)}</span>
               </p>
             </div>
           </div>
@@ -166,7 +160,7 @@ export function SessionTimeoutModal() {
         <div className="bg-gray-700/50 px-6 py-2 border-t border-gray-700 flex items-center justify-between text-xs">
           <span className="text-gray-400">Auto-expires in</span>
           <span className="font-mono font-bold text-red-400 animate-pulse">
-            {formatTimeRemaining(sessionTimeRemaining)}
+            {formatSecondsRemaining(sessionTimeRemaining)}
           </span>
         </div>
       </div>
