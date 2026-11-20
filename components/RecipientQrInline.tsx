@@ -19,7 +19,16 @@ interface RecipientQrInlineProps {
 export default function RecipientQrInline({ recipient }: RecipientQrInlineProps) {
   const [expanded, setExpanded] = useState(false);
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const copyTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [copied, setCopied] = useState(false);
+
+  useEffect(() => {
+    return () => {
+      if (copyTimeoutRef.current !== null) {
+        clearTimeout(copyTimeoutRef.current);
+      }
+    };
+  }, []);
 
   useEffect(() => {
     if (!expanded || !canvasRef.current) return;
@@ -34,7 +43,13 @@ export default function RecipientQrInline({ recipient }: RecipientQrInlineProps)
   function handleCopy() {
     navigator.clipboard?.writeText(recipient).catch(() => {});
     setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+    if (copyTimeoutRef.current !== null) {
+      clearTimeout(copyTimeoutRef.current);
+    }
+    copyTimeoutRef.current = setTimeout(() => {
+      copyTimeoutRef.current = null;
+      setCopied(false);
+    }, 2000);
   }
 
   function handleDownload() {

@@ -14,6 +14,7 @@
  * - Works for both single and batch withdrawals (pass `isBatch` and `streamCount`).
  */
 import { useState, useEffect, useRef } from "react";
+import { useFocusTrap } from "@/src/lib/useFocusTrap";
 import {
   getFeeConfig,
   calcWithdrawBreakdown,
@@ -88,6 +89,9 @@ export default function WithdrawFeeBreakdownModal({
 
   const [typed, setTyped] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
+  const dialogRef = useRef<HTMLDivElement>(null);
+
+  useFocusTrap(dialogRef, true, onCancel);
 
   // Fetch fee config and compute breakdown on mount
   useEffect(() => {
@@ -132,6 +136,7 @@ export default function WithdrawFeeBreakdownModal({
 
   return (
     <div
+      ref={dialogRef}
       role="dialog"
       aria-modal="true"
       aria-labelledby="fee-breakdown-title"

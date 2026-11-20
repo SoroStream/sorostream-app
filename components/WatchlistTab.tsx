@@ -113,7 +113,7 @@ export default function WatchlistTab() {
 
   function formatClaimable(raw: string): string {
     const n = parseInt(raw, 10);
-    if (isNaN(n)) return "0.00";
+    if (isNaN(n)) return "—";
     return (n / 10_000_000).toFixed(4);
   }
 

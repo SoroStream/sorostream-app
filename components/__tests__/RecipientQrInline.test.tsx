@@ -113,4 +113,47 @@ describe("#452 — RecipientQrInline", () => {
       expect.objectContaining({ width: 200 }),
     );
   });
+
+  it("resets the 2000ms copied timer on rapid re-click and clears it on unmount", async () => {
+    vi.useFakeTimers();
+    const clearTimeoutSpy = vi.spyOn(globalThis, "clearTimeout");
+    const mockWriteText = vi.fn().mockResolvedValue(undefined);
+    Object.assign(navigator, { clipboard: { writeText: mockWriteText } });
+
+    try {
+      const { unmount } = render(<RecipientQrInline recipient={STELLAR_ADDRESS} />);
+      await act(async () => {
+        fireEvent.click(screen.getByRole("button", { name: /recipient qr code/i }));
+      });
+
+      const copyBtn = screen.getByRole("button", { name: /copy address/i });
+      await act(async () => {
+        fireEvent.click(copyBtn);
+      });
+      expect(screen.getByRole("button", { name: /copied!/i })).toBeInTheDocument();
+
+      // Advance 1500ms and click again — the previous timer should be cleared and reset to 2000ms
+      act(() => {
+        vi.advanceTimersByTime(1500);
+      });
+      await act(async () => {
+        fireEvent.click(screen.getByRole("button", { name: /copied!/i }));
+      });
+      expect(clearTimeoutSpy).toHaveBeenCalled();
+
+      // At +1000ms (2500ms since first click), it should still show "Copied!"
+      act(() => {
+        vi.advanceTimersByTime(1000);
+      });
+      expect(screen.getByRole("button", { name: /copied!/i })).toBeInTheDocument();
+
+      // Unmounting with a pending timer should clear it without throwing or updating state
+      const callsBeforeUnmount = clearTimeoutSpy.mock.calls.length;
+      unmount();
+      expect(clearTimeoutSpy.mock.calls.length).toBeGreaterThan(callsBeforeUnmount);
+    } finally {
+      clearTimeoutSpy.mockRestore();
+      vi.useRealTimers();
+    }
+  });
 });

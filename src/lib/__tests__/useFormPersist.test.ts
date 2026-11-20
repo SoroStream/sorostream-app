@@ -103,4 +103,24 @@ describe("useFormPersist", () => {
 
     expect(readDraft()).toEqual(nextDraft);
   });
+
+  it("persists a new saveDraft after clearDraft within the old draft's 150ms debounce window", () => {
+    const { result } = renderHook(() => useFormPersist());
+
+    act(() => result.current.saveDraft(draft));
+    act(() => vi.advanceTimersByTime(50));
+    act(() => result.current.clearDraft());
+
+    const nextDraft = { ...draft, amount: "75" };
+    act(() => result.current.saveDraft(nextDraft));
+
+    // At 150ms total (old draft's debounce boundary), the old draft must not
+    // resurrect and the new draft's 150ms window has not elapsed yet.
+    act(() => vi.advanceTimersByTime(100));
+    expect(readDraft()).toBeNull();
+
+    // After the new draft's full 150ms window, it persists despite the generation bump.
+    act(() => vi.advanceTimersByTime(50));
+    expect(readDraft()).toEqual(nextDraft);
+  });
 });
