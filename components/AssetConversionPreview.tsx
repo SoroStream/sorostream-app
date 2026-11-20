@@ -55,7 +55,7 @@ export default function AssetConversionPreview({
       className="text-xs text-gray-500 mt-1"
       aria-label={t("approximately_fiat", { formatted, currency: preferredFiat })}
     >
-      (~{formatted} {preferredFiat})
+      {t("approximately_fiat_display", { formatted, currency: preferredFiat })}
     </p>
   );
 }

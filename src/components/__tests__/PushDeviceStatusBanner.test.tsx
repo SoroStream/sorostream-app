@@ -123,4 +123,39 @@ describe("PushDeviceStatusBanner", () => {
       expect(addToastMock).toHaveBeenCalledWith("Notification permission was denied.", "error"),
     );
   });
+
+  it("fires the success toast even when getPushSetupStatus still reports missing-on-this-device immediately after subscribe", async () => {
+    // Simulate the async race: subscribeToPush resolves, but the PushManager
+    // subscription hasn't propagated yet so getPushSetupStatus still returns
+    // missing-on-this-device on the first post-subscribe refresh call.
+    const user = userEvent.setup();
+    getPushSetupStatusMock
+      .mockResolvedValueOnce(status())             // initial mount
+      .mockResolvedValueOnce(status());            // refresh() right after subscribeToPush — still missing
+
+    subscribeToPushMock.mockResolvedValue({ endpoint: "https://push.example.com/abc" });
+
+    render(<PushDeviceStatusBanner />);
+    await user.click(
+      await screen.findByRole("button", { name: /enable notifications on this device/i }),
+    );
+
+    // The success toast must be shown regardless of what refresh() reported,
+    // because subscribeToPush itself resolved successfully.
+    await waitFor(() =>
+      expect(addToastMock).toHaveBeenCalledWith(
+        "Push notifications enabled on this device.",
+        "success",
+      ),
+    );
+
+    // The banner should still be visible because getPushSetupStatus returned
+    // missing-on-this-device again — the current implementation does not add
+    // a retry/delay, so the user sees the warning alongside the success toast.
+    // This documents the known behaviour: the banner persists until the next
+    // mount/refresh cycle completes with a fully-subscribed status.
+    expect(
+      screen.getByText(/Push notifications aren't active on this device/i),
+    ).toBeInTheDocument();
+  });
 });

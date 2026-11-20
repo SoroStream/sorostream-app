@@ -347,8 +347,8 @@ export default function PerStreamNotificationSettings() {
                             type="number"
                             min="0"
                             step="any"
-                            value={currentPref.claimableThreshold ?? globalThreshold}
-                            onChange={(e) => {
+                            defaultValue={currentPref.claimableThreshold ?? globalThreshold}
+                            onBlur={(e) => {
                               const val = parseFloat(e.target.value);
                               handleUpdateField(
                                 stream.id,

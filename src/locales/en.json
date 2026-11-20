@@ -167,6 +167,7 @@
     "price_unavailable": "Price unavailable",
     "approximately_usd": "approximately {formatted} US dollars",
     "approximately_fiat": "approximately {formatted} {currency}",
+    "approximately_fiat_display": "(~{formatted} {currency})",
     "pending": "pending…",
     "pending_confirmation": " (pending confirmation)",
     "claimable": "Claimable: {val} USDC",

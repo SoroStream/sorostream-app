@@ -171,6 +171,7 @@
     "price_unavailable": "Preço indisponível",
     "approximately_usd": "aproximadamente {formatted} dólares americanos",
     "approximately_fiat": "aproximadamente {formatted} {currency}",
+    "approximately_fiat_display": "(~{formatted} {currency})",
     "pending": "pendente…",
     "pending_confirmation": " (confirmação pendente)",
     "claimable": "Disponível: {val} USDC",

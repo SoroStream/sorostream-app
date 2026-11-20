@@ -54,24 +54,30 @@ export default function StreamShareButtons({
   const handleTwitterShare = useCallback(() => {
     const url = getStreamUrl();
     const tweet = encodeURIComponent(`${shareText}\n${url}`);
-    window.open(
+    const popup = window.open(
       `https://twitter.com/intent/tweet?text=${tweet}`,
       "_blank",
       "noopener,noreferrer",
     );
-  }, [getStreamUrl, shareText]);
+    if (!popup) {
+      addToast("Twitter share was blocked by your browser's popup blocker. Please allow popups for this site.", "error");
+    }
+  }, [getStreamUrl, shareText, addToast]);
 
   // ── Telegram ───────────────────────────────────────────────────────────────
   const handleTelegramShare = useCallback(() => {
     const url = getStreamUrl();
     const text = encodeURIComponent(shareText);
     const encodedUrl = encodeURIComponent(url);
-    window.open(
+    const popup = window.open(
       `https://t.me/share/url?url=${encodedUrl}&text=${text}`,
       "_blank",
       "noopener,noreferrer",
     );
-  }, [getStreamUrl, shareText]);
+    if (!popup) {
+      addToast("Telegram share was blocked by your browser's popup blocker. Please allow popups for this site.", "error");
+    }
+  }, [getStreamUrl, shareText, addToast]);
 
   // ── Web Share API (native OS share sheet) ─────────────────────────────────
   const handleNativeShare = useCallback(async () => {
