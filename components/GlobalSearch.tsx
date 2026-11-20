@@ -108,6 +108,13 @@ export default function GlobalSearch() {
       ],
       threshold: 0.4,
       minMatchCharLength: 1,
+      // Without ignoreLocation: true, Fuse only matches within the first
+      // `threshold × distance` (~40) characters of a field. Full-length
+      // Stellar addresses (56 chars) in recipient position start around
+      // character 73 of the title string and are therefore never matched.
+      // Setting ignoreLocation removes the positional constraint so any
+      // substring of the field can match regardless of where it appears. (#844)
+      ignoreLocation: true,
     });
     // Rebuild index when streams change — for now, static
     // eslint-disable-next-line react-hooks/exhaustive-deps

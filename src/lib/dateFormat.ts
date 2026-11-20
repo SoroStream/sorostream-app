@@ -11,7 +11,13 @@
 import { useSettings } from "@/src/context/SettingsContext";
 
 function toDate(value: Date | string): Date {
-  return typeof value === "string" ? new Date(value) : value;
+  if (typeof value === "string") return new Date(value);
+  // If an already-constructed Date object is invalid, return it as-is so
+  // the NaN check in each formatter still fires. Without this branch a plain
+  // `return value` works identically, but being explicit documents the intent
+  // and prevents a future refactor from accidentally calling new Date(value)
+  // on a Date (which produces "NaN" / "[object Date]" artefacts — #859).
+  return value;
 }
 
 /** Format a date-only value using Intl.DateTimeFormat for the given locale. */
@@ -21,7 +27,10 @@ export function formatLocaleDate(
   options: Intl.DateTimeFormatOptions = { year: "numeric", month: "short", day: "numeric" },
 ): string {
   const date = toDate(value);
-  if (Number.isNaN(date.getTime())) return String(value);
+  // For an invalid Date object, String(date) → "Invalid Date" (useful).
+  // For an invalid string, String(value) → the original garbage string (also useful).
+  // The ternary preserves both behaviours while avoiding "[object Date]" (#859).
+  if (Number.isNaN(date.getTime())) return value instanceof Date ? String(date) : String(value);
   try {
     return new Intl.DateTimeFormat(locale, options).format(date);
   } catch {
@@ -40,7 +49,7 @@ export function formatLocaleTime(
   options: Intl.DateTimeFormatOptions = { hour: "numeric", minute: "2-digit" },
 ): string {
   const date = toDate(value);
-  if (Number.isNaN(date.getTime())) return String(value);
+  if (Number.isNaN(date.getTime())) return value instanceof Date ? String(date) : String(value);
   try {
     return new Intl.DateTimeFormat(locale, options).format(date);
   } catch {
@@ -61,7 +70,7 @@ export function formatLocaleDateTime(
   },
 ): string {
   const date = toDate(value);
-  if (Number.isNaN(date.getTime())) return String(value);
+  if (Number.isNaN(date.getTime())) return value instanceof Date ? String(date) : String(value);
   try {
     return new Intl.DateTimeFormat(locale, options).format(date);
   } catch {

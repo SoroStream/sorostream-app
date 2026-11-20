@@ -184,7 +184,16 @@ export function generatePdfDocument(
   let y = tableTop - 20;
   const rowHeight = 18;
 
-  streams.slice(0, 25).forEach((s, idx) => {
+  // Available vertical space: from the first row to just above the footer line
+  // (footer sits at y=30, leave 10 pt padding → bottom boundary = 50).
+  // Calculate how many rows actually fit so the slice stays honest with the
+  // geometry and the summary totals always reflect all streams (#861).
+  const FOOTER_Y = 50;
+  const maxRows = Math.max(1, Math.floor((y - FOOTER_Y) / rowHeight));
+  const visibleStreams = streams.slice(0, maxRows);
+  const truncated = streams.length > maxRows;
+
+  visibleStreams.forEach((s, idx) => {
     const isSent = s.sender.toLowerCase() === (walletAddress || "").toLowerCase();
     const typeLabel = isSent ? "Sent" : "Received";
     const counterparty = isSent ? s.recipient : s.sender;
@@ -214,6 +223,15 @@ export function generatePdfDocument(
 
     y -= rowHeight;
   });
+
+  // If not all streams fit in the table, add a visible note so the reader
+  // understands that the row count is less than the summary total (#861).
+  if (truncated) {
+    const omitted = streams.length - maxRows;
+    contentLines.push(
+      `BT /F2 9 Tf 0.6 0.2 0.2 rg 40 ${y + rowHeight - 4} Td (Note: ${omitted} additional stream${omitted === 1 ? "" : "s"} not shown — summary totals above include all ${streams.length} streams.) Tj ET`,
+    );
+  }
 
   // Footer text
   contentLines.push("BT /F1 8 Tf 0.5 0.5 0.5 rg 40 30 Td (Sorostream Web Application - Client-Side Tax & Accounting Report - Confidential) Tj ET");
