@@ -14,6 +14,8 @@ export interface ContractVersionState {
   mismatch: boolean;
   expectedVersion: string;
   deployedVersion: string | null;
+  /** Re-run the version check on demand (e.g. after the user dismisses the mismatch banner). */
+  refetch: () => void;
 }
 
 function getExpectedVersion(): string {
@@ -55,5 +57,5 @@ export function useContractVersion(): ContractVersionState {
     void checkVersion();
   }, [checkVersion]);
 
-  return { mismatch, expectedVersion, deployedVersion };
+  return { mismatch, expectedVersion, deployedVersion, refetch: checkVersion };
 }

@@ -25,9 +25,9 @@ export default function PortfolioSummaryCard({ streams, walletAddress }: Portfol
     let out = 0;
     let inn = 0;
     for (const s of active) {
-      if (walletAddress && s.sender.includes(walletAddress.slice(0, 5))) {
+      if (walletAddress && s.sender === walletAddress) {
         out += s.flowRate;
-      } else if (walletAddress && s.recipient.includes(walletAddress.slice(0, 5))) {
+      } else if (walletAddress && s.recipient === walletAddress) {
         inn += s.flowRate;
       } else {
         // fallback when no wallet — don't count
