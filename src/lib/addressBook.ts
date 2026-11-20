@@ -90,14 +90,30 @@ function writeStore(store: ContactStore): void {
 /**
  * Return the owner's contacts, seeding from the legacy global list on
  * first access so existing users keep their saved recipients.
+ *
+ * Migration note: the legacy global key (`sorostream_address_book`) is
+ * removed from storage the first time *any* owner triggers the migration.
+ * This prevents a multi-account scenario where every new wallet address that
+ * connects to the same browser independently inherits a full copy of the same
+ * legacy contacts — which could expose one user's saved recipients to a
+ * different sender's address book. After the first migration the legacy key
+ * no longer exists, so subsequent owners see an empty starting list (the
+ * normal per-owner default) rather than the previously migrated data.
  */
 function getOwnerContacts(owner: string): AddressBookContact[] {
   const store = readStore();
   if (!Object.prototype.hasOwnProperty.call(store, owner)) {
-    // One-time migration: copy the pre-whitelist global book to this sender.
+    // One-time migration: move the pre-whitelist global book to this sender.
     const legacy = readLegacyContacts();
     store[owner] = legacy;
     writeStore(store);
+    // Remove the legacy key so subsequent wallet addresses do not inherit
+    // this owner's contacts (see migration note above).
+    try {
+      localStorage.removeItem(LEGACY_STORAGE_KEY);
+    } catch {
+      // ignore storage errors (e.g. private browsing quota)
+    }
     return legacy;
   }
   return store[owner];

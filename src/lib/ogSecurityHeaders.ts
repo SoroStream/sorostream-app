@@ -34,7 +34,7 @@
  * sanitisation that these headers complement.
  *
  * See: feat/781 — CSP/sandboxing guidance for the OG image route
- * Test: __tests__/ogRoute.test.ts
+ * Test: src/app/api/og/route.test.ts
  */
 export const OG_SECURITY_HEADERS = {
   /**

@@ -63,9 +63,27 @@ export function getSavedTemplates(): SavedTemplate[] {
   }
 }
 
+/**
+ * Persist a new template and return it (with its generated id).
+ *
+ * Returns null if the cap (MAX_TEMPLATES) has been reached.
+ *
+ * Label-collision guard: if the label matches a built-in template (see
+ * `findBuiltInTemplateByLabel`) this function throws, because the picker
+ * renders built-ins and saved templates in the same list and two entries
+ * with identical labels would be indistinguishable. The check is enforced
+ * here rather than left to callers so a future caller can never
+ * accidentally violate the invariant.
+ */
 export function saveTemplate(
   template: Omit<SavedTemplate, "id">,
 ): SavedTemplate | null {
+  if (findBuiltInTemplateByLabel(template.label)) {
+    throw new Error(
+      `Cannot save a template whose label matches a built-in: "${template.label}". ` +
+        "Rename the template before saving.",
+    );
+  }
   const templates = getSavedTemplates();
   if (templates.length >= MAX_TEMPLATES) return null;
   const id = `tpl_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
