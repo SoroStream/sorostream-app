@@ -28,7 +28,11 @@ function loadWatchlist(): WatchedStream[] {
 }
 
 function saveWatchlist(list: WatchedStream[]): void {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(list));
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(list));
+  } catch {
+    // Ignore storage errors (e.g. quota exceeded in private browsing).
+  }
 }
 
 function timeRemaining(endTimeIso: string): string {

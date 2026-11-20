@@ -29,6 +29,9 @@ function load(): TagMap {
 function save(map: TagMap): void {
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(map));
+    if (typeof window !== "undefined") {
+      window.dispatchEvent(new CustomEvent("sorostream:tags-changed"));
+    }
   } catch {}
 }
 

@@ -20,6 +20,15 @@ export default function StreamTagChips({ streamId, tags: propTags }: StreamTagCh
     setTags(getTagsForStream(streamId));
   }, [streamId, propTags]);
 
+  // Keep chips in sync when tags are changed from another component on the
+  // same page (e.g. StreamTagEditor opened in a modal) without a remount.
+  useEffect(() => {
+    if (propTags) return; // caller owns the data; no listener needed
+    const handler = () => setTags(getTagsForStream(streamId));
+    window.addEventListener("sorostream:tags-changed", handler);
+    return () => window.removeEventListener("sorostream:tags-changed", handler);
+  }, [streamId, propTags]);
+
   if (tags.length === 0) return null;
 
   return (

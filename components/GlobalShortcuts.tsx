@@ -172,6 +172,7 @@ export function GlobalShortcutsProvider({ children }: { children: ReactNode }) {
     const handler = (e: KeyboardEvent) => {
       const tag = document.activeElement?.tagName ?? "";
       if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return;
+      if ((document.activeElement as HTMLElement | null)?.isContentEditable) return;
 
       const seq = checkSequence(e.key);
       if (seq === "d") {
