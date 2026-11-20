@@ -1,5 +1,9 @@
 import type { Metadata } from "next";
 
+// Ensure each /embed/* request is rendered dynamically so Next.js applies the
+// per-request CSP nonce from middleware.ts to its hydration scripts.
+export const dynamic = "force-dynamic";
+
 export const metadata: Metadata = {
   title: "SoroStream Widget",
   description: "Embeddable SoroStream stream status widget",

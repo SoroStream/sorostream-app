@@ -1,4 +1,5 @@
 import { act, renderHook } from "@testing-library/react";
+import { useEffect } from "react";
 import { describe, expect, it } from "vitest";
 import {
   DASHBOARD_PAGE_SIZE,
@@ -107,6 +108,49 @@ describe("usePagination", () => {
     rerender({ size: 10 });
     expect(result.current.totalPages).toBe(6);
     expect(result.current.currentPage).toBe(3);
+  });
+
+  it("re-clamps during render without extra commits or out-of-range flicker when itemCount transitions through 0", () => {
+    const snapshots: Array<{ currentPage: number; totalPages: number }> = [];
+    let commitCount = 0;
+
+    const { result, rerender } = renderHook(
+      ({ count }) => {
+        const pagination = usePagination(count, 20);
+        snapshots.push({
+          currentPage: pagination.currentPage,
+          totalPages: pagination.totalPages,
+        });
+        useEffect(() => {
+          commitCount += 1;
+        });
+        return pagination;
+      },
+      { initialProps: { count: 60 } },
+    );
+
+    act(() => result.current.setPage(3));
+    expect(result.current.currentPage).toBe(3);
+
+    snapshots.length = 0;
+    commitCount = 0;
+
+    // Rapidly transition itemCount through 0 and back to 60.
+    rerender({ count: 0 });
+    expect(result.current.totalPages).toBe(1);
+    expect(result.current.currentPage).toBe(1);
+
+    rerender({ count: 60 });
+    expect(result.current.totalPages).toBe(3);
+    // Stored page was re-clamped to 1 when count hit 0, so it stays at 1.
+    expect(result.current.currentPage).toBe(1);
+
+    // Every render pass saw an in-range page, and each rerender committed once.
+    for (const snap of snapshots) {
+      expect(snap.currentPage).toBeGreaterThanOrEqual(1);
+      expect(snap.currentPage).toBeLessThanOrEqual(snap.totalPages);
+    }
+    expect(commitCount).toBe(2);
   });
 
   it("keeps the page usable when the page size is invalid", () => {

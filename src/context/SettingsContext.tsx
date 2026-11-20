@@ -215,6 +215,7 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
         defaultDurationSeconds: defaultSettings.defaultDurationSeconds,
         defaultCliffDurationSeconds: defaultSettings.defaultCliffDurationSeconds,
         preferredTheme: defaultSettings.preferredTheme,
+        preferredFiat: defaultSettings.preferredFiat,
       };
       persist(next);
       return next;

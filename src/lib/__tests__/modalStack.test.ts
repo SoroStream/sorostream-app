@@ -70,6 +70,32 @@ describe("modalStack", () => {
     expect(onCloseA).toHaveBeenCalledTimes(1);
   });
 
+  it("calls the originally-open modal's onClose once when pushModal is called twice synchronously before microtasks run", async () => {
+    const onCloseA = vi.fn();
+    const onCloseB = vi.fn();
+    const onCloseC = vi.fn();
+
+    const a = pushModal(onCloseA);
+    const b = pushModal(onCloseB);
+    const c = pushModal(onCloseC);
+
+    // Neither queued onClose should have fired synchronously yet.
+    expect(onCloseA).not.toHaveBeenCalled();
+    expect(onCloseB).not.toHaveBeenCalled();
+    expect(isTopModal(c)).toBe(true);
+    expect(isTopModal(a)).toBe(false);
+    expect(isTopModal(b)).toBe(false);
+    expect(openModalCount()).toBe(1);
+
+    await flushMicrotasks();
+
+    expect(onCloseA).toHaveBeenCalledTimes(1);
+    expect(onCloseB).toHaveBeenCalledTimes(1);
+    expect(onCloseC).not.toHaveBeenCalled();
+    expect(isTopModal(c)).toBe(true);
+    expect(openModalCount()).toBe(1);
+  });
+
   it("marking an unknown id is a no-op", () => {
     expect(() => markModalClosing(999)).not.toThrow();
     expect(isModalClosing(999)).toBe(false);

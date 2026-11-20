@@ -19,16 +19,30 @@ export function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
-  const response = NextResponse.next();
+  const nonce = btoa(crypto.randomUUID());
+  const cspHeader = [
+    "frame-ancestors *",
+    "default-src 'self'",
+    `script-src 'self' 'nonce-${nonce}'`,
+    "style-src 'self' 'unsafe-inline'",
+    "img-src *",
+  ].join("; ") + ";";
+
+  // Forward the nonce and CSP on the request headers so Next.js automatically
+  // attaches the nonce to its SSR/hydration inline scripts.
+  const requestHeaders = new Headers(request.headers);
+  requestHeaders.set("x-nonce", nonce);
+  requestHeaders.set("Content-Security-Policy", cspHeader);
+
+  const response = NextResponse.next({
+    request: { headers: requestHeaders },
+  });
 
   // Allow embedding from any origin
   response.headers.set("X-Frame-Options", "ALLOWALL");
 
-  // CSP: allow this page to be framed by any origin
-  response.headers.set(
-    "Content-Security-Policy",
-    "frame-ancestors *; default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src *;",
-  );
+  // CSP: allow this page to be framed by any origin without 'unsafe-inline' scripts
+  response.headers.set("Content-Security-Policy", cspHeader);
 
   // Remove any stricter framing headers that might have been set upstream
   response.headers.delete("X-Content-Security-Policy");
