@@ -45,8 +45,12 @@ function compare(a: StreamEvent, b: StreamEvent, field: ActivitySortField): numb
       return a.type.localeCompare(b.type);
     case "amount": {
       // Events without an amount (creation, alert, …) sort as zero.
-      const av = BigInt(a.amount ?? "0");
-      const bv = BigInt(b.amount ?? "0");
+      // BigInt() throws on decimal strings (e.g. "12.5"), so truncate to the
+      // integer part before converting.
+      const toInt = (v: string | undefined) =>
+        BigInt(Math.trunc(parseFloat(v ?? "0")) || 0);
+      const av = toInt(a.amount);
+      const bv = toInt(b.amount);
       return av === bv ? 0 : av < bv ? -1 : 1;
     }
   }
