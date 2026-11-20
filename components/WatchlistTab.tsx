@@ -3,6 +3,9 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { sorostream, claimableNow, getMockStream } from "@/src/lib/sorostream";
 
+// Note (#892): Unlike addressBook.ts (MAX_CONTACTS = 50) and streamTemplates.ts
+// (MAX_TEMPLATES = 20), sorostream-watchlist is currently uncapped — an
+// unintentional oversight documented in docs/storage-keys.md (Finding 8).
 const STORAGE_KEY = "sorostream-watchlist";
 
 interface WatchedStream {

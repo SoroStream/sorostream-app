@@ -103,6 +103,22 @@ Issues found while compiling the list. None are fixed here.
    `server-keypair` adapter's secret key in plain localStorage, readable by
    any script on the origin. Not a naming problem, but it showed up here
    and deserves its own issue.
+8. **Inconsistent per-list caps (#892).** The app has no unified policy on
+   capping user-managed `localStorage` lists:
+   - `src/lib/addressBook.ts` caps contacts at `MAX_CONTACTS = 50` (per
+     owner in `sorostream_address_book_v2`, and globally in legacy
+     `sorostream_address_book`).
+   - `src/lib/streamTemplates.ts` caps saved templates at
+     `MAX_TEMPLATES = 20` in `sorostream_templates`.
+   - `components/WatchlistTab.tsx` leaves `sorostream-watchlist`
+     completely unbounded.
+
+   Leaving the watchlist unbounded is an unintentional oversight rather
+   than a deliberate exception: unlike contacts or templates, each
+   watched stream ID also triggers a `sorostream.getStream` RPC poll every
+   10 seconds, so unbounded growth impacts both storage and network/RPC
+   load. Future work should align `WatchlistTab` with an explicit cap
+   (following the `MAX_CONTACTS` / `MAX_TEMPLATES` pattern).
 
 ## Convention for new keys
 

@@ -14,3 +14,22 @@ it("persists threshold edits and lets users restore environment defaults", () =>
   fireEvent.change(screen.getByLabelText("Degraded latency (milliseconds)"), { target: { value: "" } });
   expect(JSON.parse(localStorage.getItem(PREFERENCES_STORAGE_KEY)!)).toMatchObject({ rpcDegradedMs: null });
 });
+
+it("rejects zero and negative threshold values at runtime (#882)", () => {
+  render(<PreferencesProvider><RpcThresholdSettings /></PreferencesProvider>);
+  const degradedInput = screen.getByLabelText("Degraded latency (milliseconds)");
+  const unreachableInput = screen.getByLabelText("Unreachable banner delay (seconds)");
+
+  fireEvent.change(degradedInput, { target: { value: "800" } });
+  fireEvent.change(unreachableInput, { target: { value: "15" } });
+
+  fireEvent.change(degradedInput, { target: { value: "0" } });
+  fireEvent.change(unreachableInput, { target: { value: "-5" } });
+
+  expect(degradedInput).toHaveValue(800);
+  expect(unreachableInput).toHaveValue(15);
+  expect(JSON.parse(localStorage.getItem(PREFERENCES_STORAGE_KEY)!)).toMatchObject({
+    rpcDegradedMs: 800,
+    rpcUnreachableBannerSeconds: 15,
+  });
+});
