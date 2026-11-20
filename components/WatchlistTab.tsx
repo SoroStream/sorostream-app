@@ -4,6 +4,10 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { sorostream, claimableNow, getMockStream } from "@/src/lib/sorostream";
 
 const STORAGE_KEY = "sorostream-watchlist";
+/** Maximum number of streams that can be added to the watchlist. Keeps the
+ *  10-second poll burst bounded, consistent with MAX_CONTACTS (50) and
+ *  MAX_TEMPLATES (20) elsewhere in the app. */
+export const MAX_WATCHLIST = 50;
 
 interface WatchedStream {
   id: string;
@@ -91,6 +95,10 @@ export default function WatchlistTab() {
     if (!id) { setInputError("Stream ID is required."); return; }
     if (watchlist.some((w) => w.id === id)) {
       setInputError("Already watching this stream.");
+      return;
+    }
+    if (watchlist.length >= MAX_WATCHLIST) {
+      setInputError(`Watchlist is full (max ${MAX_WATCHLIST} streams).`);
       return;
     }
     const next: WatchedStream[] = [...watchlist, { id, addedAt: new Date().toISOString() }];

@@ -1,5 +1,20 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi, beforeEach } from "vitest";
+import { render, screen, fireEvent } from "@testing-library/react";
 import type { StreamData } from "@/src/lib/sorostream";
+
+// ---------------------------------------------------------------------------
+// Router / search-params mock for applyFilter tests
+// ---------------------------------------------------------------------------
+
+const mockReplace = vi.fn();
+let mockSearchParams = new URLSearchParams();
+
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({ replace: mockReplace }),
+  useSearchParams: () => mockSearchParams,
+}));
+
+import PortfolioSummaryCard from "../PortfolioSummaryCard";
 
 /**
  * Unit tests for PortfolioSummaryCard calculation logic with mixed
@@ -232,5 +247,86 @@ describe("PortfolioSummaryCard calculation", () => {
     // 1,000,000 stroops/s * 2,592,000 s/month / 10,000,000 = 259,200 units/month
     const monthly = formatMonthly(1_000_000);
     expect(monthly).toBeCloseTo(259200, 2);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// applyFilter toggle tests (#890)
+// ---------------------------------------------------------------------------
+
+/** Minimal stream set sufficient to render the card with non-zero values. */
+const FILTER_WALLET = "GBAM...BOEP";
+const filterStreams: StreamData[] = [
+  makeStream({ id: "fo1", sender: "GBAM...BOEP", recipient: "GX1...AAAA", flowRate: 1_000_000, status: "Active" }),
+  makeStream({ id: "fi1", sender: "GY1...DDDD", recipient: "GBAM...BOEP", flowRate: 2_000_000, status: "Active" }),
+];
+
+describe("PortfolioSummaryCard applyFilter (#890)", () => {
+  beforeEach(() => {
+    mockReplace.mockClear();
+    mockSearchParams = new URLSearchParams();
+  });
+
+  it("sets flowFilter=inflow when no filter is currently active", () => {
+    render(<PortfolioSummaryCard streams={filterStreams} walletAddress={FILTER_WALLET} />);
+
+    fireEvent.click(screen.getByTitle("Click to filter incoming streams"));
+
+    expect(mockReplace).toHaveBeenCalledOnce();
+    const calledUrl = mockReplace.mock.calls[0][0] as string;
+    expect(new URL(calledUrl, "http://x").searchParams.get("flowFilter")).toBe("inflow");
+  });
+
+  it("clears flowFilter when clicking the already-active inflow filter", () => {
+    // Start with flowFilter=inflow already set.
+    mockSearchParams = new URLSearchParams("flowFilter=inflow");
+
+    render(<PortfolioSummaryCard streams={filterStreams} walletAddress={FILTER_WALLET} />);
+
+    fireEvent.click(screen.getByTitle("Click to filter incoming streams"));
+
+    expect(mockReplace).toHaveBeenCalledOnce();
+    const calledUrl = mockReplace.mock.calls[0][0] as string;
+    expect(new URL(calledUrl, "http://x").searchParams.has("flowFilter")).toBe(false);
+  });
+
+  it("replaces flowFilter=outflow with flowFilter=inflow when clicking Inflow while Outflow is active (#890)", () => {
+    // The key scenario from the issue: a different filter type is already set.
+    mockSearchParams = new URLSearchParams("flowFilter=outflow");
+
+    render(<PortfolioSummaryCard streams={filterStreams} walletAddress={FILTER_WALLET} />);
+
+    // Click the Inflow button — should overwrite, NOT toggle off.
+    fireEvent.click(screen.getByTitle("Click to filter incoming streams"));
+
+    expect(mockReplace).toHaveBeenCalledOnce();
+    const calledUrl = mockReplace.mock.calls[0][0] as string;
+    const params = new URL(calledUrl, "http://x").searchParams;
+    expect(params.get("flowFilter")).toBe("inflow");
+  });
+
+  it("replaces flowFilter=inflow with flowFilter=outflow when clicking Outflow while Inflow is active", () => {
+    mockSearchParams = new URLSearchParams("flowFilter=inflow");
+
+    render(<PortfolioSummaryCard streams={filterStreams} walletAddress={FILTER_WALLET} />);
+
+    fireEvent.click(screen.getByTitle("Click to filter outgoing streams"));
+
+    const calledUrl = mockReplace.mock.calls[0][0] as string;
+    expect(new URL(calledUrl, "http://x").searchParams.get("flowFilter")).toBe("outflow");
+  });
+
+  it("preserves unrelated search params when toggling a filter", () => {
+    mockSearchParams = new URLSearchParams("token=USDC&page=2");
+
+    render(<PortfolioSummaryCard streams={filterStreams} walletAddress={FILTER_WALLET} />);
+
+    fireEvent.click(screen.getByTitle("Click to see net flow"));
+
+    const calledUrl = mockReplace.mock.calls[0][0] as string;
+    const params = new URL(calledUrl, "http://x").searchParams;
+    expect(params.get("flowFilter")).toBe("net");
+    expect(params.get("token")).toBe("USDC");
+    expect(params.get("page")).toBe("2");
   });
 });

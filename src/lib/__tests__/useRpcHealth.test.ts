@@ -120,3 +120,91 @@ describe("runtime health thresholds", () => {
     expect(result.current.health.showBanner).toBe(true);
   });
 });
+
+// ---------------------------------------------------------------------------
+// rpcUrl network-change stale-sample isolation test (#876)
+//
+// When rpcUrl changes, samplesRef is reset to [] before the new poll starts.
+// A fetch that was already in-flight on the OLD network must not land its
+// result into the new network's sample window after the reset.
+// ---------------------------------------------------------------------------
+
+describe("useRpcHealth rpcUrl-change stale-sample isolation (#876)", () => {
+  afterEach(() => {
+    vi.useRealTimers();
+    vi.restoreAllMocks();
+    vi.unstubAllGlobals();
+    vi.resetModules();
+  });
+
+  it("does not add an in-flight old-network sample to the new network's window", async () => {
+    vi.useFakeTimers();
+
+    // We will manually control when each fetch resolves by collecting the
+    // per-call resolve functions here.
+    const resolvers: Array<() => void> = [];
+
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockImplementation(
+        () =>
+          new Promise<Response>((resolve) => {
+            resolvers.push(() => resolve({ ok: true, status: 200 } as Response));
+          }),
+      ),
+    );
+
+    // Use a mutable variable so the mock can serve different URLs across
+    // renders without recreating the mock itself.
+    let currentRpcUrl = "https://rpc-network-a.test";
+
+    // vi.resetModules() clears the module registry so that the dynamic
+    // import below picks up this vi.doMock instead of the hoisted vi.mock
+    // at the top of the file.
+    vi.resetModules();
+    vi.doMock("@/src/lib/network", () => ({
+      useNetwork: () => ({ rpcUrl: currentRpcUrl }),
+    }));
+    vi.doMock("@/src/context/PreferencesContext", () => ({
+      useRpcThresholdPreferences: () => ({ rpcDegradedMs: null, rpcUnreachableBannerSeconds: null }),
+    }));
+
+    // Dynamic import picks up the freshly registered mocks.
+    const { useRpcHealth: useRpcHealthLocal } = await import("../useRpcHealth");
+
+    const { result, rerender } = renderHook(() => useRpcHealthLocal());
+
+    // Let the initial render kick off the first fetch (network A).
+    await act(async () => {});
+    // One fetch should now be pending for network A.
+    expect(resolvers).toHaveLength(1);
+
+    // Switch to network B BEFORE the first fetch settles — this resets
+    // samplesRef.current = [] inside the effect and starts a fresh poll.
+    currentRpcUrl = "https://rpc-network-b.test";
+    rerender();
+
+    // The effect for network B fires, triggering a second fetch.
+    await act(async () => {});
+    expect(resolvers).toHaveLength(2);
+
+    // Resolve the FIRST (stale, network-A) fetch. Because checkHealth closed
+    // over the samplesRef at the time it was created for network A, and the
+    // effect for network B has already reset samplesRef.current = [], the
+    // stale push goes into a stale closure — it cannot corrupt the new window.
+    await act(async () => {
+      resolvers[0]();
+    });
+
+    // Resolve the SECOND (current, network-B) fetch.
+    await act(async () => {
+      resolvers[1]();
+    });
+
+    // After both fetches have settled the hook should be healthy — the stale
+    // network-A sample has not inflated the new network's rolling average.
+    expect(result.current.status).toBe("healthy");
+    // latencyMs is non-null, confirming the new-network sample did land.
+    expect(result.current.latencyMs).not.toBeNull();
+  });
+});
