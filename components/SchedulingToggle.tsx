@@ -9,6 +9,13 @@ interface SchedulingToggleProps {
   error?: string;
 }
 
+function formatLocalDateTimeInput(date: Date): string {
+  const pad = (value: number) => String(value).padStart(2, "0");
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(
+    date.getHours(),
+  )}:${pad(date.getMinutes())}`;
+}
+
 /**
  * A toggle + datetime-local picker for scheduling a stream start time.
  * When disabled the stream starts immediately.
@@ -25,8 +32,8 @@ export default function SchedulingToggle({
   /** Minimum selectable datetime — 1 minute from now in datetime-local format. */
   const minDateTime = (() => {
     const d = new Date(Date.now() + 60_000);
-    // datetime-local requires "YYYY-MM-DDTHH:MM" format
-    return d.toISOString().slice(0, 16);
+    // datetime-local values are interpreted in the user's local timezone.
+    return formatLocalDateTimeInput(d);
   })();
 
   return (

@@ -66,8 +66,22 @@ export default function PollingIndicator({
     return `${hours}:${minutes}:${seconds}`;
   };
 
-  const idleLabel = t("manual_refresh") || "Refresh now";
-  const busyLabel = t("refreshing") || "Refreshing…";
+  const idleTranslation = (() => {
+    try {
+      const value = t("manual_refresh");
+      return value && value !== "manual_refresh" ? value : "Refresh now";
+    } catch {
+      return "Refresh now";
+    }
+  })();
+  const busyTranslation = (() => {
+    try {
+      const value = t("refreshing");
+      return value && value !== "refreshing" ? value : "Refreshing…";
+    } catch {
+      return "Refreshing…";
+    }
+  })();
 
   return (
     <div
@@ -85,7 +99,7 @@ export default function PollingIndicator({
             <span className={`inline-block w-2 h-2 rounded-full ${
               busy ? "bg-yellow-400 animate-pulse" : "bg-green-400"
             }`} aria-hidden="true" />
-            {isLoading ? "Refreshing…" : `Next in ${secondsUntilNext}s`}
+            {busy ? busyTranslation : `Next in ${secondsUntilNext}s`}
           </span>
         </>
       )}
@@ -94,8 +108,8 @@ export default function PollingIndicator({
           onClick={() => void handleManualRefresh()}
           disabled={busy}
           className="ms-1 px-2 py-1 rounded text-gray-600 dark:text-gray-400 border border-gray-300 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-500"
-          aria-label={busy ? busyLabel : idleLabel}
-          title={busy ? busyLabel : idleLabel}
+          aria-label={busy ? busyTranslation : idleTranslation}
+          title={busy ? busyTranslation : idleTranslation}
         >
           <svg
             xmlns="http://www.w3.org/2000/svg"

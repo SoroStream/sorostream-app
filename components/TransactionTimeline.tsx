@@ -10,6 +10,9 @@ export interface TimelineEntry {
   type: "withdrawal" | "top-up" | "creation" | "cancellation" | "pause" | "resume";
   amount: string;
   txHash: string;
+  /** Asset metadata supplied by the history/indexer when available. */
+  token?: string;
+  tokenDecimals?: number;
 }
 
 interface TransactionTimelineProps {
@@ -62,6 +65,30 @@ const typeConfig: Record<
     label: "Resumed",
   },
 };
+
+/** Format an integer asset amount without converting it through Number. */
+export function formatTokenAmount(rawAmount: bigint, decimals: number): string {
+  const safeDecimals = Number.isInteger(decimals) && decimals >= 0 ? decimals : 7;
+  const negative = rawAmount < 0n;
+  const amount = negative ? -rawAmount : rawAmount;
+  const base = 10n ** BigInt(safeDecimals);
+  const whole = amount / base;
+  const fraction = amount % base;
+  const wholeText = whole.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+
+  if (safeDecimals === 0) return `${negative ? "-" : ""}${wholeText}`;
+
+  const fractionText = fraction.toString().padStart(safeDecimals, "0");
+  return `${negative ? "-" : ""}${wholeText}.${fractionText}`;
+}
+
+function formatTimelineAmount(entry: TimelineEntry): string {
+  const amount = BigInt(entry.amount);
+  // Preserve the legacy display for entries that predate token metadata.
+  return entry.token || entry.tokenDecimals !== undefined
+    ? formatTokenAmount(amount, entry.tokenDecimals ?? 7)
+    : formatUSDC(amount);
+}
 
 export default function TransactionTimeline({ entries }: TransactionTimelineProps) {
   const t = useTranslations("common");
@@ -129,7 +156,8 @@ export default function TransactionTimeline({ entries }: TransactionTimelineProp
                     <div className="text-end">
                       <p className={`font-mono text-sm ${config.color}`}>
                         {entry.type === "withdrawal" ? "-" : "+"}
-                        {formatUSDC(BigInt(entry.amount))}
+                        {formatTimelineAmount(entry)}
+                        {entry.token ? ` ${entry.token}` : ""}
                       </p>
                     </div>
                   )}
