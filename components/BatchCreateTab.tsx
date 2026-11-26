@@ -14,6 +14,7 @@ interface CsvRow {
   duration: string;
   cliff_days: string;
   token: string;
+  parseError?: string;
 }
 
 interface ParsedRow {
@@ -40,13 +41,42 @@ interface SubmitResult {
 
 const REQUIRED_HEADERS = ["recipient", "amount", "duration", "cliff_days", "token"] as const;
 
+function parseCsvLine(line: string): { columns: string[]; error?: string } {
+  const columns: string[] = [];
+  let current = "";
+  let quoted = false;
+
+  for (let i = 0; i < line.length; i += 1) {
+    const character = line[i];
+    if (character === '"') {
+      if (quoted && line[i + 1] === '"') {
+        current += '"';
+        i += 1;
+      } else {
+        quoted = !quoted;
+      }
+    } else if (character === "," && !quoted) {
+      columns.push(current.trim());
+      current = "";
+    } else {
+      current += character;
+    }
+  }
+
+  if (quoted) return { columns: [], error: "Unclosed quoted field." };
+  columns.push(current.trim());
+  return { columns };
+}
+
 export function parseCSV(text: string): { rows: CsvRow[]; headerError: string | null } {
   const lines = text.trim().split(/\r?\n/);
   if (lines.length < 2) {
     return { rows: [], headerError: "CSV must have a header row and at least one data row." };
   }
 
-  const headers = lines[0].split(",").map((h) => h.trim().toLowerCase());
+  const header = parseCsvLine(lines[0]);
+  if (header.error) return { rows: [], headerError: `Header error: ${header.error}` };
+  const headers = header.columns.map((h) => h.toLowerCase());
   for (const req of REQUIRED_HEADERS) {
     if (!headers.includes(req)) {
       return {
@@ -59,7 +89,12 @@ export function parseCSV(text: string): { rows: CsvRow[]; headerError: string | 
   const idx = Object.fromEntries(headers.map((h, i) => [h, i]));
 
   const rows: CsvRow[] = lines.slice(1).map((line, i) => {
-    const cols = line.split(",").map((c) => c.trim());
+    const parsed = parseCsvLine(line);
+    const cols = parsed.columns;
+    const parseError = parsed.error ??
+      (cols.length !== headers.length
+        ? `Expected ${headers.length} columns but found ${cols.length}.`
+        : undefined);
     return {
       rowIndex: i + 2, // 1-indexed, row 1 = header
       recipient: cols[idx.recipient] ?? "",
@@ -67,6 +102,7 @@ export function parseCSV(text: string): { rows: CsvRow[]; headerError: string | 
       duration: cols[idx.duration] ?? "",
       cliff_days: cols[idx.cliff_days] ?? "",
       token: cols[idx.token] ?? "",
+      parseError,
     };
   });
 
@@ -74,7 +110,7 @@ export function parseCSV(text: string): { rows: CsvRow[]; headerError: string | 
 }
 
 function validateRow(row: CsvRow): string[] {
-  const errors: string[] = [];
+  const errors: string[] = row.parseError ? [row.parseError] : [];
 
   if (!row.recipient) {
     errors.push("recipient is required");
