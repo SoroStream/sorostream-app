@@ -32,6 +32,16 @@ function computeUnlockRemaining(unlockTimeMs: number) {
   };
 }
 
+/**
+ * Shows the sender a countdown until the collateral they locked for a stream
+ * unlocks, then a "Collateral Released" state with an optional claim button.
+ *
+ * Sender-only by design: renders nothing unless `isSender` and
+ * `hasCollateral` are both true. The badge is about the sender's own locked
+ * funds and the sender's claim on them; a recipient cannot claim that
+ * collateral, so it is not shown to them even when collateral is held for
+ * the stream they receive from.
+ */
 export default function CollateralUnlockBadge({
   endTime,
   gracePeriodSeconds = 0,
