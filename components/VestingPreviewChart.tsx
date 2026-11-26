@@ -55,13 +55,19 @@ export default function VestingPreviewChart({
     const end = start + durationSeconds;
     const cliff = cliffSeconds ? start + cliffSeconds : 0;
 
-    // Calculate vesting schedule
+    // Calculate vesting schedule.
+    // Pass cliffWindowSeconds so calculateVestingSchedule adds denser samples
+    // around the cliff boundary (#686 / #915) — without this the dense-cliff
+    // sampling feature is never exercised from the UI.
+    const effectiveCliff = cliff > start && cliff < end ? cliff : 0;
+    const cliffWindowSeconds = effectiveCliff > 0 ? Math.min(cliffSeconds! * 0.1, 3600) : undefined;
     const { points } = calculateVestingSchedule(
       stroops,
       start,
       end,
-      cliff > start && cliff < end ? cliff : 0,
+      effectiveCliff,
       30, // 30 data points for smooth curve
+      cliffWindowSeconds !== undefined ? { cliffWindowSeconds } : {},
     );
 
     // Format points for display
@@ -79,7 +85,10 @@ export default function VestingPreviewChart({
       totalAmount: numAmount,
       startTime: start,
       endTime: end,
-      cliffTime: cliff,
+      // Use effectiveCliff (0 when cliff is out of range) so the legend and
+      // reference line are only shown for a cliff that actually falls within
+      // the vesting window (#915/#937).
+      cliffTime: effectiveCliff,
     };
   }, [amount, durationSeconds, cliffSeconds]);
 

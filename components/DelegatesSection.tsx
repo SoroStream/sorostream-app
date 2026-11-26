@@ -1,8 +1,17 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useWallet } from "@/src/context/WalletContext";
 
-const STORAGE_KEY = "sorostream-delegates";
+/**
+ * Returns a localStorage key scoped to the connected wallet address (#918).
+ * Falls back to a namespaced "no-wallet" sentinel so a disconnected browser
+ * never shares data with a real account.
+ */
+function storageKey(walletAddress: string | null): string {
+  const scope = walletAddress ?? "__no_wallet__";
+  return `sorostream-delegates:${scope}`;
+}
 
 interface Delegate {
   address: string;
@@ -11,18 +20,18 @@ interface Delegate {
   streamIds: string[];
 }
 
-function loadDelegates(): Delegate[] {
+function loadDelegates(walletAddress: string | null): Delegate[] {
   if (typeof window === "undefined") return [];
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
+    const raw = localStorage.getItem(storageKey(walletAddress));
     return raw ? (JSON.parse(raw) as Delegate[]) : [];
   } catch {
     return [];
   }
 }
 
-function saveDelegates(list: Delegate[]): void {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(list));
+function saveDelegates(walletAddress: string | null, list: Delegate[]): void {
+  localStorage.setItem(storageKey(walletAddress), JSON.stringify(list));
 }
 
 function truncateAddr(addr: string): string {
@@ -31,14 +40,16 @@ function truncateAddr(addr: string): string {
 }
 
 export default function DelegatesSection() {
+  const { address: walletAddress } = useWallet();
   const [delegates, setDelegates] = useState<Delegate[]>([]);
   const [input, setInput] = useState("");
   const [inputError, setInputError] = useState("");
   const [adding, setAdding] = useState(false);
 
+  // Reload delegates whenever the connected wallet changes (#918).
   useEffect(() => {
-    setDelegates(loadDelegates());
-  }, []);
+    setDelegates(loadDelegates(walletAddress));
+  }, [walletAddress]);
 
   function validate(addr: string): string {
     if (!addr.trim()) return "Address is required.";
@@ -59,7 +70,7 @@ export default function DelegatesSection() {
       ...delegates,
       { address: input.trim(), addedAt: new Date().toISOString(), streamIds: [] },
     ];
-    saveDelegates(next);
+    saveDelegates(walletAddress, next);
     setDelegates(next);
     setInput("");
     setInputError("");
@@ -68,7 +79,7 @@ export default function DelegatesSection() {
 
   function handleRevoke(address: string) {
     const next = delegates.filter((d) => d.address !== address);
-    saveDelegates(next);
+    saveDelegates(walletAddress, next);
     setDelegates(next);
   }
 
